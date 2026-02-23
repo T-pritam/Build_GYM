@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   StatusBar,
   Animated,
+  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -57,11 +58,15 @@ export default function ItemDetailScreen({ navigation, route }) {
 
         {/* Hero image */}
         <View style={styles.heroImgWrap}>
-          <Text style={styles.heroEmoji}>
-            {item.category === 'Shakes' ? '🥤' :
-             item.category === 'Meals' ? '🍽️' :
-             item.category === 'Snacks' ? '🍫' : '💊'}
-          </Text>
+          {item.image ? (
+            <Image source={{ uri: item.image }} style={styles.heroImage} resizeMode="cover" />
+          ) : (
+            <Text style={styles.heroEmoji}>
+              {item.category === 'Shakes' ? '🥤' :
+               item.category === 'Meals' ? '🍽️' :
+               item.category === 'Snacks' ? '🍫' : '💊'}
+            </Text>
+          )}
         </View>
 
         {/* Tag */}
@@ -185,10 +190,13 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
   },
   heroImgWrap: {
-    width: 120, height: 120, borderRadius: 30, backgroundColor: 'rgba(255,107,0,0.12)',
+    width: 140, height: 140, borderRadius: 24,
+    backgroundColor: 'rgba(255,107,0,0.1)',
     alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2, borderColor: 'rgba(255,107,0,0.25)',
+    borderWidth: 2, borderColor: 'rgba(255,107,0,0.2)',
+    overflow: 'hidden',
   },
+  heroImage: { width: '100%', height: '100%' },
   heroEmoji: { fontSize: 64 },
   heroTag: {
     position: 'absolute', bottom: 20, right: 20,

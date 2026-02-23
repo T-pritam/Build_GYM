@@ -8,6 +8,7 @@ import {
   StatusBar,
   TextInput,
   Dimensions,
+  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -79,7 +80,11 @@ export default function CafeScreen({ navigation }) {
       >
         {/* Image area */}
         <LinearGradient colors={['#2A1200', '#160800']} style={styles.imgBox}>
-          <Text style={styles.emoji}>{emoji}</Text>
+          {item.image ? (
+            <Image source={{ uri: item.image }} style={styles.itemImage} resizeMode="cover" />
+          ) : (
+            <Text style={styles.emoji}>{emoji}</Text>
+          )}
           {item.tag && (
             <View style={styles.tagBadge}>
               <Text style={styles.tagText}>{item.tag}</Text>
@@ -330,6 +335,11 @@ const styles = StyleSheet.create({
     height: CARD_WIDTH * 0.88,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  itemImage: {
+    width: '100%',
+    height: '100%',
   },
   emoji: { fontSize: 32 },
   tagBadge: {

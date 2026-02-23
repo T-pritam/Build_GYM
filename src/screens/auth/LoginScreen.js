@@ -99,7 +99,7 @@ export default function LoginScreen({ navigation }) {
                 style={styles.input}
                 value={mobile}
                 onChangeText={(t) => setMobile(t.replace(/[^0-9]/g, '').slice(0, 10))}
-                placeholder="Enter 10-digit number"
+                placeholder="Enter 10-digit"
                 placeholderTextColor={COLORS.textMuted}
                 keyboardType="number-pad"
                 maxLength={10}

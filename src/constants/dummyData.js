@@ -136,7 +136,7 @@ export const cafeItems = [
     fat: '4g',
     suitableFor: 'Post-workout recovery',
     tag: 'Best Seller',
-    image: null,
+    image: 'https://images.unsplash.com/photo-1546554137-ef5428e64936?w=300&h=300&fit=crop&q=80',
     available: true,
   },
   {
@@ -151,7 +151,7 @@ export const cafeItems = [
     fat: '12g',
     suitableFor: 'Bulking / Mass gain',
     tag: null,
-    image: null,
+    image: 'https://images.unsplash.com/photo-1553361371-9b22f78e8b1d?w=300&h=300&fit=crop&q=80',
     available: true,
   },
   {
@@ -166,7 +166,7 @@ export const cafeItems = [
     fat: '1g',
     suitableFor: 'Fat loss / Cardio days',
     tag: 'Healthy',
-    image: null,
+    image: 'https://images.unsplash.com/photo-1610832958506-99f17e1c63a1?w=300&h=300&fit=crop&q=80',
     available: true,
   },
   {
@@ -181,7 +181,7 @@ export const cafeItems = [
     fat: '3g',
     suitableFor: 'Anytime / Rest day',
     tag: null,
-    image: null,
+    image: 'https://images.unsplash.com/photo-1571091718767-18b5b1457add?w=300&h=300&fit=crop&q=80',
     available: true,
   },
   // ── Meals ─────────────────────────────────────────────────
@@ -197,7 +197,7 @@ export const cafeItems = [
     fat: '8g',
     suitableFor: 'Post-workout / Lean bulking',
     tag: 'Chef Pick',
-    image: null,
+    image: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=300&h=300&fit=crop&q=80',
     available: true,
   },
   {
@@ -212,7 +212,7 @@ export const cafeItems = [
     fat: '6g',
     suitableFor: 'Pre-workout breakfast',
     tag: null,
-    image: null,
+    image: 'https://images.unsplash.com/photo-1525351484163-7529414344d8?w=300&h=300&fit=crop&q=80',
     available: true,
   },
   {
@@ -227,7 +227,7 @@ export const cafeItems = [
     fat: '14g',
     suitableFor: 'Vegetarian / Muscle building',
     tag: 'Veg',
-    image: null,
+    image: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=300&h=300&fit=crop&q=80',
     available: true,
   },
   {
@@ -242,7 +242,7 @@ export const cafeItems = [
     fat: '10g',
     suitableFor: 'Fat loss / Shred phase',
     tag: null,
-    image: null,
+    image: 'https://images.unsplash.com/photo-1626700051175-3e62f30b7b87?w=300&h=300&fit=crop&q=80',
     available: false,
   },
   // ── Snacks ────────────────────────────────────────────────
@@ -258,7 +258,7 @@ export const cafeItems = [
     fat: '7g',
     suitableFor: 'On-the-go snack',
     tag: 'Low Sugar',
-    image: null,
+    image: 'https://images.unsplash.com/photo-1571167524872-b6ac8cd3e812?w=300&h=300&fit=crop&q=80',
     available: true,
   },
   {
@@ -273,7 +273,7 @@ export const cafeItems = [
     fat: '3g',
     suitableFor: 'Anytime / Keto friendly',
     tag: 'Keto',
-    image: null,
+    image: 'https://images.unsplash.com/photo-1508061253366-f7da158b6d46?w=300&h=300&fit=crop&q=80',
     available: true,
   },
   {
@@ -288,7 +288,7 @@ export const cafeItems = [
     fat: '18g',
     suitableFor: 'Pre/Post workout',
     tag: null,
-    image: null,
+    image: 'https://images.unsplash.com/photo-1482049016688-2d3e1b311543?w=300&h=300&fit=crop&q=80',
     available: true,
   },
   // ── Supplements ───────────────────────────────────────────
@@ -304,7 +304,7 @@ export const cafeItems = [
     fat: '0g',
     suitableFor: 'Strength training / Pre workout',
     tag: 'Performance',
-    image: null,
+    image: 'https://images.unsplash.com/photo-1579722821273-0f6c7d44362f?w=300&h=300&fit=crop&q=80',
     available: true,
   },
   {
@@ -319,7 +319,7 @@ export const cafeItems = [
     fat: '0g',
     suitableFor: 'Intra-workout / Endurance',
     tag: null,
-    image: null,
+    image: 'https://images.unsplash.com/photo-1556909114-44e4e9deb7af?w=300&h=300&fit=crop&q=80',
     available: true,
   },
   {
@@ -334,7 +334,7 @@ export const cafeItems = [
     fat: '0g',
     suitableFor: 'Heavy lifting / HIIT sessions',
     tag: 'Energy',
-    image: null,
+    image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=300&h=300&fit=crop&q=80',
     available: true,
   },
 ];
