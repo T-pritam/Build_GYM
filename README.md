@@ -164,4 +164,4 @@ Café item images currently use **Unsplash CDN** URLs. Replace with your own CDN
 
 ## License
 
-Private — Rushil Johnson Fitness / Techspirit Labs. All rights reserved.
+Private — Rushil Johnson Fitness / Tach Developers. All rights reserved.
