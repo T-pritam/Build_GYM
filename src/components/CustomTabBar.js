@@ -53,12 +53,13 @@ export default function CustomTabBar({ state, descriptors, navigation }) {
           customNav
         />
 
+        {/* Activities tab */}
         <TabItem
-          icon="person-outline"
-          activeIcon="person"
-          label="Profile"
+          icon="game-controller-outline"
+          activeIcon="game-controller"
+          label="Activities"
           active={false}
-          onPress={() => navigation.navigate('Profile')}
+          onPress={() => navigation.navigate('Activities')}
           customNav
         />
       </View>

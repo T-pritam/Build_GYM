@@ -31,6 +31,7 @@ import TrainerDetailScreen from '../screens/detail/TrainerDetailScreen';
 // Main extra screens
 import CommunityScreen from '../screens/main/CommunityScreen';
 import LeaderboardScreen from '../screens/main/LeaderboardScreen';
+import ActivitiesScreen from '../screens/main/ActivitiesScreen';
 
 // Custom tab bar
 import CustomTabBar from '../components/CustomTabBar';
@@ -100,6 +101,7 @@ export default function AppNavigator() {
         {/* Community & Leaderboard */}
         <Stack.Screen name="Community" component={CommunityScreen} />
         <Stack.Screen name="Leaderboard" component={LeaderboardScreen} />
+        <Stack.Screen name="Activities" component={ActivitiesScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
