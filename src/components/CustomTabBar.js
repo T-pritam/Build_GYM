@@ -43,13 +43,13 @@ export default function CustomTabBar({ state, descriptors, navigation }) {
         {/* Center Access button spacer */}
         <View style={styles.centerSpacer} />
 
-        {/* Placeholder for symmetry */}
+        {/* Community tab */}
         <TabItem
-          icon="notifications-outline"
-          activeIcon="notifications"
-          label="Alerts"
+          icon="newspaper-outline"
+          activeIcon="newspaper"
+          label="Community"
           active={false}
-          onPress={() => navigation.navigate('Notifications')}
+          onPress={() => navigation.navigate('Community')}
           customNav
         />
 

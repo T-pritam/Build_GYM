@@ -7,11 +7,15 @@ import {
   StatusBar,
   Animated,
   Easing,
+  Image,
+  Alert,
+  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { COLORS } from '../../constants/colors';
-import { membership } from '../../constants/dummyData';
+import { membership, currentUser } from '../../constants/dummyData';
 
 const ACCESS_MODES = [
   {
@@ -35,6 +39,7 @@ const ACCESS_MODES = [
 export default function AccessScreen({ navigation }) {
   const [mode, setMode] = useState('gate');
   const [status, setStatus] = useState('idle'); // idle | scanning | success | denied
+  const [memberPhoto, setMemberPhoto] = useState(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const pulseOpacity = useRef(new Animated.Value(0)).current;
   const rotateAnim = useRef(new Animated.Value(0)).current;
@@ -108,6 +113,56 @@ export default function AccessScreen({ navigation }) {
     return COLORS.textSecondary;
   };
 
+  const handlePickPhoto = () => {
+    Alert.alert(
+      'Member Photo',
+      'Choose how to add your photo',
+      [
+        {
+          text: 'Camera',
+          onPress: async () => {
+            const perm = await ImagePicker.requestCameraPermissionsAsync();
+            if (!perm.granted) {
+              Alert.alert('Permission needed', 'Camera access is required to take a photo.');
+              return;
+            }
+            const result = await ImagePicker.launchCameraAsync({
+              allowsEditing: true,
+              aspect: [1, 1],
+              quality: 0.8,
+            });
+            if (!result.canceled) setMemberPhoto(result.assets[0].uri);
+          },
+        },
+        {
+          text: 'Photo Library',
+          onPress: async () => {
+            const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (!perm.granted) {
+              Alert.alert('Permission needed', 'Photo library access is required.');
+              return;
+            }
+            const result = await ImagePicker.launchImageLibraryAsync({
+              mediaTypes: ImagePicker.MediaTypeOptions.Images,
+              allowsEditing: true,
+              aspect: [1, 1],
+              quality: 0.8,
+            });
+            if (!result.canceled) setMemberPhoto(result.assets[0].uri);
+          },
+        },
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    );
+  };
+
+  const handleRemovePhoto = () => {
+    Alert.alert('Remove Photo', 'Remove your member photo?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Remove', style: 'destructive', onPress: () => setMemberPhoto(null) },
+    ]);
+  };
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
@@ -127,6 +182,43 @@ export default function AccessScreen({ navigation }) {
           <View style={styles.bleDot} />
           <Text style={styles.bleText}>BLE Ready</Text>
         </View>
+      </View>
+
+      {/* Member photo card */}
+      <View style={styles.memberCard}>
+        <TouchableOpacity
+          style={styles.photoWrap}
+          onPress={memberPhoto ? handleRemovePhoto : handlePickPhoto}
+          activeOpacity={0.85}
+        >
+          {memberPhoto ? (
+            <Image source={{ uri: memberPhoto }} style={styles.memberPhoto} />
+          ) : (
+            <LinearGradient
+              colors={[COLORS.secondaryDark, '#2A1200']}
+              style={styles.memberPhotoPlaceholder}
+            >
+              <Text style={styles.memberPhotoInitial}>{currentUser.name.charAt(0)}</Text>
+            </LinearGradient>
+          )}
+          <View style={styles.photoEditBtn}>
+            <Ionicons name={memberPhoto ? 'close' : 'camera'} size={13} color={COLORS.white} />
+          </View>
+        </TouchableOpacity>
+        <View style={styles.memberCardInfo}>
+          <Text style={styles.memberCardName}>{currentUser.name}</Text>
+          <Text style={styles.memberCardId}>ID: {currentUser.id.toUpperCase()}</Text>
+          <View style={styles.memberCardBadge}>
+            <View style={[styles.memStatusDot, { backgroundColor: COLORS.success }]} />
+            <Text style={styles.memberCardBadgeText}>{membership.type} MEMBER</Text>
+          </View>
+        </View>
+        {!memberPhoto && (
+          <TouchableOpacity style={styles.addPhotoBtn} onPress={handlePickPhoto} activeOpacity={0.8}>
+            <Ionicons name="camera-outline" size={15} color={COLORS.secondary} />
+            <Text style={styles.addPhotoBtnText}>Add Photo</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Mode selector */}
@@ -237,6 +329,39 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingTop: 56, paddingHorizontal: 24, paddingBottom: 8,
   },
+
+  // Member photo card
+  memberCard: {
+    flexDirection: 'row', alignItems: 'center', marginHorizontal: 24,
+    marginTop: 12, marginBottom: 4, backgroundColor: COLORS.surface,
+    borderRadius: 18, borderWidth: 1, borderColor: COLORS.border, padding: 14, gap: 16,
+  },
+  photoWrap: { position: 'relative' },
+  memberPhoto: { width: 62, height: 62, borderRadius: 18 },
+  memberPhotoPlaceholder: {
+    width: 62, height: 62, borderRadius: 18, alignItems: 'center', justifyContent: 'center',
+  },
+  memberPhotoInitial: { fontSize: 28, fontWeight: '900', color: COLORS.white },
+  photoEditBtn: {
+    position: 'absolute', bottom: -3, right: -3, width: 22, height: 22, borderRadius: 11,
+    backgroundColor: COLORS.secondary, alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2, borderColor: COLORS.background,
+  },
+  memberCardInfo: { flex: 1 },
+  memberCardName: { fontSize: 16, fontWeight: '800', color: COLORS.white, marginBottom: 3 },
+  memberCardId: { fontSize: 11, color: COLORS.textMuted, fontWeight: '600', marginBottom: 6 },
+  memberCardBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start',
+    backgroundColor: COLORS.secondaryGlow, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3,
+    borderWidth: 1, borderColor: COLORS.secondaryBorder,
+  },
+  memberCardBadgeText: { fontSize: 9, fontWeight: '800', color: COLORS.secondary, letterSpacing: 1 },
+  addPhotoBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 7,
+    borderRadius: 10, borderWidth: 1, borderColor: COLORS.secondaryBorder,
+    backgroundColor: COLORS.secondaryGlow,
+  },
+  addPhotoBtnText: { fontSize: 11, fontWeight: '700', color: COLORS.secondary },
   headerTitle: { fontSize: 22, fontWeight: '900', color: COLORS.white },
   blePill: {
     flexDirection: 'row', alignItems: 'center', padding: 8, paddingHorizontal: 12,

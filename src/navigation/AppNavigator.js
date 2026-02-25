@@ -28,6 +28,10 @@ import NotificationsScreen from '../screens/profile/NotificationsScreen';
 // Detail screens
 import TrainerDetailScreen from '../screens/detail/TrainerDetailScreen';
 
+// Main extra screens
+import CommunityScreen from '../screens/main/CommunityScreen';
+import LeaderboardScreen from '../screens/main/LeaderboardScreen';
+
 // Custom tab bar
 import CustomTabBar from '../components/CustomTabBar';
 
@@ -92,6 +96,10 @@ export default function AppNavigator() {
 
         {/* Detail screens */}
         <Stack.Screen name="TrainerDetail" component={TrainerDetailScreen} />
+
+        {/* Community & Leaderboard */}
+        <Stack.Screen name="Community" component={CommunityScreen} />
+        <Stack.Screen name="Leaderboard" component={LeaderboardScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

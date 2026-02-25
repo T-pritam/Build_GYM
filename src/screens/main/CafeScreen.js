@@ -16,9 +16,9 @@ import { COLORS } from '../../constants/colors';
 import { cafeCategories, cafeItems, buildCoins } from '../../constants/dummyData';
 
 const { width } = Dimensions.get('window');
-const HORIZONTAL_PAD = 12;
-const COLUMN_GAP = 8;
-const CARD_WIDTH = (width - HORIZONTAL_PAD * 2 - COLUMN_GAP * 2) / 3;
+const HORIZONTAL_PAD = 14;
+const COLUMN_GAP = 12;
+const CARD_WIDTH = (width - HORIZONTAL_PAD * 2 - COLUMN_GAP) / 2;
 
 const CATEGORY_ICONS = {
   All: 'grid-outline',
@@ -204,11 +204,11 @@ export default function CafeScreen({ navigation }) {
         </View>
       </LinearGradient>
 
-      {/* 3-column item grid */}
+      {/* 2-column item grid */}
       <FlatList
         data={filteredItems}
         keyExtractor={(item) => item.id.toString()}
-        numColumns={3}
+        numColumns={2}
         renderItem={renderItem}
         ListHeaderComponent={() => (
           <>
@@ -332,7 +332,7 @@ const styles = StyleSheet.create({
   // Image box
   imgBox: {
     width: '100%',
-    height: CARD_WIDTH * 0.88,
+    height: CARD_WIDTH * 0.85,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
@@ -341,65 +341,65 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  emoji: { fontSize: 32 },
+  emoji: { fontSize: 52 },
   tagBadge: {
-    position: 'absolute', top: 5, left: 5,
-    backgroundColor: COLORS.secondary, borderRadius: 5,
-    paddingHorizontal: 4, paddingVertical: 2,
+    position: 'absolute', top: 7, left: 7,
+    backgroundColor: COLORS.secondary, borderRadius: 6,
+    paddingHorizontal: 7, paddingVertical: 3,
   },
-  tagText: { fontSize: 7, fontWeight: '900', color: COLORS.white },
+  tagText: { fontSize: 10, fontWeight: '900', color: COLORS.white },
   unavailOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.55)',
     alignItems: 'center', justifyContent: 'center',
   },
-  unavailText: { fontSize: 9, fontWeight: '700', color: COLORS.white },
+  unavailText: { fontSize: 12, fontWeight: '700', color: COLORS.white },
 
   // Card body
-  cardBody: { padding: 7, gap: 4 },
+  cardBody: { padding: 12, gap: 6 },
   itemName: {
-    fontSize: 11, fontWeight: '800', color: COLORS.white,
-    lineHeight: 14, minHeight: 28,
+    fontSize: 14, fontWeight: '800', color: COLORS.white,
+    lineHeight: 19, minHeight: 25,
   },
 
   // Macros
-  macrosRow: { flexDirection: 'row', gap: 4 },
+  macrosRow: { flexDirection: 'row', gap: 6 },
   macroChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 2,
-    backgroundColor: COLORS.surface2, borderRadius: 5,
-    paddingHorizontal: 4, paddingVertical: 2,
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    backgroundColor: COLORS.surface2, borderRadius: 6,
+    paddingHorizontal: 7, paddingVertical: 4,
   },
-  macroVal: { fontSize: 9, fontWeight: '700', color: COLORS.white },
-  macroLbl: { fontSize: 8, color: COLORS.textMuted },
+  macroVal: { fontSize: 12, fontWeight: '700', color: COLORS.white },
+  macroLbl: { fontSize: 10, color: COLORS.textMuted },
 
   // Price
-  priceRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  priceText: { fontSize: 13, fontWeight: '900', color: COLORS.white },
+  priceRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  priceText: { fontSize: 17, fontWeight: '900', color: COLORS.white },
 
   // ADD button
-  addBtn: { borderRadius: 8, overflow: 'hidden', marginTop: 1 },
+  addBtn: { borderRadius: 10, overflow: 'hidden', marginTop: 2 },
   addBtnGrad: {
     flexDirection: 'row', alignItems: 'center',
-    justifyContent: 'center', paddingVertical: 6, gap: 2,
+    justifyContent: 'center', paddingVertical: 10, gap: 4,
   },
-  addBtnText: { fontSize: 10, fontWeight: '900', color: COLORS.white },
+  addBtnText: { fontSize: 13, fontWeight: '900', color: COLORS.white },
 
   // Qty stepper
   qtyRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     backgroundColor: COLORS.surface2,
-    borderRadius: 8, borderWidth: 1, borderColor: COLORS.secondaryBorder,
-    marginTop: 1, overflow: 'hidden',
+    borderRadius: 10, borderWidth: 1, borderColor: COLORS.secondaryBorder,
+    marginTop: 2, overflow: 'hidden',
   },
-  qtyMinus: { width: 26, height: 26, alignItems: 'center', justifyContent: 'center' },
-  qtyNum: { fontSize: 11, fontWeight: '900', color: COLORS.white },
+  qtyMinus: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
+  qtyNum: { fontSize: 14, fontWeight: '900', color: COLORS.white },
   qtyPlus: {
-    width: 26, height: 26,
+    width: 36, height: 36,
     alignItems: 'center', justifyContent: 'center',
     backgroundColor: COLORS.secondary,
   },
 
-  naText: { fontSize: 9, color: COLORS.textMuted, fontStyle: 'italic', marginTop: 2 },
+  naText: { fontSize: 12, color: COLORS.textMuted, fontStyle: 'italic', marginTop: 2 },
 
   // Empty state
   emptyState: { alignItems: 'center', paddingVertical: 60, gap: 10 },

@@ -440,3 +440,207 @@ export const complaintCategories = [
   'Safety Concern',
   'Other',
 ];
+
+// ── Community Articles (published by gym owner) ──────────────────────────────
+export const communityArticles = [
+  {
+    id: 'art1',
+    title: 'Why Progressive Overload is the #1 Rule of Muscle Growth',
+    summary:
+      'Most people plateau because they never track their weights. Here is why adding small amounts of resistance every week is the single biggest driver of hypertrophy.',
+    content: `Progressive overload simply means doing more over time — more weight, more reps, or more sets. Your muscles adapt to stress. Once they have adapted to a given load, growth stops.\n\nThe fix is simple: every week aim to either add 1–2 kg or squeeze out one extra rep per set. Keep a training log, even a notes-app note is fine. You will be amazed how 6 months of consistent small increments transforms your physique.\n\nKey takeaways:\n• Track every session – weight × reps × sets\n• Never go to failure on every set; leave 1–2 reps in the tank so you can progress next week\n• Deload every 6–8 weeks to let joints recover\n• Nutrition and sleep are what make the overload stick — prioritise both`,
+    author: 'Build Gym Team',
+    date: '22 Feb 2026',
+    readTime: '4 min read',
+    category: 'Training',
+    pinned: true,
+  },
+  {
+    id: 'art2',
+    title: 'The Best Pre-Workout Meal You Are Probably Skipping',
+    summary:
+      'Eating the right food 60–90 minutes before training can dramatically improve your energy, strength, and focus. Here is a simple formula.',
+    content: `Skip the 3 am pre-workout powder ritual. Real, whole food fuels better sessions.\n\nThe ideal pre-workout meal (1–1.5 hrs before training):\n• Carbohydrates (slow-releasing): oats, brown rice, banana – fills glycogen\n• Protein (moderate): eggs, paneer, chicken or Greek yoghurt – reduces muscle breakdown\n• Fat: keep it low before training, fat slows digestion\n\nExamples:\n1. Banana + 4 egg whites scrambled\n2. 1 cup oats + 1 scoop whey + tsp peanut butter\n3. Brown rice + 100 g chicken breast\n\nStay hydrated: drink 500 ml water in the 2 hours before your session. Dehydration of even 2 % impairs performance significantly.\n\nCome try our Egg White Omelette or Grilled Chicken Bowl from the café — perfectly timed for your pre-workout window.`,
+    author: 'Build Gym Nutritionist',
+    date: '18 Feb 2026',
+    readTime: '3 min read',
+    category: 'Nutrition',
+    pinned: false,
+  },
+  {
+    id: 'art3',
+    title: 'New Timing Change: Extended Morning Slots from March',
+    summary:
+      'Starting 1 March, the gym will open at 5:00 AM on weekdays to accommodate early morning athletes.',
+    content: `We heard your feedback loud and clear — many of you have to reach offices by 9 AM and the 6 AM open time was cutting sessions short.\n\nFrom 1 March 2026 (Monday), new timings are:\n• Monday – Friday: 5:00 AM – 11:00 PM\n• Saturday: 5:30 AM – 9:00 PM\n• Sunday: 6:00 AM – 6:00 PM\n\nThe café will open at 6:00 AM on weekdays as before.\n\nLocker rooms will be staffed from 5:00 AM. Please carry your access card — the automated gate will unlock from 5:00 AM sharp.\n\nFor any clarification, contact the reception desk or WhatsApp us.`,
+    author: 'Build Gym Management',
+    date: '15 Feb 2026',
+    readTime: '2 min read',
+    category: 'Update',
+    pinned: true,
+  },
+  {
+    id: 'art4',
+    title: '5 Recovery Mistakes That Are Killing Your Gains',
+    summary:
+      'Training hard is only half the equation. If you are not recovering properly you are essentially running backwards. Fix these five habits today.',
+    content: `1. Not sleeping 7–9 hours\nGrowth hormone peaks during deep sleep. Cutting sleep to 5–6 hours can reduce testosterone by 15 % in just one week. Prioritise sleep over late-night phone scrolling.\n\n2. Skipping the post-workout meal\nWithin 45 minutes of training, consume 30–40 g protein + fast carbs. This is the anabolic window — your muscles are primed to absorb nutrients.\n\n3. Never deloading\nEvery 6–8 weeks reduce your volume to 50 %. Joints, tendons, and the nervous system need a break even when muscles feel fine.\n\n4. Ignoring foam rolling & mobility work\n10 minutes of foam rolling after your session dramatically reduces DOMS and keeps fascia healthy. Do it consistently.\n\n5. Chronic stress / no mental recovery\nCortisol is the enemy of muscle. High stress elevates cortisol which breaks down muscle tissue. Practice even basic stress management — walks, breathing exercises, reading.`,
+    author: 'Build Gym Team',
+    date: '10 Feb 2026',
+    readTime: '5 min read',
+    category: 'Recovery',
+    pinned: false,
+  },
+  {
+    id: 'art5',
+    title: 'March Build Games: Complete Guide',
+    summary:
+      'Everything you need to know about our internal fitness competition. Events, rules, prizes, and registration.',
+    content: `Build Games March Edition is back!\n\nEvents this year:\n• Barbell Deadlift Max (by bodyweight category)\n• 1-km Timed Run\n• Plank Hold Challenge\n• Pull-up Ladder\n\nEligibility: All active members. No prior competition experience required.\n\nFormat:\n• Registration: 1 Feb – 28 Feb (free for Elite/Pro members, ₹199 for others)\n• Competition day: 8 March 2026, 8 AM onwards\n• Prize distribution: 8 March, 6 PM\n\nPrizes:\n🥇 1st place – 3-month membership extension + 1000 Build Coins\n🥈 2nd place – 1-month extension + 500 Build Coins\n🥉 3rd place – 500 Build Coins\n\nAll participants receive a Build Games badge on their profile and 100 Build Coins.\n\nTo register, speak to the reception or WhatsApp us the word REGISTER.`,
+    author: 'Build Gym Events Team',
+    date: '05 Feb 2026',
+    readTime: '3 min read',
+    category: 'Events',
+    pinned: false,
+  },
+];
+
+// ── Gym Services ─────────────────────────────────────────────────────────────
+export const gymServices = [
+  {
+    id: 'svc1',
+    title: 'Personal Training',
+    icon: 'person-outline',
+    color: '#FF6B00',
+    shortDesc: 'One-on-one sessions with certified trainers.',
+    details: `Our certified personal trainers design completely personalised programs based on your goals — whether that's fat loss, muscle building, athletic performance, or general fitness.\n\nWhat's included:\n• Initial body composition assessment\n• Custom weekly workout plan\n• Form correction & technique coaching\n• Monthly progress reviews\n• WhatsApp check-ins between sessions\n\nAvailability: Monday to Saturday, 6 AM – 9 PM (by appointment)\n\nPricing starts at ₹1,500 per session. Packages available for 10 and 20 sessions at discounted rates.\n\nContact our reception to book a free 20-minute consultation session.`,
+  },
+  {
+    id: 'svc2',
+    title: 'Group Fitness Classes',
+    icon: 'people-outline',
+    color: '#2196F3',
+    shortDesc: 'HIIT, Yoga, Zumba & more — 6 classes daily.',
+    details: `Energy, community, results — all in one class.\n\nWeekly Schedule:\n• HIIT Bootcamp – Mon / Wed / Fri at 7 AM & 6 PM\n• Yoga Flow – Tue / Thu / Sat at 7 AM\n• Zumba – Tue / Thu at 6 PM\n• Strength Circuit – Mon / Wed at 7 PM\n• Stretching & Mobility – Daily at 8 PM\n\nAll classes are led by certified instructors. Maximum 15 participants per session.\n\nFree for Elite & Pro members. Basic members can purchase a class pass (₹500 for 5 classes).\n\nContact reception to register for a specific class or get your monthly class timetable.`,
+  },
+  {
+    id: 'svc3',
+    title: 'Nutrition Counselling',
+    icon: 'nutrition-outline',
+    color: '#4CAF50',
+    shortDesc: 'Personalised diet plans by certified nutritionists.',
+    details: `Abs are made in the kitchen — our nutritionists will make sure your diet supports your training.\n\nWhat you'll get:\n• 60-minute initial consultation\n• Detailed body composition analysis (BMI, body fat %, lean mass)\n• Customised meal plan (Indian vegetarian & non-vegetarian options)\n• Supplement recommendations (no upselling — only what you need)\n• Monthly plan revision based on progress\n\nOur nutritionist is available:\n• Monday to Saturday, 10 AM – 2 PM (walk-in)\n• Evening slots by appointment\n\nOne-time consultation: ₹800\nMonthly plan subscription: ₹2,000/month\n\nCall or WhatsApp our reception to schedule your appointment.`,
+  },
+  {
+    id: 'svc4',
+    title: 'Steam & Recovery',
+    icon: 'water-outline',
+    color: '#9C27B0',
+    shortDesc: 'Steam room, ice bath & recovery zone access.',
+    details: `Recovery is where the real gains happen. Our premium recovery zone includes:\n\n• Steam Room (capacity 6) — helps flush lactic acid and relax muscles\n• Cold Plunge / Ice Bath — reduces inflammation after heavy sessions\n• Foam Rolling Zone — guided equipment available\n• Infrared Sauna (Elite & Pro members only)\n\nTimings: 5 AM – 10:30 PM daily\nLast entry to steam room: 10 PM\n\nAccess:\n• Elite members: Unlimited, included in plan\n• Pro members: Unlimited, included in plan\n• Basic members: ₹200 per session\n\nPlease carry your towel. Gym towels available for rent at ₹30 at the reception counter.\n\nFor bookings or queries, contact our reception.`,
+  },
+  {
+    id: 'svc5',
+    title: 'Lockers & Storage',
+    icon: 'lock-closed-outline',
+    color: '#FF9800',
+    shortDesc: 'Secure daily & monthly locker rentals.',
+    details: `Keep your belongings safe while you train hard.\n\nOptions available:\n• Day Use Locker: Complimentary for all members during their session\n• Monthly Locker: Dedicated locker assigned to you\n• Large Storage Locker: For members who leave equipment at the gym\n\nMonthly locker rental:\n• Small (for clothes, shoes): ₹300/month\n• Large (for bags, equipment): ₹600/month\n\nElite members get 1 free monthly small locker included.\n\nLockers are cleared at the end of each day if not rented monthly. We are not responsible for items left overnight in day lockers.\n\nTo rent a monthly locker, speak to the reception desk directly.`,
+  },
+];
+
+// ── Leaderboard ──────────────────────────────────────────────────────────────
+export const leaderboard = [
+  { rank: 1, name: 'Rahul Verma', visits: 26, streak: 18, coins: 5200, badge: '🔥' },
+  { rank: 2, name: 'Kiran Patel', visits: 24, streak: 15, coins: 4800, badge: '⚡' },
+  { rank: 3, name: 'Arjun Sharma', visits: 18, streak: 5, coins: 2450, badge: '💪', isMe: true },
+  { rank: 4, name: 'Sneha Iyer', visits: 17, streak: 7, coins: 2200, badge: '' },
+  { rank: 5, name: 'Dev Mehta', visits: 16, streak: 4, coins: 2050, badge: '' },
+  { rank: 6, name: 'Priya Singh', visits: 15, streak: 6, coins: 1900, badge: '' },
+  { rank: 7, name: 'Amit Joshi', visits: 14, streak: 3, coins: 1700, badge: '' },
+  { rank: 8, name: 'Neha Reddy', visits: 13, streak: 5, coins: 1500, badge: '' },
+  { rank: 9, name: 'Suresh Kumar', visits: 12, streak: 2, coins: 1300, badge: '' },
+  { rank: 10, name: 'Aisha Khan', visits: 11, streak: 4, coins: 1200, badge: '' },
+];
+
+// ── FAQ ───────────────────────────────────────────────────────────────────────
+export const faqs = [
+  {
+    id: 'f1',
+    question: 'What are the gym timings?',
+    answer:
+      'Monday – Friday: 5:00 AM – 11:00 PM\nSaturday: 5:30 AM – 9:00 PM\nSunday: 6:00 AM – 6:00 PM\n\nThe café opens at 6:00 AM on weekdays. Timings may change on public holidays — check the Announcements section.',
+  },
+  {
+    id: 'f2',
+    question: 'How does the Bluetooth access system work?',
+    answer:
+      'Our app uses Bluetooth Low Energy (BLE) to communicate with smart locks at the gym entrance and locker area. Simply keep Bluetooth on and tap "Unlock" in the Access tab. Your membership must be active for gate access to work.',
+  },
+  {
+    id: 'f3',
+    question: 'What are Build Coins and how do I earn them?',
+    answer:
+      'Build Coins are our in-app loyalty currency. You earn them through monthly allocations, special events, and referrals. Coins can be used to pay for café items, PT sessions, and locker rentals. Check your Profile screen for your current balance and transaction history.',
+  },
+  {
+    id: 'f4',
+    question: 'How do I book a Personal Training session?',
+    answer:
+      'Browse our trainers in the Home screen under "Our Trainers". Tap any trainer card to view their profile, specialisations, and availability. To book, call or WhatsApp our reception directly — they will assign a slot for you.',
+  },
+  {
+    id: 'f5',
+    question: 'Can I freeze or pause my membership?',
+    answer:
+      'Yes, members can request a pause of up to 30 days per year for medical reasons or travel. Contact the reception or raise a complaint through the Complaint section in your Profile. A team member will process your request within 24 hours.',
+  },
+  {
+    id: 'f6',
+    question: 'Is there a guest / day-pass option?',
+    answer:
+      'Yes! You can bring a friend as a guest for ₹299 per visit. Guests must check in with the reception and carry a valid photo ID. Members who refer friends who later join receive 500 Build Coins as a referral bonus.',
+  },
+  {
+    id: 'f7',
+    question: 'What payment methods are accepted for membership renewal?',
+    answer:
+      'We accept UPI (GPay, PhonePe, Paytm, BHIM), credit/debit cards, net banking, and cash at the reception. EMI options are available for annual plans through select credit cards.',
+  },
+];
+
+// ── Testimonials ─────────────────────────────────────────────────────────────
+export const testimonials = [
+  {
+    id: 'tm1',
+    name: 'Riya Kapoor',
+    memberSince: 'Jan 2025',
+    rating: 5,
+    text: 'Build Gym completely transformed my fitness journey. The trainers are incredibly knowledgeable and the equipment is always in top condition. The app makes everything so convenient — especially the Bluetooth gate access!',
+    highlight: 'Lost 12 kg in 5 months',
+  },
+  {
+    id: 'tm2',
+    name: 'Arun Krishnan',
+    memberSince: 'March 2024',
+    rating: 5,
+    text: 'I have been a member for almost two years. Karan (the strength trainer) has been instrumental in helping me hit my first 100 kg squat. The community here is very motivating. 10/10 recommend.',
+    highlight: 'Hit 100 kg squat PR',
+  },
+  {
+    id: 'tm3',
+    name: 'Meera Pillai',
+    memberSince: 'June 2025',
+    rating: 5,
+    text: 'The café is a game changer. After every workout I grab the Grilled Chicken Bowl — perfectly balanced macros. The nutrition counselling sessions helped me understand what to eat around my training.',
+    highlight: 'Gained 4 kg lean muscle',
+  },
+  {
+    id: 'tm4',
+    name: 'Vikram Nair',
+    memberSince: 'Sept 2024',
+    rating: 4,
+    text: 'Great gym overall. The steam room is a brilliant addition after heavy leg days. The group HIIT classes are intense and fun. Only suggestion would be more morning slots — which I heard are coming soon!',
+    highlight: 'Running 5K in under 25 min',
+  },
+];
