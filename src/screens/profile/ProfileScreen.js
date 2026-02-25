@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,12 @@ import {
   TouchableOpacity,
   StatusBar,
   Alert,
+  Image,
+  Platform,
+  Modal,
+  Pressable,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
@@ -19,6 +24,41 @@ import {
 } from '../../constants/dummyData';
 
 export default function ProfileScreen({ navigation }) {
+  const [profilePhoto, setProfilePhoto] = useState(null);
+  const [photoModalVisible, setPhotoModalVisible] = useState(false);
+
+  const openCamera = async () => {
+    setPhotoModalVisible(false);
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Camera access is required to take a photo.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true, aspect: [1, 1], quality: 0.8,
+    });
+    if (!result.canceled) setProfilePhoto(result.assets[0].uri);
+  };
+
+  const openGallery = async () => {
+    setPhotoModalVisible(false);
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Photo library access is required.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true, aspect: [1, 1], quality: 0.8,
+    });
+    if (!result.canceled) setProfilePhoto(result.assets[0].uri);
+  };
+
+  const removePhoto = () => {
+    setProfilePhoto(null);
+    setPhotoModalVisible(false);
+  };
+
   const menuItems = [
     {
       id: 'membership',
@@ -87,12 +127,21 @@ export default function ProfileScreen({ navigation }) {
 
           {/* Avatar + name */}
           <View style={styles.avatarSection}>
-            <LinearGradient
-              colors={[COLORS.secondary, COLORS.secondaryDark]}
-              style={styles.avatar}
-            >
-              <Text style={styles.avatarText}>{currentUser.name.charAt(0)}</Text>
-            </LinearGradient>
+            <TouchableOpacity style={styles.avatarWrap} onPress={() => setPhotoModalVisible(true)} activeOpacity={0.85}>
+              {profilePhoto ? (
+                <Image source={{ uri: profilePhoto }} style={styles.avatarPhoto} />
+              ) : (
+                <LinearGradient
+                  colors={[COLORS.secondary, COLORS.secondaryDark]}
+                  style={styles.avatar}
+                >
+                  <Text style={styles.avatarText}>{currentUser.name.charAt(0)}</Text>
+                </LinearGradient>
+              )}
+              <View style={styles.cameraBadge}>
+                <Ionicons name="camera" size={13} color={COLORS.white} />
+              </View>
+            </TouchableOpacity>
             <Text style={styles.userName}>{currentUser.name}</Text>
             <Text style={styles.userPhone}>{currentUser.mobile}</Text>
             <View style={styles.memberSinceBadge}>
@@ -218,6 +267,82 @@ export default function ProfileScreen({ navigation }) {
 
         <View style={{ height: 100 }} />
       </ScrollView>
+
+      {/* ── PROFILE PHOTO MODAL ── */}
+      <Modal
+        visible={photoModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setPhotoModalVisible(false)}
+      >
+        <Pressable style={styles.photoModalOverlay} onPress={() => setPhotoModalVisible(false)}>
+          <Pressable style={styles.photoModalSheet} onPress={() => {}}>
+            <View style={styles.photoModalHandle} />
+
+            {/* Avatar preview */}
+            <View style={styles.photoModalAvatar}>
+              {profilePhoto ? (
+                <Image source={{ uri: profilePhoto }} style={styles.photoModalAvatarImg} />
+              ) : (
+                <LinearGradient
+                  colors={[COLORS.secondary, COLORS.secondaryDark]}
+                  style={styles.photoModalAvatarGrad}
+                >
+                  <Text style={styles.photoModalAvatarText}>{currentUser.name.charAt(0)}</Text>
+                </LinearGradient>
+              )}
+            </View>
+
+            <Text style={styles.photoModalTitle}>Profile Photo</Text>
+            <Text style={styles.photoModalSub}>Choose how you'd like to update your photo</Text>
+
+            {/* Options */}
+            <TouchableOpacity style={styles.photoModalOption} onPress={openCamera} activeOpacity={0.8}>
+              <View style={styles.photoModalOptionIcon}>
+                <Ionicons name="camera" size={20} color={COLORS.secondary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.photoModalOptionLabel}>Take Photo</Text>
+                <Text style={styles.photoModalOptionSub}>Use your camera</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={COLORS.textDim} />
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.photoModalOption} onPress={openGallery} activeOpacity={0.8}>
+              <View style={styles.photoModalOptionIcon}>
+                <Ionicons name="images" size={20} color={COLORS.secondary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.photoModalOptionLabel}>Choose from Library</Text>
+                <Text style={styles.photoModalOptionSub}>Pick from your gallery</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={COLORS.textDim} />
+            </TouchableOpacity>
+
+            {profilePhoto && (
+              <TouchableOpacity style={[styles.photoModalOption, styles.photoModalOptionDanger]} onPress={removePhoto} activeOpacity={0.8}>
+                <View style={[styles.photoModalOptionIcon, { backgroundColor: `${COLORS.error}18` }]}>
+                  <Ionicons name="trash-outline" size={20} color={COLORS.error} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.photoModalOptionLabel, { color: COLORS.error }]}>Remove Photo</Text>
+                  <Text style={styles.photoModalOptionSub}>Revert to default avatar</Text>
+                </View>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity
+              style={styles.photoModalCancel}
+              onPress={() => setPhotoModalVisible(false)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.photoModalCancelText}>Cancel</Text>
+            </TouchableOpacity>
+
+            <View style={{ height: 12 }} />
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -233,12 +358,24 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)', marginBottom: 20,
   },
+  // Avatar
   avatarSection: { alignItems: 'center' },
+  avatarWrap: { position: 'relative', marginBottom: 12 },
   avatar: {
-    width: 72, height: 72, borderRadius: 22, alignItems: 'center', justifyContent: 'center',
-    marginBottom: 12,
+    width: 88, height: 88, borderRadius: 26, alignItems: 'center', justifyContent: 'center',
   },
-  avatarText: { fontSize: 32, fontWeight: '900', color: COLORS.white },
+  avatarPhoto: {
+    width: 88, height: 88, borderRadius: 26,
+    borderWidth: 3, borderColor: COLORS.secondary,
+  },
+  avatarText: { fontSize: 36, fontWeight: '900', color: COLORS.white },
+  cameraBadge: {
+    position: 'absolute', bottom: 0, right: 0,
+    width: 28, height: 28, borderRadius: 9,
+    backgroundColor: COLORS.secondary,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2, borderColor: COLORS.background,
+  },
   userName: { fontSize: 22, fontWeight: '900', color: COLORS.white, marginBottom: 4 },
   userPhone: { fontSize: 14, color: COLORS.textSecondary, marginBottom: 8 },
   memberSinceBadge: {
@@ -312,4 +449,40 @@ const styles = StyleSheet.create({
 
   // App version
   appVersion: { textAlign: 'center', fontSize: 11, color: COLORS.textDim, marginTop: 16 },
+
+  // Photo picker modal
+  photoModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'flex-end' },
+  photoModalSheet: {
+    backgroundColor: COLORS.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28,
+    padding: 20, borderWidth: 1, borderColor: COLORS.border,
+  },
+  photoModalHandle: {
+    alignSelf: 'center', width: 40, height: 4, borderRadius: 2,
+    backgroundColor: COLORS.border, marginBottom: 20,
+  },
+  photoModalAvatar: { alignItems: 'center', marginBottom: 16 },
+  photoModalAvatarImg: { width: 80, height: 80, borderRadius: 24, borderWidth: 3, borderColor: COLORS.secondary },
+  photoModalAvatarGrad: { width: 80, height: 80, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
+  photoModalAvatarText: { fontSize: 34, fontWeight: '900', color: COLORS.white },
+  photoModalTitle: { fontSize: 18, fontWeight: '900', color: COLORS.white, textAlign: 'center', marginBottom: 4 },
+  photoModalSub: { fontSize: 12, color: COLORS.textMuted, textAlign: 'center', marginBottom: 20 },
+  photoModalOption: {
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    backgroundColor: COLORS.background, borderRadius: 14,
+    borderWidth: 1, borderColor: COLORS.border, padding: 14, marginBottom: 10,
+  },
+  photoModalOptionDanger: { borderColor: `${COLORS.error}30` },
+  photoModalOptionIcon: {
+    width: 42, height: 42, borderRadius: 12,
+    backgroundColor: COLORS.secondaryGlow,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  photoModalOptionLabel: { fontSize: 15, fontWeight: '700', color: COLORS.white, marginBottom: 2 },
+  photoModalOptionSub: { fontSize: 12, color: COLORS.textMuted },
+  photoModalCancel: {
+    marginTop: 4, paddingVertical: 14, borderRadius: 14,
+    backgroundColor: COLORS.background, borderWidth: 1, borderColor: COLORS.border,
+    alignItems: 'center',
+  },
+  photoModalCancelText: { fontSize: 15, fontWeight: '700', color: COLORS.textMuted },
 });
