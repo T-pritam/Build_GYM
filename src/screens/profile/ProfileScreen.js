@@ -68,6 +68,14 @@ export default function ProfileScreen({ navigation }) {
       onPress: () => navigation.navigate('Membership'),
       color: COLORS.secondary,
     },
+    // {
+    //   id: 'coins',
+    //   label: 'Build Coin Transactions',
+    //   icon: 'cash-outline',
+    //   sub: `Balance: ${buildCoins.balance.toLocaleString('en-IN')} coins`,
+    //   onPress: () => navigation.navigate('BuildCoinTransactions'),
+    //   color: '#FFA500',
+    // },
     {
       id: 'activity',
       label: 'Activity Dashboard',
@@ -152,7 +160,7 @@ export default function ProfileScreen({ navigation }) {
         </LinearGradient>
 
         {/* Build Coins card */}
-        <View style={styles.coinsCard}>
+        <TouchableOpacity style={styles.coinsCard} onPress={() => navigation.navigate('BuildCoinTransactions')}>
           <LinearGradient
             colors={['#2A1200', '#1A0A00']}
             style={styles.coinsCardInner}
@@ -167,7 +175,7 @@ export default function ProfileScreen({ navigation }) {
                   <Text style={styles.coinsNum}>{buildCoins.balance.toLocaleString('en-IN')}</Text>
                 </View>
               </View>
-              <TouchableOpacity style={styles.addCoinsBtn}>
+              {/* <TouchableOpacity style={styles.addCoinsBtn}>
                 <LinearGradient
                   colors={[COLORS.secondary, COLORS.secondaryDark]}
                   style={styles.addCoinsBtnGradient}
@@ -177,7 +185,7 @@ export default function ProfileScreen({ navigation }) {
                   <Ionicons name="add" size={16} color={COLORS.white} />
                   <Text style={styles.addCoinsBtnText}>Request</Text>
                 </LinearGradient>
-              </TouchableOpacity>
+              </TouchableOpacity> */}
             </View>
             <View style={styles.coinStats}>
               <View style={styles.coinStat}>
@@ -200,7 +208,7 @@ export default function ProfileScreen({ navigation }) {
               </View>
             </View>
           </LinearGradient>
-        </View>
+        </TouchableOpacity>
 
         {/* Membership status mini banner */}
         <View style={styles.memBanner}>

@@ -21,6 +21,7 @@ import CartScreen from '../screens/cafe/CartScreen';
 // Profile screens
 import ProfileScreen from '../screens/profile/ProfileScreen';
 import MembershipScreen from '../screens/profile/MembershipScreen';
+import BuildCoinTransactionsScreen from '../screens/profile/BuildCoinTransactionsScreen';
 import ActivityDashboardScreen from '../screens/profile/ActivityDashboardScreen';
 import ComplaintScreen from '../screens/profile/ComplaintScreen';
 import NotificationsScreen from '../screens/profile/NotificationsScreen';
@@ -32,6 +33,7 @@ import TrainerDetailScreen from '../screens/detail/TrainerDetailScreen';
 import CommunityScreen from '../screens/main/CommunityScreen';
 import LeaderboardScreen from '../screens/main/LeaderboardScreen';
 import ActivitiesScreen from '../screens/main/ActivitiesScreen';
+import TrainersScreen from '../screens/main/TrainersScreen';
 
 // Custom tab bar
 import CustomTabBar from '../components/CustomTabBar';
@@ -91,6 +93,7 @@ export default function AppNavigator() {
         {/* Profile sub screens */}
         <Stack.Screen name="Profile" component={ProfileScreen} />
         <Stack.Screen name="Membership" component={MembershipScreen} />
+        <Stack.Screen name="BuildCoinTransactions" component={BuildCoinTransactionsScreen} />
         <Stack.Screen name="Activity" component={ActivityDashboardScreen} />
         <Stack.Screen name="Complaint" component={ComplaintScreen} />
         <Stack.Screen name="Notifications" component={NotificationsScreen} />
@@ -102,6 +105,7 @@ export default function AppNavigator() {
         <Stack.Screen name="Community" component={CommunityScreen} />
         <Stack.Screen name="Leaderboard" component={LeaderboardScreen} />
         <Stack.Screen name="Activities" component={ActivitiesScreen} />
+        <Stack.Screen name="Trainers" component={TrainersScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

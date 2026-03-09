@@ -8,9 +8,9 @@ import {
   StatusBar,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
-import { membership, buildCoins } from '../../constants/dummyData';
+import { membership } from '../../constants/dummyData';
 
 export default function MembershipScreen({ navigation }) {
   return (
@@ -104,33 +104,6 @@ export default function MembershipScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
-        {/* Coin transactions */}
-        <Text style={styles.sectionTitle}>Recent Transactions</Text>
-        {buildCoins.transactions.map((tx) => (
-          <View key={tx.id} style={styles.txRow}>
-            <View style={[
-              styles.txIcon,
-              { backgroundColor: tx.type === 'credit' ? COLORS.successLight : COLORS.errorLight }
-            ]}>
-              <Ionicons
-                name={tx.type === 'credit' ? 'add-circle-outline' : 'remove-circle-outline'}
-                size={18}
-                color={tx.type === 'credit' ? COLORS.success : COLORS.error}
-              />
-            </View>
-            <View style={styles.txInfo}>
-              <Text style={styles.txDesc}>{tx.desc}</Text>
-              <Text style={styles.txDate}>{tx.date}</Text>
-            </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-              <MaterialCommunityIcons name="bitcoin" size={13} color={tx.type === 'credit' ? COLORS.success : COLORS.error} />
-              <Text style={[styles.txAmount, { color: tx.type === 'credit' ? COLORS.success : COLORS.error }]}>
-                {tx.type === 'credit' ? '+' : '-'}{tx.amount}
-              </Text>
-            </View>
-          </View>
-        ))}
-
         <View style={{ height: 60 }} />
       </ScrollView>
     </View>
@@ -204,14 +177,4 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(37,211,102,0.25)', paddingVertical: 13, gap: 8,
   },
   waBtnText: { fontSize: 13, fontWeight: '700', color: '#25D366' },
-  txRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: COLORS.surface, borderRadius: 12, borderWidth: 1,
-    borderColor: COLORS.border, padding: 12, marginBottom: 8,
-  },
-  txIcon: { width: 38, height: 38, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  txInfo: { flex: 1 },
-  txDesc: { fontSize: 13, fontWeight: '600', color: COLORS.white, marginBottom: 2 },
-  txDate: { fontSize: 11, color: COLORS.textMuted },
-  txAmount: { fontSize: 15, fontWeight: '800' },
 });

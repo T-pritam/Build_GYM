@@ -21,14 +21,33 @@ const STEPS_CONFIG = [
   { title: 'Declaration', icon: 'document-text-outline' },
 ];
 
+const HEALTH_OPTIONS = [
+  'Diabetes',
+  'High Blood Pressure',
+  'Asthma',
+  'Heart Disease',
+  'Thyroid',
+  'None',
+];
+
+const INJURY_OPTIONS = [
+  'Back Pain',
+  'Knee Pain',
+  'Shoulder Pain',
+  'Elbow Pain',
+  'Wrist Pain',
+  'Ankle Pain',
+  'None',
+];
+
 export default function OnboardingScreen({ navigation }) {
   const [step, setStep] = useState(0);
   const [form, setForm] = useState({
     fullName: '',
     email: '',
     dob: '',
-    healthHistory: '',
-    injuryHistory: '',
+    healthHistory: [],
+    injuryHistory: [],
     emergencyName: '',
     emergencyPhone: '',
     declarationAccepted: false,
@@ -64,6 +83,42 @@ export default function OnboardingScreen({ navigation }) {
     </View>
   );
 
+  const renderOptions = (label, key, options) => (
+    <View style={styles.fieldGroup} key={key}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      <View style={styles.optionsContainer}>
+        {options.map((option) => (
+          <TouchableOpacity
+            key={option}
+            style={[
+              styles.optionChip,
+              form[key].includes(option) && styles.optionChipSelected,
+            ]}
+            onPress={() => {
+              const arr = form[key];
+              if (arr.includes(option)) {
+                update(key, arr.filter((item) => item !== option));
+              } else {
+                update(key, [...arr, option]);
+              }
+            }}
+            activeOpacity={0.7}
+          >
+            <Text
+              style={[
+                styles.optionChipText,
+                form[key].includes(option) && styles.optionChipTextSelected,
+              ]}
+            >
+              {option}
+            </Text>
+            { form[key].includes(option) }
+          </TouchableOpacity>
+        ))}
+      </View>
+    </View>
+  );
+
   const renderStep = () => {
     switch (step) {
       case 0:
@@ -81,18 +136,8 @@ export default function OnboardingScreen({ navigation }) {
           <View>
             <Text style={styles.stepTitle}>Health Details</Text>
             <Text style={styles.stepSub}>This helps trainers guide you safely.</Text>
-            {renderField(
-              'Health History',
-              'healthHistory',
-              'e.g. Diabetes, BP, Asthma – or "None"',
-              { multiline: true }
-            )}
-            {renderField(
-              'Injury History',
-              'injuryHistory',
-              'e.g. Right knee sprain 2022 – or "None"',
-              { multiline: true }
-            )}
+            {renderOptions('Health History', 'healthHistory', HEALTH_OPTIONS)}
+            {renderOptions('Injury History', 'injuryHistory', INJURY_OPTIONS)}
             <View style={styles.infoBox}>
               <Ionicons name="lock-closed-outline" size={14} color={COLORS.secondary} />
               <Text style={styles.infoText}>
@@ -284,6 +329,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16, paddingVertical: 14,
   },
   fieldInputMulti: { height: 90, textAlignVertical: 'top' },
+
+  // Options
+  optionsContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
+  optionChip: {
+    backgroundColor: COLORS.surface, borderRadius: 8, borderWidth: 1,
+    borderColor: COLORS.border, paddingHorizontal: 12, paddingVertical: 10,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+  },
+  optionChipSelected: {
+    backgroundColor: COLORS.secondary, borderColor: COLORS.secondary,
+  },
+  optionChipText: {
+    fontSize: 13, color: COLORS.textSecondary, fontWeight: '600',
+  },
+  optionChipTextSelected: {
+    color: COLORS.white,
+  },
 
   // Info box
   infoBox: {

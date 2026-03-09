@@ -168,7 +168,7 @@ export default function HomeScreen({ navigation }) {
         {/* ── BUILD COINS STRIP ───────────────────────────── */}
         <TouchableOpacity
           style={styles.coinsStrip}
-          onPress={() => navigation.navigate('Profile')}
+          onPress={() => navigation.navigate('BuildCoinTransactions')}
           activeOpacity={0.85}
         >
           <LinearGradient
@@ -189,13 +189,7 @@ export default function HomeScreen({ navigation }) {
               </Text>
             </View>
           </View>
-          <View style={styles.coinsRight}>
-            <TouchableOpacity style={styles.coinsAddBtn}>
-              <Ionicons name="add" size={16} color={COLORS.secondary} />
-              <Text style={styles.coinsAddText}>Add</Text>
-            </TouchableOpacity>
-            <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
-          </View>
+          <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
         </TouchableOpacity>
 
         {/* ── ANNOUNCEMENTS ───────────────────────────────── */}
@@ -238,12 +232,17 @@ export default function HomeScreen({ navigation }) {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Our Trainers</Text>
-            <Text style={styles.sectionSeeAll}>
-              {trainers.length} trainers
-            </Text>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('Trainers')}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.sectionSeeAll}>
+                {trainers.length} trainers →
+              </Text>
+            </TouchableOpacity>
           </View>
 
-          {trainers.map((trainer) => (
+          {trainers.slice(0, 3).map((trainer) => (
             <TouchableOpacity
               key={trainer.id}
               style={styles.trainerCard}
@@ -453,7 +452,7 @@ const styles = StyleSheet.create({
   scrollContent: { paddingBottom: 20 },
 
   // Header
-  headerGradient: { paddingTop: 52, paddingHorizontal: 20, paddingBottom: 28 },
+  headerGradient: { paddingTop: 52, paddingHorizontal: 16, paddingBottom: 28 },
   headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   greeting: { fontSize: 13, color: COLORS.textSecondary, fontWeight: '500' },
   userName: { fontSize: 24, fontWeight: '900', color: COLORS.white },
@@ -511,7 +510,7 @@ const styles = StyleSheet.create({
   // Coins strip
   coinsStrip: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    marginHorizontal: 20, marginTop: 16, borderRadius: 16,
+    marginHorizontal: 16, marginTop: 20, borderRadius: 16,
     backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.secondaryBorder,
     paddingHorizontal: 16, paddingVertical: 14, overflow: 'hidden',
   },
@@ -533,7 +532,7 @@ const styles = StyleSheet.create({
   coinsAddText: { fontSize: 13, fontWeight: '700', color: COLORS.secondary },
 
   // Section
-  section: { paddingHorizontal: 20, marginTop: 28 },
+  section: { paddingHorizontal: 16, marginTop: 20 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
   sectionTitle: { fontSize: 18, fontWeight: '800', color: COLORS.white, flex: 1 },
   sectionBadge: {
@@ -541,7 +540,7 @@ const styles = StyleSheet.create({
     minWidth: 22, alignItems: 'center',
   },
   sectionBadgeText: { fontSize: 11, fontWeight: '800', color: COLORS.white },
-  sectionSeeAll: { fontSize: 12, color: COLORS.textMuted, fontWeight: '600' },
+  sectionSeeAll: { fontSize: 13, color: COLORS.secondary, fontWeight: '700' },
 
   // Announcements
   announcementCard: {
@@ -562,39 +561,39 @@ const styles = StyleSheet.create({
   trainerCard: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.surface,
     borderRadius: 18, borderWidth: 1, borderColor: COLORS.border,
-    marginBottom: 12, overflow: 'hidden',
+    marginBottom: 10, overflow: 'hidden',
   },
   trainerAvatarPanel: {
-    width: 80, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center',
-    paddingVertical: 18, gap: 8,
+    width: 110, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center',
+    paddingVertical: 14, gap: 8,
   },
-  trainerAvatarText: { fontSize: 28, fontWeight: '900', color: COLORS.white },
+  trainerAvatarText: { fontSize: 32, fontWeight: '900', color: COLORS.white },
   trainerAvailBadge: {
     borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2,
   },
   trainerAvailBadgeText: { fontSize: 8, fontWeight: '800', color: COLORS.white, letterSpacing: 0.5 },
   trainerInfo: { flex: 1, padding: 14 },
-  trainerName: { fontSize: 15, fontWeight: '800', color: COLORS.white, marginBottom: 3 },
+  trainerName: { fontSize: 14, fontWeight: '800', color: COLORS.white, marginBottom: 2 },
   trainerSpec: { fontSize: 12, color: COLORS.textSecondary, lineHeight: 16, marginBottom: 8 },
-  trainerMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
+  trainerMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
   trainerRatingRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  trainerRating: { fontSize: 12, fontWeight: '700', color: COLORS.white },
+  trainerRating: { fontSize: 11, fontWeight: '700', color: COLORS.white },
   trainerDividerDot: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: COLORS.textMuted },
-  trainerExp: { fontSize: 11, color: COLORS.textMuted, fontWeight: '600' },
-  trainerTags: { flexDirection: 'row', flexWrap: 'wrap', gap: 5 },
+  trainerExp: { fontSize: 10, color: COLORS.textMuted, fontWeight: '600' },
+  trainerTags: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
   trainerTag: {
-    backgroundColor: COLORS.secondaryGlow, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3,
+    backgroundColor: COLORS.secondaryGlow, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 3,
     borderWidth: 1, borderColor: COLORS.secondaryBorder,
   },
-  trainerTagText: { fontSize: 9, fontWeight: '700', color: COLORS.secondary, letterSpacing: 0.5 },
+  trainerTagText: { fontSize: 8, fontWeight: '700', color: COLORS.secondary, letterSpacing: 0.5 },
 
   // Stats
-  statsRow: { flexDirection: 'row', gap: 12 },
+  statsRow: { flexDirection: 'row', gap: 12, marginTop: 14 },
   statCard: {
     flex: 1, backgroundColor: COLORS.surface, borderRadius: 16, borderWidth: 1,
-    borderColor: COLORS.border, padding: 16, alignItems: 'center', gap: 6,
+    borderColor: COLORS.border, padding: 14, alignItems: 'center', gap: 6,
   },
-  statNum: { fontSize: 22, fontWeight: '900', color: COLORS.secondary },
+  statNum: { fontSize: 20, fontWeight: '900', color: COLORS.secondary },
   statLabel: { fontSize: 10, color: COLORS.textMuted, fontWeight: '600', textAlign: 'center' },
   statTap: { fontSize: 9, color: COLORS.secondary, fontWeight: '700', marginTop: 2 },
 
