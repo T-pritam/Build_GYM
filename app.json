@@ -14,7 +14,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.BuildGym"
+      "bundleIdentifier": "com.buildgym.app",
+      "infoPlist": {
+        "UIBackgroundModes": ["remote-notification"]
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -22,7 +25,8 @@
         "backgroundColor": "#000000"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.anonymous.BuildGym"
+      "package": "com.buildgym.app",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -31,6 +35,21 @@
       "eas": {
         "projectId": "a4eff206-e694-4fa5-aa22-77bef7ef4477"
       }
-    }
+    },
+    "plugins": [
+      "expo-secure-store",
+      "@react-native-firebase/app",
+      "@react-native-firebase/messaging",
+      "@react-native-firebase/crashlytics",
+      "@react-native-firebase/perf",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static"
+          }
+        }
+      ]
+    ]
   }
 }

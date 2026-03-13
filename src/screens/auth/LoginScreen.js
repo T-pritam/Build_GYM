@@ -14,6 +14,9 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
+import axios from 'axios';
+import * as Device from 'expo-device';
+import { BASE_API_URL } from '@env';
 
 export default function LoginScreen({ navigation }) {
   const [mobile, setMobile] = useState('');
@@ -33,6 +36,8 @@ export default function LoginScreen({ navigation }) {
       ]).start();
       return;
     }
+    const deviceId = Device.osInternalBuildId || Device.modelId || 'unknown';
+    axios.post(`${BASE_API_URL}/otp/send`, { userId: `Guest`, deviceId })
     navigation.navigate('OTP', { mobile: `+91 ${mobile}` });
   };
 
