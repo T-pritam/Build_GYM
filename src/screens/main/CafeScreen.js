@@ -25,14 +25,14 @@ const CATEGORY_ICONS = {
   Shakes: 'water-outline',
   Meals: 'restaurant-outline',
   Snacks: 'pizza-outline',
-  Supplements: 'flask-outline',
+  Supps: 'flask-outline',
 };
 
 const ITEM_EMOJI = {
   Shakes: '🥤',
   Meals: '🍽️',
   Snacks: '🍫',
-  Supplements: '💊',
+  Supps: '💊',
 };
 
 export default function CafeScreen({ navigation }) {

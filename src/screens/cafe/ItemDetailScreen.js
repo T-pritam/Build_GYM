@@ -1,281 +1,240 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  StatusBar,
-  Animated,
-  Image,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity,
+  StatusBar, Image, Share,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
+
+const NUTRI_ICONS = [
+  { label: 'Calories', key: 'calories', icon: 'flame-outline', color: '#F97316' },
+  { label: 'Protein', key: 'protein', icon: 'barbell-outline', color: '#22C55E' },
+  { label: 'Carbs', key: 'carbs', icon: 'leaf-outline', color: '#3B82F6' },
+  { label: 'Fat', key: 'fat', icon: 'water-outline', color: '#A855F7' },
+];
 
 export default function ItemDetailScreen({ navigation, route }) {
   const { item, onAddToCart } = route.params || {};
   const [qty, setQty] = useState(1);
-  const scaleAnim = useRef(new Animated.Value(1)).current;
 
   if (!item) return null;
 
-  const handleAdd = () => {
-    Animated.sequence([
-      Animated.timing(scaleAnim, { toValue: 0.95, duration: 80, useNativeDriver: true }),
-      Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true }),
-    ]).start(() => {
-      // Add item qty times to cart
-      if (onAddToCart) {
-        for (let i = 0; i < qty; i++) onAddToCart(item);
-      }
-      navigation.goBack();
-    });
+  const incQty = () => setQty((q) => q + 1);
+  const decQty = () => setQty((q) => Math.max(1, q - 1));
+
+  const handleAddToCart = () => {
+    if (onAddToCart) {
+      for (let i = 0; i < qty; i++) onAddToCart(item);
+    }
+    navigation.goBack();
   };
 
-  const totalCoins = item.price * qty;
-
-  const macros = [
-    { label: 'Calories', value: `${item.calories} kcal`, icon: 'flame-outline', color: '#FF6B00' },
-    { label: 'Protein', value: item.protein, icon: 'barbell-outline', color: '#4CAF50' },
-    { label: 'Carbs', value: item.carbs, icon: 'leaf-outline', color: '#2196F3' },
-    { label: 'Fat', value: item.fat, icon: 'water-outline', color: '#9C27B0' },
-  ];
+  const handleShare = () => {
+    Share.share({ message: `Check out ${item.name} at Build Cafe - only B${item.price}!` });
+  };
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
 
-      {/* Hero area */}
-      <LinearGradient
-        colors={['#2A1200', '#1A0800', '#0D0D0D']}
-        style={styles.hero}
-      >
-        {/* Back button */}
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+      {/* Floating top bar */}
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.topBtn} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={20} color={COLORS.white} />
         </TouchableOpacity>
+        <TouchableOpacity style={styles.topBtn} onPress={handleShare}>
+          <Ionicons name="share-outline" size={20} color={COLORS.white} />
+        </TouchableOpacity>
+      </View>
 
-        {/* Hero image */}
-        <View style={styles.heroImgWrap}>
-          {item.image ? (
-            <Image source={{ uri: item.image }} style={styles.heroImage} resizeMode="cover" />
-          ) : (
-            <Text style={styles.heroEmoji}>
-              {item.category === 'Shakes' ? '🥤' :
-               item.category === 'Meals' ? '🍽️' :
-               item.category === 'Snacks' ? '🍫' : '💊'}
-            </Text>
-          )}
-        </View>
-
-        {/* Tag */}
-        {item.tag && (
-          <View style={styles.heroTag}>
-            <Text style={styles.heroTagText}>{item.tag}</Text>
-          </View>
-        )}
-      </LinearGradient>
-
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Category chip */}
-        <View style={styles.catChip}>
-          <Text style={styles.catChipText}>{item.category}</Text>
-        </View>
-
-        {/* Name & Price */}
-        <Text style={styles.itemName}>{item.name}</Text>
-        <View style={styles.priceRow}>
-          <MaterialCommunityIcons name="bitcoin" size={20} color={COLORS.secondary} />
-          <Text style={styles.priceNum}>{item.price}</Text>
-          <Text style={styles.priceLabel}> Build Coins</Text>
-        </View>
-
-        {/* Description */}
-        <Text style={styles.description}>{item.description}</Text>
-
-        {/* Suitable for */}
-        <View style={styles.suitableBox}>
-          <Ionicons name="fitness-outline" size={16} color={COLORS.secondary} />
-          <Text style={styles.suitableText}>
-            Best for: <Text style={styles.suitableHL}>{item.suitableFor}</Text>
-          </Text>
-        </View>
-
-        {/* Macros */}
-        <Text style={styles.sectionTitle}>Nutritional Info</Text>
-        <View style={styles.macrosGrid}>
-          {macros.map((m) => (
-            <View key={m.label} style={styles.macroCard}>
-              <View style={[styles.macroIcon, { backgroundColor: `${m.color}18` }]}>
-                <Ionicons name={m.icon} size={20} color={m.color} />
-              </View>
-              <Text style={styles.macroValue}>{m.value}</Text>
-              <Text style={styles.macroLabel}>{m.label}</Text>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
+        {/* Hero section */}
+        <View style={styles.heroSection}>
+          <View style={styles.heroGlow} pointerEvents="none" />
+          <View style={styles.heroImgOuter}>
+            <View style={styles.heroCategoryBadge}>
+              <Text style={styles.heroCategoryText}>{item.category?.toUpperCase() || 'CAFE'}</Text>
             </View>
-          ))}
+            {item.image ? (
+              <Image source={{ uri: item.image }} style={styles.heroImg} resizeMode="cover" />
+            ) : (
+              <View style={styles.heroImgEmpty}>
+                <Text style={{ fontSize: 80 }}>{item.emoji || '🥗'}</Text>
+              </View>
+            )}
+          </View>
         </View>
 
-        {/* Availability */}
-        <View style={[styles.availRow, { backgroundColor: item.available ? COLORS.successLight : COLORS.errorLight }]}>
-          <Ionicons
-            name={item.available ? 'checkmark-circle-outline' : 'close-circle-outline'}
-            size={18}
-            color={item.available ? COLORS.success : COLORS.error}
-          />
-          <Text style={[styles.availText, { color: item.available ? COLORS.success : COLORS.error }]}>
-            {item.available ? 'Available at the café counter' : 'Currently unavailable'}
-          </Text>
-        </View>
+        {/* Content */}
+        <View style={styles.content}>
+          <View style={styles.categoryChip}>
+            <Text style={styles.categoryChipText}>{item.category?.toUpperCase() || 'CAFE'}</Text>
+          </View>
+          <Text style={styles.itemName}>{item.name}</Text>
+          <View style={styles.priceRow}>
+            <Text style={styles.priceCoins}>B {item.price}</Text>
+            <Text style={styles.priceSub}> Build Coins</Text>
+          </View>
 
-        <View style={{ height: 120 }} />
+          <View style={styles.descCard}>
+            <Text style={styles.descText}>{item.description}</Text>
+          </View>
+
+          {item.suitableFor ? (
+            <View style={styles.bestForBanner}>
+              <Ionicons name="heart" size={18} color={COLORS.secondary} />
+              <View>
+                <Text style={styles.bestForLabel}>Best for:</Text>
+                <Text style={styles.bestForValue}>{item.suitableFor}</Text>
+              </View>
+            </View>
+          ) : null}
+
+          <View style={styles.nutriSection}>
+            <Text style={styles.nutriHeading}>NUTRITIONAL INFO</Text>
+            <View style={styles.nutriGrid}>
+              {NUTRI_ICONS.map(({ label, key, icon, color }) => (
+                <View key={key} style={styles.nutriCard}>
+                  <Ionicons name={icon} size={20} color={color} />
+                  <View>
+                    <Text style={styles.nutriValue}>
+                      {item[key] ?? '--'}{key === 'calories' ? ' kcal' : ''}
+                    </Text>
+                    <Text style={styles.nutriLabel}>{label}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          </View>
+
+          {item.available ? (
+            <View style={styles.availBanner}>
+              <Ionicons name="checkmark-circle" size={18} color="#22C55E" />
+              <Text style={styles.availText}>Available at the cafe counter</Text>
+            </View>
+          ) : null}
+        </View>
       </ScrollView>
 
-      {/* Bottom CTA */}
-      {item.available && (
-        <View style={styles.bottomBar}>
-          {/* Qty selector */}
-          <View style={styles.qtyWrap}>
-            <TouchableOpacity
-              style={styles.qtyBtn}
-              onPress={() => setQty((q) => Math.max(1, q - 1))}
-            >
-              <Ionicons name="remove" size={18} color={COLORS.secondary} />
-            </TouchableOpacity>
-            <Text style={styles.qtyNum}>{qty}</Text>
-            <TouchableOpacity
-              style={[styles.qtyBtn, styles.qtyBtnAdd]}
-              onPress={() => setQty((q) => q + 1)}
-            >
-              <Ionicons name="add" size={18} color={COLORS.white} />
-            </TouchableOpacity>
-          </View>
-
-          {/* Add to cart button */}
-          <Animated.View style={[styles.addBtnWrap, { transform: [{ scale: scaleAnim }] }]}>
-            <TouchableOpacity style={styles.addBtn} onPress={handleAdd} activeOpacity={0.85}>
-              <LinearGradient
-                colors={[COLORS.secondary, COLORS.secondaryDark]}
-                style={styles.addBtnGradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-              >
-                <Ionicons name="bag-add-outline" size={18} color={COLORS.white} />
-                <Text style={styles.addBtnText}>ADD TO CART</Text>
-                <View style={styles.addBtnPricePill}>
-                  <MaterialCommunityIcons name="bitcoin" size={11} color="rgba(255,255,255,0.7)" />
-                  <Text style={styles.addBtnPrice}>{totalCoins}</Text>
-                </View>
-              </LinearGradient>
-            </TouchableOpacity>
-          </Animated.View>
+      {/* Sticky bottom */}
+      <View style={styles.stickyBottom}>
+        <View style={styles.qtyPill}>
+          <TouchableOpacity style={styles.qtyBtn} onPress={decQty}>
+            <Ionicons name="remove" size={18} color={COLORS.secondary} />
+          </TouchableOpacity>
+          <Text style={styles.qtyNum}>{qty}</Text>
+          <TouchableOpacity style={styles.qtyBtn} onPress={incQty}>
+            <Ionicons name="add" size={18} color={COLORS.secondary} />
+          </TouchableOpacity>
         </View>
-      )}
+
+        <TouchableOpacity
+          style={[styles.addCartBtn, !item.available && styles.addCartBtnDisabled]}
+          onPress={handleAddToCart}
+          disabled={!item.available}
+          activeOpacity={0.85}
+        >
+          <Ionicons name="cart-outline" size={20} color={COLORS.white} />
+          <Text style={styles.addCartText}>ADD TO CART  B {item.price * qty}</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
-
-  // Hero
-  hero: { height: 260, paddingTop: 52, justifyContent: 'center', alignItems: 'center', position: 'relative' },
-  backBtn: {
-    position: 'absolute', top: 52, left: 20, width: 42, height: 42, borderRadius: 12,
-    backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
+  topBar: {
+    position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10,
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingHorizontal: 16, paddingTop: 52, paddingBottom: 8,
   },
-  heroImgWrap: {
-    width: 140, height: 140, borderRadius: 24,
-    backgroundColor: 'rgba(255,107,0,0.1)',
+  topBtn: {
+    width: 40, height: 40, borderRadius: 20, backgroundColor: '#2A2A2A',
     alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2, borderColor: 'rgba(255,107,0,0.2)',
-    overflow: 'hidden',
   },
-  heroImage: { width: '100%', height: '100%' },
-  heroEmoji: { fontSize: 64 },
-  heroTag: {
-    position: 'absolute', bottom: 20, right: 20,
-    backgroundColor: COLORS.secondary, borderRadius: 8,
-    paddingHorizontal: 10, paddingVertical: 4,
+  heroSection: {
+    width: '100%', aspectRatio: 1,
+    alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
   },
-  heroTagText: { fontSize: 10, fontWeight: '800', color: COLORS.white, letterSpacing: 1 },
-
-  // Content
-  scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: 20, paddingTop: 20 },
-  catChip: {
+  heroGlow: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(233,99,22,0.1)',
+  },
+  heroImgOuter: {
+    width: '80%', height: '80%', borderRadius: 24, overflow: 'hidden',
+    position: 'relative', backgroundColor: COLORS.surface,
+    shadowColor: COLORS.secondary, shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.12, shadowRadius: 30, elevation: 8,
+  },
+  heroCategoryBadge: {
+    position: 'absolute', top: 12, right: 12, zIndex: 5,
+    backgroundColor: COLORS.secondary, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4,
+  },
+  heroCategoryText: { fontSize: 9, fontWeight: '900', color: COLORS.white, letterSpacing: 1 },
+  heroImg: { width: '100%', height: '100%' },
+  heroImgEmpty: {
+    width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: COLORS.surface,
+  },
+  content: { paddingHorizontal: 20, paddingTop: 8, gap: 14 },
+  categoryChip: {
     alignSelf: 'flex-start', backgroundColor: COLORS.secondaryGlow,
-    borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4,
-    borderWidth: 1, borderColor: COLORS.secondaryBorder, marginBottom: 10,
+    borderRadius: 6, paddingHorizontal: 10, paddingVertical: 4,
   },
-  catChipText: { fontSize: 10, fontWeight: '800', color: COLORS.secondary, letterSpacing: 1 },
-  itemName: { fontSize: 28, fontWeight: '900', color: COLORS.white, lineHeight: 32, marginBottom: 10 },
-  priceRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
-  priceNum: { fontSize: 26, fontWeight: '900', color: COLORS.secondary },
-  priceLabel: { fontSize: 14, color: COLORS.textSecondary, fontWeight: '500' },
-  description: {
-    fontSize: 14, color: COLORS.textSecondary, lineHeight: 22,
-    marginBottom: 16, padding: 14, backgroundColor: COLORS.surface,
-    borderRadius: 12, borderWidth: 1, borderColor: COLORS.border,
+  categoryChipText: { fontSize: 9, fontWeight: '900', color: COLORS.secondary, letterSpacing: 1.5 },
+  itemName: { fontSize: 24, fontWeight: '900', color: COLORS.white, lineHeight: 30 },
+  priceRow: { flexDirection: 'row', alignItems: 'baseline' },
+  priceCoins: { fontSize: 22, fontWeight: '800', color: COLORS.secondary },
+  priceSub: { fontSize: 14, fontWeight: '500', color: COLORS.textMuted },
+  descCard: {
+    backgroundColor: COLORS.surface, borderRadius: 14, borderWidth: 1,
+    borderColor: COLORS.border, padding: 16,
   },
-  suitableBox: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: COLORS.secondaryGlow, borderRadius: 10,
-    borderWidth: 1, borderColor: COLORS.secondaryBorder, padding: 12, marginBottom: 24,
+  descText: { fontSize: 14, color: COLORS.textSecondary, lineHeight: 22 },
+  bestForBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: '#2A1A0A', borderRadius: 12, padding: 14,
   },
-  suitableText: { fontSize: 13, color: COLORS.textSecondary },
-  suitableHL: { color: COLORS.secondary, fontWeight: '700' },
-
-  // Section
-  sectionTitle: { fontSize: 16, fontWeight: '800', color: COLORS.white, marginBottom: 12 },
-
-  // Macros
-  macrosGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 },
-  macroCard: {
-    flex: 1, minWidth: '44%', backgroundColor: COLORS.surface,
-    borderRadius: 14, borderWidth: 1, borderColor: COLORS.border,
-    padding: 14, alignItems: 'center', gap: 6,
+  bestForLabel: { fontSize: 10, fontWeight: '800', color: COLORS.secondary, letterSpacing: 1, marginBottom: 2 },
+  bestForValue: { fontSize: 14, fontWeight: '500', color: COLORS.secondary + 'CC' },
+  nutriSection: { gap: 12 },
+  nutriHeading: { fontSize: 10, fontWeight: '900', color: COLORS.secondary, letterSpacing: 3 },
+  nutriGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  nutriCard: {
+    flex: 1, minWidth: '45%', backgroundColor: COLORS.surface, borderRadius: 14,
+    borderWidth: 1, borderColor: COLORS.border, padding: 16, gap: 8,
   },
-  macroIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  macroValue: { fontSize: 18, fontWeight: '900', color: COLORS.white },
-  macroLabel: { fontSize: 11, color: COLORS.textMuted, fontWeight: '600' },
-
-  // Availability
-  availRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, borderRadius: 10, marginBottom: 8,
+  nutriValue: { fontSize: 18, fontWeight: '800', color: COLORS.white },
+  nutriLabel: { fontSize: 11, color: COLORS.textMuted, fontWeight: '500' },
+  availBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: '#0A2A1A', borderRadius: 12, padding: 14,
   },
-  availText: { fontSize: 13, fontWeight: '600' },
-
-  // Bottom bar
-  bottomBar: {
-    flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20,
-    paddingBottom: 34, paddingTop: 14, borderTopWidth: 1, borderTopColor: COLORS.border,
-    backgroundColor: COLORS.background, gap: 12,
+  availText: { fontSize: 14, fontWeight: '600', color: '#22C55E' },
+  stickyBottom: {
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingHorizontal: 16, paddingTop: 12, paddingBottom: 34,
+    backgroundColor: COLORS.background + 'EE',
+    borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.06)',
   },
-  qtyWrap: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.surface,
-    borderRadius: 12, borderWidth: 1, borderColor: COLORS.border, overflow: 'hidden',
+  qtyPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: COLORS.surface, borderRadius: 30, paddingHorizontal: 6, paddingVertical: 6,
   },
   qtyBtn: {
-    width: 40, height: 50, alignItems: 'center', justifyContent: 'center',
+    width: 36, height: 36, borderRadius: 18, backgroundColor: COLORS.secondaryGlow,
+    alignItems: 'center', justifyContent: 'center',
   },
-  qtyBtnAdd: { backgroundColor: COLORS.secondary },
-  qtyNum: { fontSize: 16, fontWeight: '800', color: COLORS.white, paddingHorizontal: 16 },
-  addBtnWrap: { flex: 1 },
-  addBtn: { borderRadius: 14, overflow: 'hidden' },
-  addBtnGradient: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    paddingVertical: 15, gap: 8,
+  qtyNum: { fontSize: 16, fontWeight: '900', color: COLORS.white, minWidth: 16, textAlign: 'center' },
+  addCartBtn: {
+    flex: 1, height: 52, borderRadius: 30,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: COLORS.secondary,
+    shadowColor: COLORS.secondary, shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25, shadowRadius: 16, elevation: 8,
   },
-  addBtnText: { fontSize: 14, fontWeight: '800', color: COLORS.white, letterSpacing: 1 },
-  addBtnPricePill: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.2)',
-    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, gap: 2,
-  },
-  addBtnPrice: { fontSize: 12, fontWeight: '800', color: COLORS.white },
+  addCartBtnDisabled: { backgroundColor: COLORS.textMuted },
+  addCartText: { fontSize: 13, fontWeight: '900', color: COLORS.white, letterSpacing: 1.5 },
 });

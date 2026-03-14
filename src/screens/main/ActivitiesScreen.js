@@ -1,524 +1,118 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  FlatList,
-  TouchableOpacity,
-  StatusBar,
-  Modal,
-  Pressable,
-  Dimensions,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
-import { gymActivities, activityCategories, buildCoins } from '../../constants/dummyData';
 
-const { width } = Dimensions.get('window');
-const CARD_WIDTH = (width - 14 * 2 - 12) / 2;
-
-const DIFFICULTY_COLOR = {
-  'Beginner friendly': '#4CAF50',
-  'All levels': '#2196F3',
-  Intermediate: '#FF9800',
-  Advanced: '#F44336',
-};
+const ACTIVITIES = [
+  { id: 'yoga',    label: 'Yoga',       duration: '45 min', cost: 80,  emoji: '🧘', color: ['#7C3AED', '#4C1D95'], icon: 'person-outline' },
+  { id: 'boxing',  label: 'Boxing',     duration: '45 min', cost: 80,  emoji: '🥊', color: ['#DC2626', '#7F1D1D'], icon: 'fitness-outline' },
+  { id: 'pickle',  label: 'Pickleball', duration: '45 min', cost: 80,  emoji: '🏓', color: ['#16A34A', '#14532D'], icon: 'tennisball-outline' },
+  { id: 'hiit',    label: 'HIIT',       duration: '45 min', cost: 80,  emoji: '⚡', color: ['#D97706', '#78350F'], icon: 'flash-outline' },
+  { id: 'sauna',   label: 'Sauna & Steam', duration: '45 min', cost: 80, emoji: '♨️', color: ['#B45309', '#451A03'], icon: 'water-outline' },
+  { id: 'cycle',   label: 'Cycling',    duration: '30 min', cost: 60,  emoji: '🚴', color: ['#2563EB', '#1E3A8A'], icon: 'bicycle-outline' },
+];
 
 export default function ActivitiesScreen({ navigation }) {
-  const [activeCategory, setActiveCategory] = useState('All');
-  const [selectedActivity, setSelectedActivity] = useState(null);
-  const [selectedSlot, setSelectedSlot] = useState(null);
-  const [bookingConfirmed, setBookingConfirmed] = useState(false);
-
-  const filtered =
-    activeCategory === 'All'
-      ? gymActivities
-      : gymActivities.filter((a) => a.category === activeCategory);
-
-  const handleBook = () => {
-    if (!selectedSlot) return;
-    setBookingConfirmed(true);
-  };
-
-  const closeModal = () => {
-    setSelectedActivity(null);
-    setSelectedSlot(null);
-    setBookingConfirmed(false);
-  };
-
-  const renderCard = ({ item }) => (
-    <TouchableOpacity
-      style={styles.card}
-      onPress={() => { setSelectedActivity(item); setSelectedSlot(null); setBookingConfirmed(false); }}
-      activeOpacity={0.85}
-    >
-      {/* Colored top panel */}
-      <LinearGradient
-        colors={[`${item.color}40`, `${item.color}15`]}
-        style={styles.cardTop}
-      >
-        <Text style={styles.cardEmoji}>{item.emoji}</Text>
-        {item.tag && (
-          <View style={[styles.tagBadge, { backgroundColor: item.color }]}>
-            <Text style={styles.tagText}>{item.tag}</Text>
-          </View>
-        )}
-      </LinearGradient>
-
-      {/* Info */}
-      <View style={styles.cardBody}>
-        <Text style={styles.cardName}>{item.name}</Text>
-        <Text style={styles.cardCategory}>{item.category}</Text>
-
-        <View style={styles.cardMeta}>
-          <Ionicons name="time-outline" size={11} color={COLORS.textMuted} />
-          <Text style={styles.cardMetaText}>{item.duration}</Text>
-        </View>
-        <View style={styles.cardMeta}>
-          <Ionicons name="people-outline" size={11} color={COLORS.textMuted} />
-          <Text style={styles.cardMetaText}>Up to {item.maxParticipants}</Text>
-        </View>
-
-        {/* Coins cost */}
-        <View style={styles.cardCost}>
-          <MaterialCommunityIcons name="bitcoin" size={13} color={COLORS.secondary} />
-          <Text style={styles.cardCostText}>{item.coinsPerSession}</Text>
-          <Text style={styles.cardCostLabel}>/ session</Text>
-        </View>
-      </View>
-
-      {/* Book strip */}
-      <LinearGradient
-        colors={[item.color, `${item.color}BB`]}
-        style={styles.cardBookStrip}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-      >
-        <Text style={styles.cardBookText}>Book</Text>
-        <Ionicons name="arrow-forward" size={12} color={COLORS.white} />
-      </LinearGradient>
-    </TouchableOpacity>
-  );
-
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+      <StatusBar barStyle="light-content" backgroundColor="#000" />
+      <View style={styles.glowTop} />
 
-      {/* ── FIXED HEADER ── */}
-      <LinearGradient colors={['#1A0800', '#0D0D0D']} style={styles.header}>
-        <View style={styles.headerRow}>
-          <View>
-            <Text style={styles.headerTitle}>Activities</Text>
-            <Text style={styles.headerSub}>Book sessions with Build Coins</Text>
-          </View>
-          <View style={styles.coinsPill}>
-            <MaterialCommunityIcons name="bitcoin" size={14} color={COLORS.secondary} />
-            <Text style={styles.coinsPillText}>{buildCoins.balance.toLocaleString()}</Text>
-          </View>
-        </View>
-      </LinearGradient>
-
-      {/* ── FIXED CATEGORY FILTER ── */}
-      <View style={styles.filterWrap}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filterRow}
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Activities</Text>
+        <TouchableOpacity
+          style={styles.bookingsBtn}
+          onPress={() => navigation.navigate('MyBookings')}
         >
-          {activityCategories.map((cat) => (
-            <TouchableOpacity
-              key={cat}
-              style={[styles.filterChip, activeCategory === cat && styles.filterChipActive]}
-              onPress={() => setActiveCategory(cat)}
-              activeOpacity={0.75}
-            >
-              <Text style={[styles.filterChipText, activeCategory === cat && styles.filterChipTextActive]}>
-                {cat}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+          <Ionicons name="calendar-outline" size={18} color={COLORS.secondary} />
+          <Text style={styles.bookingsBtnText}>My Bookings</Text>
+        </TouchableOpacity>
       </View>
 
-      {/* ── GRID ── */}
-      <FlatList
-        data={filtered}
-        keyExtractor={(item) => item.id}
-        numColumns={2}
-        renderItem={renderCard}
-        contentContainerStyle={styles.gridContent}
-        columnWrapperStyle={styles.columnWrapper}
-        showsVerticalScrollIndicator={false}
-        ListHeaderComponent={
-          <Text style={styles.resultCount}>
-            {filtered.length} activit{filtered.length !== 1 ? 'ies' : 'y'}
-            {activeCategory !== 'All' ? ` · ${activeCategory}` : ''}
-          </Text>
-        }
-        ListFooterComponent={<View style={{ height: 110 }} />}
-      />
+      <Text style={styles.subtitle}>Book sessions & amenities with Build Coins</Text>
 
-      {/* ── BOOKING MODAL ── */}
-      <Modal
-        visible={!!selectedActivity}
-        transparent
-        animationType="slide"
-        onRequestClose={closeModal}
-      >
-        <Pressable style={styles.modalOverlay} onPress={closeModal}>
-          <Pressable style={styles.modalSheet} onPress={() => {}}>
-            {selectedActivity && (
-              <>
-                <View style={styles.modalHandle} />
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+        <View style={styles.grid}>
+          {ACTIVITIES.map((act) => (
+            <TouchableOpacity
+              key={act.id}
+              style={styles.card}
+              onPress={() => navigation.navigate('ActivityDetail', { activity: act })}
+              activeOpacity={0.85}
+            >
+              {/* Hero color block */}
+              <View style={[styles.heroBlock, { backgroundColor: act.color[1] }]}>
+                <View style={[styles.heroGradient, { backgroundColor: act.color[0] + '99' }]} />
+                <Text style={styles.heroEmoji}>{act.emoji}</Text>
+                <Text style={styles.heroLabel}>{act.label}</Text>
+              </View>
 
-                {bookingConfirmed ? (
-                  /* ── CONFIRMATION VIEW ── */
-                  <View style={styles.confirmWrap}>
-                    <View style={styles.confirmIconContainer}>
-                      <LinearGradient
-                        colors={[`${selectedActivity.color}30`, `${selectedActivity.color}08`]}
-                        style={styles.confirmIconWrap}
-                      >
-                        <Text style={{ fontSize: 52 }}>{selectedActivity.emoji}</Text>
-                      </LinearGradient>
-                      <View style={styles.confirmCheck}>
-                        <Ionicons name="checkmark" size={22} color={COLORS.white} />
-                      </View>
-                    </View>
-                    <Text style={styles.confirmTitle}>Booking Confirmed!</Text>
-                    <Text style={styles.confirmSub}>
-                      {selectedActivity.name} · {selectedSlot}
-                    </Text>
-                    <View style={styles.confirmCoinsRow}>
-                      <MaterialCommunityIcons name="bitcoin" size={16} color={COLORS.secondary} />
-                      <Text style={styles.confirmCoins}>
-                        {selectedActivity.coinsPerSession} coins deducted
-                      </Text>
-                    </View>
-                    <Text style={styles.confirmNote}>
-                      Show this booking at reception before the session begins.
-                    </Text>
-                    <TouchableOpacity style={styles.confirmDoneBtn} onPress={closeModal}>
-                      <Text style={styles.confirmDoneBtnText}>Done</Text>
-                    </TouchableOpacity>
-                  </View>
-                ) : (
-                  /* ── BOOKING DETAIL VIEW ── */
-                  <ScrollView showsVerticalScrollIndicator={false}>
+              {/* Info footer */}
+              <View style={styles.cardFooter}>
+                <View style={styles.cardMeta}>
+                  <Text style={styles.cardDuration}>{act.duration}</Text>
+                  <Text style={styles.cardDot}>·</Text>
+                  <Text style={styles.cardCost}>₿ {act.cost}</Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => navigation.navigate('ActivityDetail', { activity: act })}
+                >
+                  <Text style={styles.bookNow}>BOOK NOW →</Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
+          ))}
+        </View>
 
-                    {/* Top banner */}
-                    <LinearGradient
-                      colors={[`${selectedActivity.color}35`, `${selectedActivity.color}08`]}
-                      style={styles.detailBanner}
-                    >
-                      <Text style={styles.detailEmoji}>{selectedActivity.emoji}</Text>
-                      <View style={{ flex: 1 }}>
-                        <View style={styles.detailTitleRow}>
-                          <Text style={styles.detailName}>{selectedActivity.name}</Text>
-                          {selectedActivity.tag && (
-                            <View style={[styles.tagBadge, { backgroundColor: selectedActivity.color }]}>
-                              <Text style={styles.tagText}>{selectedActivity.tag}</Text>
-                            </View>
-                          )}
-                        </View>
-                        <Text style={[styles.detailCat, { color: selectedActivity.color }]}>
-                          {selectedActivity.category}
-                        </Text>
-                      </View>
-                    </LinearGradient>
-
-                    {/* Stats row */}
-                    <View style={styles.detailStatsRow}>
-                      <View style={styles.detailStat}>
-                        <Ionicons name="time-outline" size={18} color={COLORS.secondary} />
-                        <Text style={styles.detailStatVal}>{selectedActivity.duration}</Text>
-                        <Text style={styles.detailStatLbl}>Duration</Text>
-                      </View>
-                      <View style={styles.detailStatDivider} />
-                      <View style={styles.detailStat}>
-                        <Ionicons name="people-outline" size={18} color={COLORS.secondary} />
-                        <Text style={styles.detailStatVal}>{selectedActivity.maxParticipants}</Text>
-                        <Text style={styles.detailStatLbl}>Max People</Text>
-                      </View>
-                      <View style={styles.detailStatDivider} />
-                      <View style={styles.detailStat}>
-                        <View style={[
-                          styles.diffDot,
-                          { backgroundColor: DIFFICULTY_COLOR[selectedActivity.difficulty] || COLORS.secondary }
-                        ]} />
-                        <Text style={[
-                          styles.detailStatVal,
-                          { color: DIFFICULTY_COLOR[selectedActivity.difficulty] || COLORS.secondary, fontSize: 11 }
-                        ]}>
-                          {selectedActivity.difficulty}
-                        </Text>
-                        <Text style={styles.detailStatLbl}>Level</Text>
-                      </View>
-                    </View>
-
-                    {/* Description */}
-                    <View style={styles.detailSection}>
-                      <Text style={styles.detailSectionLabel}>About</Text>
-                      <Text style={styles.detailDesc}>{selectedActivity.description}</Text>
-                    </View>
-
-                    {/* Slots */}
-                    <View style={styles.detailSection}>
-                      <Text style={styles.detailSectionLabel}>Available Slots</Text>
-                      <View style={styles.slotsGrid}>
-                        {selectedActivity.slots.map((slot) => (
-                          <TouchableOpacity
-                            key={slot}
-                            style={[
-                              styles.slotChip,
-                              selectedSlot === slot && styles.slotChipActive,
-                            ]}
-                            onPress={() => setSelectedSlot(slot)}
-                            activeOpacity={0.8}
-                          >
-                            <Ionicons
-                              name="time-outline"
-                              size={12}
-                              color={selectedSlot === slot ? COLORS.secondary : COLORS.textMuted}
-                            />
-                            <Text style={[
-                              styles.slotChipText,
-                              selectedSlot === slot && styles.slotChipTextActive,
-                            ]}>
-                              {slot}
-                            </Text>
-                          </TouchableOpacity>
-                        ))}
-                      </View>
-                    </View>
-
-                    {/* Cost summary */}
-                    <View style={styles.costSummary}>
-                      <View>
-                        <Text style={styles.costLabel}>Session cost</Text>
-                        <View style={styles.costRow}>
-                          <MaterialCommunityIcons name="bitcoin" size={20} color={COLORS.secondary} />
-                          <Text style={styles.costVal}>{selectedActivity.coinsPerSession}</Text>
-                          <Text style={styles.costCoinsLabel}>Build Coins</Text>
-                        </View>
-                      </View>
-                      <View style={styles.costBalance}>
-                        <Text style={styles.costBalanceLabel}>Your balance</Text>
-                        <Text style={styles.costBalanceVal}>{buildCoins.balance.toLocaleString()}</Text>
-                      </View>
-                    </View>
-
-                    {/* Book button */}
-                    <TouchableOpacity
-                      style={[styles.bookBtn, !selectedSlot && styles.bookBtnDisabled]}
-                      onPress={handleBook}
-                      activeOpacity={selectedSlot ? 0.85 : 1}
-                    >
-                      <LinearGradient
-                        colors={selectedSlot
-                          ? [selectedActivity.color, `${selectedActivity.color}BB`]
-                          : [COLORS.surface2, COLORS.surface2]}
-                        style={styles.bookBtnGrad}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 0 }}
-                      >
-                        <MaterialCommunityIcons
-                          name="bitcoin"
-                          size={18}
-                          color={selectedSlot ? COLORS.white : COLORS.textDim}
-                        />
-                        <Text style={[styles.bookBtnText, !selectedSlot && styles.bookBtnTextDisabled]}>
-                          {selectedSlot ? `Book · ${selectedActivity.coinsPerSession} Coins` : 'Select a Slot'}
-                        </Text>
-                      </LinearGradient>
-                    </TouchableOpacity>
-
-                    <View style={{ height: 32 }} />
-                  </ScrollView>
-                )}
-              </>
-            )}
-          </Pressable>
-        </Pressable>
-      </Modal>
+        <View style={{ height: 100 }} />
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
+  container: { flex: 1, backgroundColor: '#000' },
+  glowTop: { position: 'absolute', top: 0, left: 0, right: 0, height: 200, backgroundColor: 'rgba(233,99,22,0.1)' },
 
-  // Header
-  header: { paddingTop: 56, paddingHorizontal: 20, paddingBottom: 18 },
-  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  headerTitle: { fontSize: 28, fontWeight: '900', color: COLORS.white, marginBottom: 3 },
-  headerSub: { fontSize: 13, color: COLORS.textSecondary },
-  coinsPill: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: COLORS.secondaryGlow, borderWidth: 1,
-    borderColor: COLORS.secondaryBorder, borderRadius: 20,
-    paddingHorizontal: 12, paddingVertical: 7,
-  },
-  coinsPillText: { fontSize: 14, fontWeight: '800', color: COLORS.secondary },
-
-  // Filter
-  filterWrap: {
-    backgroundColor: COLORS.background,
-    borderBottomWidth: 1, borderBottomColor: COLORS.border,
-    paddingVertical: 10,
-  },
-  filterRow: { paddingHorizontal: 14, gap: 8 },
-  filterChip: {
-    paddingHorizontal: 16, paddingVertical: 8,
-    borderRadius: 20, backgroundColor: COLORS.surface,
-    borderWidth: 1, borderColor: COLORS.border,
-  },
-  filterChipActive: { backgroundColor: COLORS.secondaryGlow, borderColor: COLORS.secondary },
-  filterChipText: { fontSize: 12, fontWeight: '700', color: COLORS.textMuted },
-  filterChipTextActive: { color: COLORS.secondary },
-
-  // Grid
-  gridContent: { paddingHorizontal: 14, paddingTop: 4 },
-  columnWrapper: { gap: 12, marginBottom: 12 },
-  resultCount: { fontSize: 11, color: COLORS.textMuted, fontWeight: '600', paddingVertical: 10, paddingLeft: 2 },
-
-  // Activity card
-  card: {
-    width: CARD_WIDTH,
-    backgroundColor: COLORS.surface, borderRadius: 18,
-    borderWidth: 1, borderColor: COLORS.border, overflow: 'hidden',
-  },
-  cardTop: {
-    height: CARD_WIDTH * 0.72,
-    alignItems: 'center', justifyContent: 'center',
-    position: 'relative',
-  },
-  cardEmoji: { fontSize: 46 },
-  tagBadge: {
-    position: 'absolute', top: 8, right: 8,
-    borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3,
-  },
-  tagText: { fontSize: 9, fontWeight: '900', color: COLORS.white, letterSpacing: 0.5 },
-  cardBody: { padding: 12, gap: 5 },
-  cardName: { fontSize: 14, fontWeight: '900', color: COLORS.white },
-  cardCategory: { fontSize: 10, fontWeight: '700', color: COLORS.textMuted, marginBottom: 2 },
-  cardMeta: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  cardMetaText: { fontSize: 11, color: COLORS.textSecondary },
-  cardCost: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 4 },
-  cardCostText: { fontSize: 16, fontWeight: '900', color: COLORS.secondary },
-  cardCostLabel: { fontSize: 10, color: COLORS.textMuted, fontWeight: '600' },
-  cardBookStrip: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    paddingVertical: 10, gap: 5,
-  },
-  cardBookText: { fontSize: 12, fontWeight: '900', color: COLORS.white },
-
-  // Modal
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
-  modalSheet: {
-    backgroundColor: COLORS.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28,
-    padding: 20, maxHeight: '92%', borderWidth: 1, borderColor: COLORS.border, paddingBottom: 0,
-  },
-  modalHandle: {
-    alignSelf: 'center', width: 40, height: 4, borderRadius: 2,
-    backgroundColor: COLORS.border, marginBottom: 16,
-  },
-
-  // Detail view
-  detailBanner: {
-    flexDirection: 'row', alignItems: 'center', gap: 16,
-    borderRadius: 18, padding: 18, marginBottom: 18,
-  },
-  detailEmoji: { fontSize: 48 },
-  detailTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 },
-  detailName: { fontSize: 22, fontWeight: '900', color: COLORS.white },
-  detailCat: { fontSize: 13, fontWeight: '700' },
-
-  // Stats row
-  detailStatsRow: {
-    flexDirection: 'row', backgroundColor: COLORS.background,
-    borderRadius: 16, borderWidth: 1, borderColor: COLORS.border,
-    padding: 16, marginBottom: 20,
-  },
-  detailStat: { flex: 1, alignItems: 'center', gap: 4 },
-  detailStatVal: { fontSize: 13, fontWeight: '800', color: COLORS.white },
-  detailStatLbl: { fontSize: 10, color: COLORS.textMuted, fontWeight: '600' },
-  detailStatDivider: { width: 1, backgroundColor: COLORS.border },
-  diffDot: { width: 8, height: 8, borderRadius: 4 },
-
-  // Description
-  detailSection: { marginBottom: 20 },
-  detailSectionLabel: { fontSize: 12, fontWeight: '800', color: COLORS.textMuted, letterSpacing: 1.2, marginBottom: 10 },
-  detailDesc: { fontSize: 14, color: COLORS.textSecondary, lineHeight: 22 },
-
-  // Slots
-  slotsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  slotChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingHorizontal: 14, paddingVertical: 10,
-    borderRadius: 12, backgroundColor: COLORS.background,
-    borderWidth: 1, borderColor: COLORS.border,
-  },
-  slotChipActive: { borderColor: COLORS.secondary, backgroundColor: COLORS.secondaryGlow },
-  slotChipText: { fontSize: 13, fontWeight: '700', color: COLORS.textMuted },
-  slotChipTextActive: { color: COLORS.secondary },
-
-  // Cost summary
-  costSummary: {
+  header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    backgroundColor: COLORS.background, borderRadius: 16,
-    borderWidth: 1, borderColor: COLORS.border, padding: 16, marginBottom: 16,
+    paddingHorizontal: 20, paddingTop: 52, paddingBottom: 4,
   },
-  costLabel: { fontSize: 11, color: COLORS.textMuted, fontWeight: '600', marginBottom: 4 },
-  costRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  costVal: { fontSize: 24, fontWeight: '900', color: COLORS.secondary },
-  costCoinsLabel: { fontSize: 12, color: COLORS.textMuted, fontWeight: '600' },
-  costBalance: { alignItems: 'flex-end' },
-  costBalanceLabel: { fontSize: 11, color: COLORS.textMuted, fontWeight: '600', marginBottom: 4 },
-  costBalanceVal: { fontSize: 18, fontWeight: '800', color: COLORS.white },
-
-  // Book button
-  bookBtn: { borderRadius: 16, overflow: 'hidden', marginBottom: 4 },
-  bookBtnDisabled: { opacity: 0.6 },
-  bookBtnGrad: {
-    flexDirection: 'row', alignItems: 'center',
-    justifyContent: 'center', paddingVertical: 16, gap: 8,
-  },
-  bookBtnText: { fontSize: 16, fontWeight: '900', color: COLORS.white },
-  bookBtnTextDisabled: { color: COLORS.textDim },
-
-  // Confirmation
-  confirmWrap: { alignItems: 'center', paddingVertical: 24, paddingHorizontal: 20, gap: 10 },
-  confirmIconContainer: { position: 'relative', marginBottom: 8 },
-  confirmIconWrap: {
-    width: 100, height: 100, borderRadius: 28,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  confirmCheck: {
-    position: 'absolute', bottom: -8, right: -8,
-    width: 34, height: 34, borderRadius: 17,
-    backgroundColor: COLORS.success, alignItems: 'center', justifyContent: 'center',
-    borderWidth: 3, borderColor: COLORS.surface,
-  },
-  confirmTitle: { fontSize: 24, fontWeight: '900', color: COLORS.white, marginTop: 8 },
-  confirmSub: { fontSize: 14, color: COLORS.textSecondary, textAlign: 'center' },
-  confirmCoinsRow: {
+  headerTitle: { fontSize: 32, fontWeight: '900', color: '#fff' },
+  bookingsBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: COLORS.secondaryGlow, borderRadius: 12,
-    paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: COLORS.secondaryBorder,
-    marginTop: 4,
+    borderWidth: 1, borderColor: COLORS.secondary + '55', borderRadius: 20,
+    paddingHorizontal: 12, paddingVertical: 6,
   },
-  confirmCoins: { fontSize: 14, fontWeight: '800', color: COLORS.secondary },
-  confirmNote: {
-    fontSize: 12, color: COLORS.textMuted, textAlign: 'center',
-    lineHeight: 18, marginHorizontal: 12,
+  bookingsBtnText: { fontSize: 12, fontWeight: '700', color: COLORS.secondary },
+
+  subtitle: { fontSize: 14, color: '#9A9A9A', paddingHorizontal: 20, marginBottom: 20, marginTop: 4 },
+
+  scroll: { paddingHorizontal: 16, paddingBottom: 20 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 14 },
+
+  card: {
+    width: '47%', backgroundColor: '#1C1C1E', borderRadius: 18,
+    borderWidth: 1, borderColor: '#333', overflow: 'hidden',
   },
-  confirmDoneBtn: {
-    marginTop: 12, paddingVertical: 14, paddingHorizontal: 48,
-    borderRadius: 16, backgroundColor: COLORS.secondaryGlow,
-    borderWidth: 1, borderColor: COLORS.secondary,
+  heroBlock: {
+    aspectRatio: 4 / 5, position: 'relative',
+    alignItems: 'flex-start', justifyContent: 'flex-end', padding: 12,
   },
-  confirmDoneBtnText: { fontSize: 16, fontWeight: '900', color: COLORS.secondary },
+  heroGradient: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+    borderRadius: 0,
+  },
+  heroEmoji: { fontSize: 48, position: 'absolute', top: '30%', alignSelf: 'center' },
+  heroLabel: { fontSize: 18, fontWeight: '900', color: '#fff', zIndex: 1 },
+
+  cardFooter: { padding: 12, gap: 8 },
+  cardMeta: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  cardDuration: { fontSize: 12, color: '#9A9A9A', fontWeight: '600' },
+  cardDot: { fontSize: 12, color: '#555' },
+  cardCost: { fontSize: 12, color: COLORS.secondary, fontWeight: '700' },
+  bookNow: { fontSize: 10, fontWeight: '900', color: COLORS.secondary, letterSpacing: 1.5 },
 });

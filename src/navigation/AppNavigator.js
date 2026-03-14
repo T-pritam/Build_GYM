@@ -8,6 +8,7 @@ import SplashScreen from '../screens/auth/SplashScreen';
 import LoginScreen from '../screens/auth/LoginScreen';
 import OTPScreen from '../screens/auth/OTPScreen';
 import OnboardingScreen from '../screens/auth/OnboardingScreen';
+import WelcomeScreen from '../screens/auth/WelcomeScreen';
 
 // Main Tab Screens
 import HomeScreen from '../screens/main/HomeScreen';
@@ -17,6 +18,8 @@ import AccessScreen from '../screens/main/AccessScreen';
 // Cafe sub-screens
 import ItemDetailScreen from '../screens/cafe/ItemDetailScreen';
 import CartScreen from '../screens/cafe/CartScreen';
+import OrderConfirmationScreen from '../screens/cafe/OrderConfirmationScreen';
+import OrderTrackingScreen from '../screens/cafe/OrderTrackingScreen';
 
 // Profile screens
 import ProfileScreen from '../screens/profile/ProfileScreen';
@@ -28,11 +31,14 @@ import NotificationsScreen from '../screens/profile/NotificationsScreen';
 
 // Detail screens
 import TrainerDetailScreen from '../screens/detail/TrainerDetailScreen';
+import ArticleReaderScreen from '../screens/community/ArticleReaderScreen';
 
 // Main extra screens
 import CommunityScreen from '../screens/main/CommunityScreen';
 import LeaderboardScreen from '../screens/main/LeaderboardScreen';
 import ActivitiesScreen from '../screens/main/ActivitiesScreen';
+import ActivityDetailScreen from '../screens/main/ActivityDetailScreen';
+import MyBookingsScreen from '../screens/main/MyBookingsScreen';
 import TrainersScreen from '../screens/main/TrainersScreen';
 
 // Custom tab bar
@@ -74,6 +80,11 @@ export default function AppNavigator() {
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="OTP" component={OTPScreen} />
         <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+        <Stack.Screen
+          name="Welcome"
+          component={WelcomeScreen}
+          options={{ animation: 'fade' }}
+        />
 
         {/* Main app */}
         <Stack.Screen name="MainTabs" component={MainTabs} />
@@ -88,6 +99,16 @@ export default function AppNavigator() {
           name="Cart"
           component={CartScreen}
           options={{ animation: 'slide_from_bottom' }}
+        />
+        <Stack.Screen
+          name="OrderConfirmation"
+          component={OrderConfirmationScreen}
+          options={{ animation: 'fade', gestureEnabled: false }}
+        />
+        <Stack.Screen
+          name="OrderTracking"
+          component={OrderTrackingScreen}
+          options={{ animation: 'slide_from_right' }}
         />
 
         {/* Profile sub screens */}
@@ -105,7 +126,22 @@ export default function AppNavigator() {
         <Stack.Screen name="Community" component={CommunityScreen} />
         <Stack.Screen name="Leaderboard" component={LeaderboardScreen} />
         <Stack.Screen name="Activities" component={ActivitiesScreen} />
+        <Stack.Screen
+          name="ActivityDetail"
+          component={ActivityDetailScreen}
+          options={{ animation: 'slide_from_bottom' }}
+        />
+        <Stack.Screen
+          name="MyBookings"
+          component={MyBookingsScreen}
+          options={{ animation: 'slide_from_right' }}
+        />
         <Stack.Screen name="Trainers" component={TrainersScreen} />
+        <Stack.Screen
+          name="ArticleReader"
+          component={ArticleReaderScreen}
+          options={{ animation: 'slide_from_bottom' }}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );

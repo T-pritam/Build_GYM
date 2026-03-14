@@ -4,19 +4,25 @@ export const COLORS = {
   primaryLight: '#111111',
   primaryDark: '#000000',
 
-  // Secondary (Orange)
-  secondary: '#DE4D00',
-  secondaryLight: '#FF5722',
-  secondaryDark: '#CC5200',
-  secondaryGlow: 'rgba(255, 107, 0, 0.15)',
-  secondaryBorder: 'rgba(255, 107, 0, 0.3)',
+  // Brand Orange (main accent)
+  orange: '#E96316',
+  orangeLight: 'rgba(233, 99, 22, 0.15)',
+  orangeBorder: 'rgba(233, 99, 22, 0.3)',
+  orangeGlow: 'rgba(233, 99, 22, 0.10)',
+
+  // Secondary (Orange - kept for backward compat)
+  secondary: '#E96316',
+  secondaryLight: '#FF7A35',
+  secondaryDark: '#CB5210',
+  secondaryGlow: 'rgba(233, 99, 22, 0.15)',
+  secondaryBorder: 'rgba(233, 99, 22, 0.3)',
 
   // Backgrounds
-  background: '#0D0D0D',
-  surface: '#1A1A1A',
-  surface2: '#222222',
-  surface3: '#2A2A2A',
-  card: '#161616',
+  background: '#000000',
+  surface: '#1C1C1E',
+  surface2: '#2A2A2A',
+  surface3: '#333333',
+  card: '#1C1C1E',
 
   // Text
   textPrimary: '#FFFFFF',
@@ -33,8 +39,8 @@ export const COLORS = {
   warningLight: 'rgba(255, 193, 7, 0.15)',
 
   // Borders
-  border: '#2A2A2A',
-  borderLight: '#333333',
+  border: '#333333',
+  borderLight: '#444444',
 
   // Overlays
   overlay: 'rgba(0,0,0,0.7)',

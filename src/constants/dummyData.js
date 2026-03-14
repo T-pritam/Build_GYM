@@ -21,6 +21,7 @@ export const membership = {
   validFrom: '2026-01-01',
   validTill: '2026-07-01',
   daysLeft: 128,
+  totalDays: 183,
   planFeatures: [
     'Unlimited gym access',
     'Free locker',
@@ -41,6 +42,15 @@ export const buildCoins = {
     { id: 't5', type: 'debit', amount: 80, desc: 'Protein Bar – Café', date: '14 Feb 2026' },
   ],
 };
+
+// Flat export for screens that import coinTransactions directly
+export const coinTransactions = [
+  { id: 't1', type: 'credit', amount: 500, description: 'Admin allocation', date: '20 Feb 2026' },
+  { id: 't2', type: 'debit', amount: 120, description: 'Protein Shake – Café', date: '19 Feb 2026' },
+  { id: 't3', type: 'debit', amount: 250, description: 'Chicken Bowl – Café', date: '17 Feb 2026' },
+  { id: 't4', type: 'credit', amount: 1000, description: 'Monthly coins added', date: '01 Feb 2026' },
+  { id: 't5', type: 'debit', amount: 80, description: 'Protein Bar – Café', date: '14 Feb 2026' },
+];
 
 export const announcements = [
   {
@@ -120,7 +130,7 @@ export const trainers = [
   },
 ];
 
-export const cafeCategories = ['All', 'Shakes', 'Meals', 'Snacks', 'Supplements'];
+export const cafeCategories = ['All', 'Shakes', 'Meals', 'Snacks', 'Supps'];
 
 export const cafeItems = [
   // ── Shakes ────────────────────────────────────────────────
@@ -295,7 +305,7 @@ export const cafeItems = [
   {
     id: 'c12',
     name: 'Creatine Monohydrate',
-    category: 'Supplements',
+    category: 'Supps',
     price: 90,
     description: '5g unflavoured creatine monohydrate (single dose sachet). Strength and power boost.',
     calories: 0,
@@ -310,7 +320,7 @@ export const cafeItems = [
   {
     id: 'c13',
     name: 'BCAA Drink',
-    category: 'Supplements',
+    category: 'Supps',
     price: 100,
     description: 'Watermelon-flavoured BCAA drink, 7g BCAAs in 2:1:1 ratio. Prevents muscle breakdown.',
     calories: 15,
@@ -325,7 +335,7 @@ export const cafeItems = [
   {
     id: 'c14',
     name: 'Pre-Workout Shot',
-    category: 'Supplements',
+    category: 'Supps',
     price: 130,
     description: 'Concentrated pre-workout with caffeine, beta-alanine and nitric oxide boosters.',
     calories: 25,
@@ -770,3 +780,130 @@ export const gymActivities = [
 ];
 
 export const activityCategories = ['All', 'Sports', 'Fitness', 'Yoga', 'Games'];
+
+// ── Onboarding Data ───────────────────────────────────────────────────────────
+export const FITNESS_LEVELS = [
+  { id: 'beginner', emoji: '🏋️', label: 'Beginner', desc: 'No prior gym experience' },
+  { id: 'intermediate', emoji: '💪', label: 'Intermediate', desc: 'Occasional workouts, 1-2 yrs' },
+  { id: 'advanced', emoji: '🔥', label: 'Advanced', desc: 'Regular training, 3+ yrs' },
+  { id: 'athlete', emoji: '🏅', label: 'Athlete', desc: 'Competitive / professional' },
+];
+
+export const HEALTH_CONDITIONS = [
+  'None', 'Hypertension', 'Diabetes (Type 1)', 'Asthma',
+  'Heart Condition', 'Lower Back Pain', '+ Custom',
+];
+
+export const DIETARY_PREFERENCES = [
+  'No Preference', 'Vegetarian', 'Vegan', 'Keto', 'Gluten-Free',
+];
+
+export const SLEEP_PATTERNS = [
+  'Less than 5 hrs', '6–7 hrs', '7–8 hrs', '8+ hrs',
+];
+
+export const PAST_INJURIES = [
+  'None', 'Knee Injury', 'Shoulder Injury', 'Lower Back Injury',
+  'Ankle Sprain', 'Wrist / Elbow Injury', 'Neck Pain', 'Hip Injury',
+  'Fracture (healed)', 'Post-Surgery Recovery', '+ Custom',
+];
+
+export const INJURY_STATUSES = ['Fully Recovered', 'Recovering', 'Chronic / Ongoing'];
+
+export const FITNESS_GOALS = [
+  { id: 'weight_loss', emoji: '🔥', label: 'Weight Loss / Fat Burning' },
+  { id: 'muscle_gain', emoji: '💪', label: 'Muscle Gain / Bodybuilding' },
+  { id: 'stamina', emoji: '🏃', label: 'Stamina & Endurance' },
+  { id: 'flexibility', emoji: '🧘', label: 'Flexibility' },
+  { id: 'stress_relief', emoji: '🧠', label: 'Stress Relief & Wellness' },
+  { id: 'sports', emoji: '⚽', label: 'Sports Performance' },
+  { id: 'posture', emoji: '🦴', label: 'Posture Correction' },
+  { id: 'custom', emoji: '✏️', label: '+ Custom' },
+];
+
+export const WORKOUT_FREQUENCIES = [
+  { id: '1-2', label: '1–2 days/week' },
+  { id: '3-4', label: '3–4 days' },
+  { id: '5-6', label: '5–6 days' },
+  { id: 'daily', label: 'Every day' },
+];
+
+export const WORKOUT_TIMES = [
+  { id: 'early_morning', label: 'Early Morning (5–8 AM)' },
+  { id: 'morning', label: 'Morning (8–11 AM)' },
+  { id: 'afternoon', label: 'Afternoon (12–3 PM)' },
+  { id: 'evening', label: 'Evening (4–7 PM)' },
+  { id: 'night', label: 'Night (7–10 PM)' },
+];
+
+export const ACTIVITY_INTERESTS = [
+  { id: 'weights', label: 'Weight Training' },
+  { id: 'cardio', label: 'Cardio / Running' },
+  { id: 'yoga', label: 'Yoga' },
+  { id: 'boxing', label: 'Boxing / Kickboxing' },
+  { id: 'hiit', label: 'HIIT' },
+  { id: 'sauna', label: 'Sauna / Spa' },
+  { id: 'custom', label: '+ Custom' },
+];
+
+export const RELATIONSHIPS = ['Spouse', 'Parent', 'Sibling', 'Friend', 'Child', 'Other'];
+
+// ── Community Reviews (Play Store style) ─────────────────────────────────────
+export const reviews = [
+  {
+    id: 'r1',
+    name: 'Marcus Jenkins',
+    initial: 'M',
+    rating: 5,
+    date: 'Feb 18, 2026',
+    text: 'Best gym experience in the city! The equipment is top-notch and the supplements at the cafe are amazing.',
+  },
+  {
+    id: 'r2',
+    name: 'Sarah Chen',
+    initial: 'S',
+    rating: 5,
+    date: 'Feb 15, 2026',
+    text: 'The app makes everything so easy. Love the Build Coins system for my pre-workout shakes.',
+  },
+  {
+    id: 'r3',
+    name: 'David Miller',
+    initial: 'D',
+    rating: 5,
+    date: 'Jan 30, 2026',
+    text: 'Clean facility and great atmosphere. The trainers are actually helpful and know their stuff.',
+  },
+  {
+    id: 'r4',
+    name: 'Priya Kapoor',
+    initial: 'P',
+    rating: 5,
+    date: 'Jan 20, 2026',
+    text: 'The yoga classes are incredible. Very patient and knowledgeable instructors. Highly recommend!',
+  },
+  {
+    id: 'r5',
+    name: 'Vikram Singh',
+    initial: 'V',
+    rating: 4,
+    date: 'Jan 10, 2026',
+    text: 'Excellent gym overall. The membership feels worth every rupee. Only suggestion is more parking space.',
+  },
+];
+
+// ── Current Order (for order tracking screen) ─────────────────────────────────
+export const currentOrder = {
+  id: '1042',
+  items: [{ name: 'Whey Protein Shake', quantity: 1, price: 120 }],
+  total: 120,
+  date: 'Today, 12:05 PM',
+  status: 'Preparing',
+  otp: '482715',
+  estimatedReady: '~12:20 PM',
+  steps: [
+    { id: 1, label: 'Order Placed', timestamp: '12:05 PM', done: true },
+    { id: 2, label: 'Preparing', timestamp: 'Est ~15 mins', active: true },
+    { id: 3, label: 'Ready for Pickup', timestamp: 'Waiting...', done: false },
+  ],
+};

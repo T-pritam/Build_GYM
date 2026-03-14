@@ -1,165 +1,102 @@
 import React, { useState, useRef } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  KeyboardAvoidingView,
-  Platform,
-  StatusBar,
-  Animated,
-  ScrollView,
+  View, Text, StyleSheet, TextInput, TouchableOpacity,
+  KeyboardAvoidingView, Platform, StatusBar, Linking, ScrollView,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
-import axios from 'axios';
-import * as Device from 'expo-device';
-import { BASE_API_URL } from '@env';
 
 export default function LoginScreen({ navigation }) {
   const [mobile, setMobile] = useState('');
   const [focused, setFocused] = useState(false);
-  const shakeAnim = useRef(new Animated.Value(0)).current;
-  const btnScale = useRef(new Animated.Value(1)).current;
 
   const handleGetOTP = () => {
-    if (mobile.length < 10) {
-      // Shake animation for error
-      Animated.sequence([
-        Animated.timing(shakeAnim, { toValue: 8, duration: 60, useNativeDriver: true }),
-        Animated.timing(shakeAnim, { toValue: -8, duration: 60, useNativeDriver: true }),
-        Animated.timing(shakeAnim, { toValue: 6, duration: 60, useNativeDriver: true }),
-        Animated.timing(shakeAnim, { toValue: -6, duration: 60, useNativeDriver: true }),
-        Animated.timing(shakeAnim, { toValue: 0, duration: 60, useNativeDriver: true }),
-      ]).start();
-      return;
-    }
-    const deviceId = Device.osInternalBuildId || Device.modelId || 'unknown';
-    axios.post(`${BASE_API_URL}/otp/send`, { userId: `Guest`, deviceId })
+    if (mobile.length < 10) return;
     navigation.navigate('OTP', { mobile: `+91 ${mobile}` });
-  };
-
-  const handlePressIn = () => {
-    Animated.spring(btnScale, { toValue: 0.96, useNativeDriver: true }).start();
-  };
-
-  const handlePressOut = () => {
-    Animated.spring(btnScale, { toValue: 1, useNativeDriver: true }).start();
   };
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
-      <LinearGradient
-        colors={['#0D0D0D', '#160800']}
-        style={StyleSheet.absoluteFill}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 1 }}
-      />
-
-      {/* Decorative circles */}
-      <View style={styles.circle1} />
-      <View style={styles.circle2} />
+      <StatusBar barStyle="light-content" backgroundColor="#000" />
+      <View style={styles.glowTop} />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.kav}
+        style={{ flex: 1 }}
       >
         <ScrollView
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Logo area */}
-          <View style={styles.logoArea}>
-            <View style={styles.logoMini}>
-              <Text style={styles.logoMiniText}>B</Text>
+          {/* Header */}
+          <View style={styles.header}>
+            <View style={styles.logoBox}>
+              <Text style={styles.logoLetter}>B</Text>
             </View>
             <Text style={styles.logoLabel}>BUILD GYM</Text>
           </View>
 
-          {/* Hero copy */}
-          <Text style={styles.headline}>Welcome{'\n'}Back.</Text>
-          <Text style={styles.subtext}>
-            Enter your registered mobile number to continue.
-          </Text>
+          {/* Title */}
+          <View style={styles.titleBlock}>
+            <Text style={styles.title}>Welcome Back.</Text>
+            <Text style={styles.subtitle}>
+              Enter your registered mobile number to continue.
+            </Text>
+          </View>
 
           {/* Input card */}
           <View style={styles.card}>
-            <Text style={styles.label}>MOBILE NUMBER</Text>
-            <Animated.View
-              style={[
-                styles.inputRow,
-                focused && styles.inputRowFocused,
-                { transform: [{ translateX: shakeAnim }] },
-              ]}
-            >
-              <View style={styles.prefix}>
-                <Text style={styles.prefixText}>+91</Text>
-                <View style={styles.prefixDivider} />
-              </View>
+            <Text style={styles.fieldLabel}>MOBILE NUMBER</Text>
+            <View style={[styles.inputRow, focused && styles.inputRowFocused]}>
+              <Text style={styles.countryCode}>+91</Text>
+              <View style={styles.inputDivider} />
               <TextInput
                 style={styles.input}
-                value={mobile}
-                onChangeText={(t) => setMobile(t.replace(/[^0-9]/g, '').slice(0, 10))}
                 placeholder="Enter 10-digit"
-                placeholderTextColor={COLORS.textMuted}
+                placeholderTextColor="#555"
                 keyboardType="number-pad"
                 maxLength={10}
+                value={mobile}
+                onChangeText={setMobile}
                 onFocus={() => setFocused(true)}
                 onBlur={() => setFocused(false)}
+                returnKeyType="done"
+                onSubmitEditing={handleGetOTP}
               />
-              {mobile.length === 10 && (
-                <Ionicons name="checkmark-circle" size={20} color={COLORS.success} style={{ marginRight: 14 }} />
-              )}
-            </Animated.View>
-
-            <Text style={styles.hintText}>
+            </View>
+            <Text style={styles.hint}>
               An OTP will be sent to this number for verification.
             </Text>
 
-            <Animated.View style={{ transform: [{ scale: btnScale }] }}>
-              <TouchableOpacity
-                style={[styles.btn, mobile.length < 10 && styles.btnDisabled]}
-                onPress={handleGetOTP}
-                onPressIn={handlePressIn}
-                onPressOut={handlePressOut}
-                activeOpacity={0.9}
-              >
-                <LinearGradient
-                  colors={mobile.length === 10 ? [COLORS.secondary, COLORS.secondaryDark] : ['#333', '#222']}
-                  style={styles.btnGradient}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                >
-                  <Text style={[styles.btnText, mobile.length < 10 && styles.btnTextDisabled]}>
-                    GET OTP
-                  </Text>
-                  <Ionicons
-                    name="arrow-forward"
-                    size={18}
-                    color={mobile.length === 10 ? COLORS.white : COLORS.textMuted}
-                    style={{ marginLeft: 8 }}
-                  />
-                </LinearGradient>
-              </TouchableOpacity>
-            </Animated.View>
+            <TouchableOpacity
+              style={[styles.otpBtn, mobile.length < 10 && styles.otpBtnDisabled]}
+              onPress={handleGetOTP}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.otpBtnText}>GET OTP</Text>
+              <Ionicons name="arrow-forward" size={20} color="#fff" />
+            </TouchableOpacity>
           </View>
 
-          {/* Note */}
-          <View style={styles.noteBox}>
-            <Ionicons name="information-circle-outline" size={16} color={COLORS.secondary} />
-            <Text style={styles.noteText}>
-              Only registered Build Gym members can access this app.
+          {/* Info banner */}
+          <View style={styles.infoBanner}>
+            <Ionicons name="information-circle-outline" size={20} color={COLORS.secondary} />
+            <Text style={styles.infoText}>
+              <Text style={styles.infoTextBold}>Only registered Build Gym members</Text>
+              {' '}can access this app.
             </Text>
           </View>
 
           {/* Footer */}
           <Text style={styles.footer}>
-            Need help? Contact{' '}
-            <Text style={styles.footerLink}>reception@buildgym.in</Text>
+            Need help?{' '}
+            <Text
+              style={styles.footerLink}
+              onPress={() => Linking.openURL('mailto:reception@buildgym.in')}
+            >
+              reception@buildgym.in
+            </Text>
           </Text>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -168,79 +105,64 @@ export default function LoginScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
-  kav: { flex: 1 },
-  scroll: { flexGrow: 1, paddingHorizontal: 24, paddingTop: 60, paddingBottom: 40 },
-  circle1: {
-    position: 'absolute', width: 350, height: 350, borderRadius: 175,
-    backgroundColor: 'rgba(255,107,0,0.05)', top: -100, right: -80,
+  container: { flex: 1, backgroundColor: '#000' },
+  glowTop: {
+    position: 'absolute', top: 0, left: 0, right: 0, height: 400,
+    backgroundColor: 'transparent',
+    background: 'radial-gradient(circle at top, rgba(233,99,22,0.15) 0%, transparent 70%)',
+    // Fake glow via a View gradient approach
   },
-  circle2: {
-    position: 'absolute', width: 250, height: 250, borderRadius: 125,
-    backgroundColor: 'rgba(255,107,0,0.03)', bottom: 60, left: -60,
-  },
+  scroll: { flexGrow: 1, paddingHorizontal: 24, paddingBottom: 40 },
 
-  // Logo
-  logoArea: { flexDirection: 'row', alignItems: 'center', marginBottom: 48 },
-  logoMini: {
-    width: 38, height: 38, borderRadius: 8, backgroundColor: COLORS.secondary,
-    alignItems: 'center', justifyContent: 'center', marginRight: 10,
+  header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingTop: 56, paddingBottom: 36 },
+  logoBox: {
+    width: 40, height: 40, borderRadius: 12, backgroundColor: COLORS.secondary,
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: COLORS.secondary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8,
   },
-  logoMiniText: { fontSize: 20, fontWeight: '900', color: COLORS.white },
-  logoLabel: { fontSize: 16, fontWeight: '800', color: COLORS.white, letterSpacing: 4 },
+  logoLetter: { fontSize: 20, fontWeight: '900', color: '#fff' },
+  logoLabel: { fontSize: 13, fontWeight: '800', color: '#fff', letterSpacing: 3 },
 
-  // Hero
-  headline: {
-    fontSize: 48, fontWeight: '900', color: COLORS.white,
-    lineHeight: 52, marginBottom: 12,
-  },
-  subtext: { fontSize: 15, color: COLORS.textSecondary, lineHeight: 22, marginBottom: 40 },
+  titleBlock: { marginBottom: 32 },
+  title: { fontSize: 32, fontWeight: '900', color: '#fff', marginBottom: 8, lineHeight: 40 },
+  subtitle: { fontSize: 15, color: '#888', lineHeight: 22 },
 
-  // Card
   card: {
-    backgroundColor: COLORS.surface, borderRadius: 20,
-    padding: 24, borderWidth: 1, borderColor: COLORS.border, marginBottom: 24,
+    backgroundColor: '#1C1C1E', borderRadius: 18, borderWidth: 1,
+    borderColor: '#333', padding: 24, marginBottom: 24,
   },
-  label: {
-    fontSize: 10, fontWeight: '700', color: COLORS.secondary,
-    letterSpacing: 2, marginBottom: 10,
+  fieldLabel: {
+    fontSize: 11, fontWeight: '700', color: COLORS.secondary,
+    letterSpacing: 2, marginBottom: 14,
   },
   inputRow: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.surface2,
-    borderRadius: 12, borderWidth: 1, borderColor: COLORS.border, marginBottom: 12,
-    overflow: 'hidden',
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: 14, height: 56,
+    borderWidth: 1, borderColor: '#333',
   },
-  inputRowFocused: { borderColor: COLORS.secondary },
-  prefix: {
-    flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 16,
-  },
-  prefixText: { fontSize: 16, color: COLORS.white, fontWeight: '600' },
-  prefixDivider: { width: 1, height: 20, backgroundColor: COLORS.border, marginLeft: 12 },
+  inputRowFocused: { borderColor: COLORS.secondary + '80' },
+  countryCode: { paddingHorizontal: 16, fontSize: 15, fontWeight: '600', color: '#ccc' },
+  inputDivider: { width: 1, height: 24, backgroundColor: '#333' },
   input: {
-    flex: 1, fontSize: 18, color: COLORS.white, fontWeight: '600',
-    paddingHorizontal: 12, paddingVertical: 16, letterSpacing: 2,
+    flex: 1, paddingHorizontal: 16, fontSize: 16, color: '#fff', height: '100%',
   },
-  hintText: { fontSize: 12, color: COLORS.textMuted, marginBottom: 20 },
+  hint: { fontSize: 11, color: '#555', marginTop: 10, marginBottom: 24, lineHeight: 16 },
 
-  // Button
-  btn: { borderRadius: 14, overflow: 'hidden' },
-  btnDisabled: { opacity: 0.6 },
-  btnGradient: {
+  otpBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    paddingVertical: 16,
+    backgroundColor: COLORS.secondary, borderRadius: 14, height: 54, gap: 8,
   },
-  btnText: { fontSize: 15, fontWeight: '800', color: COLORS.white, letterSpacing: 2 },
-  btnTextDisabled: { color: COLORS.textMuted },
+  otpBtnDisabled: { opacity: 0.5 },
+  otpBtnText: { fontSize: 14, fontWeight: '900', color: '#fff', letterSpacing: 2 },
 
-  // Note
-  noteBox: {
-    flexDirection: 'row', alignItems: 'flex-start', backgroundColor: COLORS.secondaryGlow,
-    borderRadius: 12, borderWidth: 1, borderColor: COLORS.secondaryBorder,
-    padding: 14, marginBottom: 24, gap: 8,
+  infoBanner: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 12,
+    backgroundColor: '#2A1A0A', borderWidth: 1, borderColor: COLORS.secondary + '33',
+    borderRadius: 14, padding: 16, marginBottom: 28,
   },
-  noteText: { flex: 1, fontSize: 13, color: COLORS.textSecondary, lineHeight: 18 },
+  infoText: { flex: 1, fontSize: 13, color: '#aaa', lineHeight: 20 },
+  infoTextBold: { color: '#fff', fontWeight: '600' },
 
-  // Footer
-  footer: { fontSize: 12, color: COLORS.textMuted, textAlign: 'center' },
+  footer: { textAlign: 'center', fontSize: 13, color: '#555' },
   footerLink: { color: COLORS.secondary, fontWeight: '600' },
 });
