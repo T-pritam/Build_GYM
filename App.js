@@ -1,7 +1,13 @@
 import React, { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import AppNavigator from './src/navigation/AppNavigator';
-import { registerForPushNotificationsAsync, saveFCMToken, setupNotificationListeners } from './src/services/notificationService';
+import {
+  FCM_TOKEN_KEY,
+  registerForPushNotificationsAsync,
+  saveFCMToken,
+  setupNotificationListeners,
+} from './src/services/notificationService';
 
 export default function App() {
   useEffect(() => {
@@ -10,28 +16,33 @@ export default function App() {
     const initializeNotifications = async () => {
       try {
         const fcmToken = await registerForPushNotificationsAsync();
-        
+
         if (fcmToken) {
-          await saveFCMToken(fcmToken);
+          const existingToken = await AsyncStorage.getItem(FCM_TOKEN_KEY);
+
+          if (existingToken !== fcmToken) {
+            // Token is new or rotated — save to backend + update storage
+            await saveFCMToken(fcmToken);
+            await AsyncStorage.setItem(FCM_TOKEN_KEY, fcmToken);
+            console.log('FCM token updated');
+          } else {
+            console.log('FCM token unchanged, skipping backend save');
+          }
         }
 
         cleanupNotifications = setupNotificationListeners();
       } catch (error) {
         console.error('Error initializing notifications:', error);
-        // Don't crash the app if notifications fail to initialize
       }
     };
 
-    // Delay initialization slightly to ensure native modules are ready
     const timer = setTimeout(() => {
       initializeNotifications();
     }, 100);
 
     return () => {
       clearTimeout(timer);
-      if (cleanupNotifications) {
-        cleanupNotifications();
-      }
+      if (cleanupNotifications) cleanupNotifications();
     };
   }, []);
 

@@ -1,18 +1,46 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
-  KeyboardAvoidingView, Platform, StatusBar, Linking, ScrollView,
+  KeyboardAvoidingView, Platform, StatusBar, Linking, ScrollView, Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS } from '../../constants/colors';
+import axios from 'axios';
+import { BASE_API_URL } from '@env';
+import { FCM_TOKEN_KEY, saveFCMToken } from '../../services/notificationService';
+
 
 export default function LoginScreen({ navigation }) {
   const [mobile, setMobile] = useState('');
   const [focused, setFocused] = useState(false);
 
-  const handleGetOTP = () => {
+  const handleGetOTP = async () => {
     if (mobile.length < 10) return;
-    navigation.navigate('OTP', { mobile: `+91 ${mobile}` });
+    const fcmToken = await AsyncStorage.getItem(FCM_TOKEN_KEY);
+    console.log('Current FCM token:', fcmToken, mobile);
+    console.log('Requesting OTP for:', mobile);
+    
+    try {
+      if (fcmToken) {
+        await saveFCMToken(fcmToken, mobile);
+      }
+      const response = await axios.post(`${BASE_API_URL}/otp/send`, {
+        phone: `${mobile}`,
+        deviceId: ""
+      });
+      console.log('OTP send response:', response.data);
+
+      if (response.data.success) {
+        navigation.navigate('OTP', { mobile: `+91 ${mobile}` });
+      }
+    } catch (error) {
+      if (error.response?.status === 404) {
+        Alert.alert('Not Registered', 'This number is not registered. Please contact your admin.');
+      } else {
+        Alert.alert('Error', 'Failed to send OTP. Please try again.');
+      }
+    }
   };
 
   return (

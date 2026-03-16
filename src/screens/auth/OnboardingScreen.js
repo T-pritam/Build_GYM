@@ -11,10 +11,10 @@ import {
   StatusBar,
   Switch,
   Modal,
-  FlatList,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
+import DatePickerModal from '../../components/DatePickerModal';
 import {
   FITNESS_LEVELS,
   HEALTH_CONDITIONS,
@@ -176,8 +176,6 @@ export default function OnboardingScreen({ route, navigation }) {
   const [lastName, setLastName]       = useState('');
   const [email, setEmail]             = useState('');
   const [dob, setDob]                 = useState('');
-  const [password, setPassword]       = useState('');
-  const [confirmPass, setConfirmPass] = useState('');
 
   // Step 2 – Health Profile
   const [fitnessLevel, setFitnessLevel]         = useState('');
@@ -203,7 +201,17 @@ export default function OnboardingScreen({ route, navigation }) {
   const [ecName, setEcName]         = useState('');
   const [ecRelation, setEcRelation] = useState('');
   const [ecPhone, setEcPhone]       = useState('');
-  const [ecEmail, setEcEmail]       = useState('');
+
+  // Date picker (Step 1)
+  const [showDatePicker, setShowDatePicker] = useState(false);
+
+  // Custom chip inputs
+  const [showCustomHealth,   setShowCustomHealth]   = useState(false);
+  const [customHealthText,   setCustomHealthText]   = useState('');
+  const [showCustomInjury,   setShowCustomInjury]   = useState(false);
+  const [customInjuryText,   setCustomInjuryText]   = useState('');
+  const [showCustomActivity, setShowCustomActivity] = useState(false);
+  const [customActivityText, setCustomActivityText] = useState('');
 
   // Step 6 – Consent
   const [consentTerms, setConsentTerms]     = useState(false);
@@ -250,7 +258,7 @@ export default function OnboardingScreen({ route, navigation }) {
       <Field label="LAST NAME *">
         <Input value={lastName} onChangeText={setLastName} placeholder="e.g. Sharma" />
       </Field>
-      <Field label="EMAIL ADDRESS *">
+      <Field label="EMAIL ADDRESS">
         <Input
           value={email}
           onChangeText={setEmail}
@@ -260,11 +268,21 @@ export default function OnboardingScreen({ route, navigation }) {
         />
       </Field>
       <Field label="DATE OF BIRTH *">
-        <Input
+        <TouchableOpacity
+          style={[s.input, { flexDirection: 'row', alignItems: 'center' }]}
+          onPress={() => setShowDatePicker(true)}
+          activeOpacity={0.8}
+        >
+          <Text style={{ flex: 1, color: dob ? COLORS.white : COLORS.textMuted, fontSize: 15 }}>
+            {dob || 'DD / MM / YYYY'}
+          </Text>
+          <Ionicons name="calendar-outline" size={18} color={dob ? O : COLORS.textMuted} />
+        </TouchableOpacity>
+        <DatePickerModal
+          visible={showDatePicker}
           value={dob}
-          onChangeText={setDob}
-          placeholder="DD / MM / YYYY"
-          trailing={<Ionicons name="calendar-outline" size={18} color={COLORS.textMuted} />}
+          onConfirm={(val) => { setDob(val); setShowDatePicker(false); }}
+          onClose={() => setShowDatePicker(false)}
         />
       </Field>
       <Field label="PHONE NUMBER">
@@ -274,52 +292,6 @@ export default function OnboardingScreen({ route, navigation }) {
           <View style={{ flex: 1 }} />
           <Ionicons name="lock-closed-outline" size={16} color={COLORS.textMuted} />
         </View>
-      </Field>
-      <Field label="PASSWORD *">
-        <Input
-          value={password}
-          onChangeText={setPassword}
-          placeholder="Create password"
-          secureTextEntry={!showPassword}
-          trailing={
-            <TouchableOpacity onPress={() => setShowPassword((v) => !v)}>
-              <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color={COLORS.textMuted} />
-            </TouchableOpacity>
-          }
-        />
-        {password.length > 0 && (
-          <View style={{ marginTop: 8 }}>
-            <View style={s.strengthRow}>
-              {[0, 1, 2, 3].map((i) => (
-                <View
-                  key={i}
-                  style={[
-                    s.strengthSeg,
-                    password.length >= 6 && i <= 1 && { backgroundColor: '#EAB308' },
-                    password.length >= 8 && i <= 2 && { backgroundColor: '#22C55E' },
-                    password.length >= 10 && i <= 3 && { backgroundColor: '#22C55E' },
-                  ]}
-                />
-              ))}
-            </View>
-            <Text style={{ fontSize: 10, color: password.length >= 8 ? '#22C55E' : '#EAB308', marginTop: 4, fontWeight: '700' }}>
-              {password.length < 6 ? 'Weak' : password.length < 8 ? 'Medium' : 'Strong'}
-            </Text>
-          </View>
-        )}
-      </Field>
-      <Field label="CONFIRM PASSWORD *">
-        <Input
-          value={confirmPass}
-          onChangeText={setConfirmPass}
-          placeholder="Repeat password"
-          secureTextEntry={!showPassword}
-          trailing={
-            confirmPass.length > 0
-              ? <Ionicons name={confirmPass === password ? 'checkmark-circle' : 'close-circle'} size={18} color={confirmPass === password ? '#22C55E' : '#EF4444'} />
-              : null
-          }
-        />
       </Field>
     </View>
   );
@@ -353,11 +325,64 @@ export default function OnboardingScreen({ route, navigation }) {
 
       <View style={{ marginBottom: 24 }}>
         <SectionHeader title="PRIMARY HEALTH CONDITIONS" sub="(Select all that apply)" />
-        <Chips
-          options={HEALTH_CONDITIONS}
-          selected={healthConditions}
-          onToggle={(v) => toggleChip(healthConditions, setHealthConditions, v)}
-        />
+        <View style={s.chips}>
+          {HEALTH_CONDITIONS.filter((o) => o !== '+ Custom').map((opt) => {
+            const active = healthConditions.includes(opt);
+            return (
+              <TouchableOpacity
+                key={opt}
+                style={[s.chip, active && s.chipActive]}
+                onPress={() => toggleChip(healthConditions, setHealthConditions, opt)}
+                activeOpacity={0.8}
+              >
+                <Text style={[s.chipText, active && s.chipTextActive]}>{opt}</Text>
+              </TouchableOpacity>
+            );
+          })}
+          {healthConditions.filter((o) => !HEALTH_CONDITIONS.includes(o)).map((custom) => (
+            <TouchableOpacity
+              key={custom}
+              style={[s.chip, s.chipActive]}
+              onPress={() => setHealthConditions(healthConditions.filter((x) => x !== custom))}
+              activeOpacity={0.8}
+            >
+              <Text style={[s.chipText, s.chipTextActive]}>{custom}  ✕</Text>
+            </TouchableOpacity>
+          ))}
+          <TouchableOpacity
+            style={[s.chip, showCustomHealth && s.chipActive]}
+            onPress={() => { setShowCustomHealth((v) => !v); setCustomHealthText(''); }}
+            activeOpacity={0.8}
+          >
+            <Text style={[s.chipText, showCustomHealth && s.chipTextActive]}>+ Custom</Text>
+          </TouchableOpacity>
+        </View>
+        {showCustomHealth && (
+          <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+            <TextInput
+              style={[s.input, { flex: 1, paddingVertical: 10 }]}
+              value={customHealthText}
+              onChangeText={setCustomHealthText}
+              placeholder="e.g. Thyroid, PCOS…"
+              placeholderTextColor={COLORS.textMuted}
+              autoFocus
+            />
+            <TouchableOpacity
+              style={[s.chip, s.chipActive, { paddingHorizontal: 18, alignSelf: 'center' }]}
+              onPress={() => {
+                const t = customHealthText.trim();
+                if (t && !healthConditions.includes(t)) {
+                  setHealthConditions([...healthConditions, t]);
+                }
+                setCustomHealthText('');
+                setShowCustomHealth(false);
+              }}
+              activeOpacity={0.8}
+            >
+              <Text style={[s.chipText, s.chipTextActive]}>Add</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
 
       <View style={{ marginBottom: 24 }}>
@@ -422,9 +447,9 @@ export default function OnboardingScreen({ route, navigation }) {
       <Text style={s.stepSub}>This helps your trainer plan safe workouts.</Text>
 
       <View style={{ marginBottom: 24 }}>
-        <Text style={s.label}>PAST INJURIES</Text>
+        <Text style={[s.label, { marginBottom: 12 }]}>PAST INJURIES</Text>
         <View style={s.chips}>
-          {PAST_INJURIES.map((opt) => {
+          {PAST_INJURIES.filter((o) => o !== '+ Custom').map((opt) => {
             const active = injuries.includes(opt);
             return (
               <TouchableOpacity
@@ -437,7 +462,53 @@ export default function OnboardingScreen({ route, navigation }) {
               </TouchableOpacity>
             );
           })}
+          {injuries.filter((o) => !PAST_INJURIES.includes(o)).map((custom) => (
+            <TouchableOpacity
+              key={custom}
+              style={[s.chip, s.chipActive]}
+              onPress={() => {
+                setInjuries(injuries.filter((x) => x !== custom));
+                setInjuryStatus((prev) => { const n = { ...prev }; delete n[custom]; return n; });
+              }}
+              activeOpacity={0.8}
+            >
+              <Text style={[s.chipText, s.chipTextActive]}>{custom}  ✕</Text>
+            </TouchableOpacity>
+          ))}
+          <TouchableOpacity
+            style={[s.chip, showCustomInjury && s.chipActive]}
+            onPress={() => { setShowCustomInjury((v) => !v); setCustomInjuryText(''); }}
+            activeOpacity={0.8}
+          >
+            <Text style={[s.chipText, showCustomInjury && s.chipTextActive]}>+ Custom</Text>
+          </TouchableOpacity>
         </View>
+        {showCustomInjury && (
+          <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+            <TextInput
+              style={[s.input, { flex: 1, paddingVertical: 10 }]}
+              value={customInjuryText}
+              onChangeText={setCustomInjuryText}
+              placeholder="e.g. Torn ACL, Rotator Cuff…"
+              placeholderTextColor={COLORS.textMuted}
+              autoFocus
+            />
+            <TouchableOpacity
+              style={[s.chip, s.chipActive, { paddingHorizontal: 18, alignSelf: 'center' }]}
+              onPress={() => {
+                const t = customInjuryText.trim();
+                if (t && !injuries.includes(t)) {
+                  setInjuries([...injuries, t]);
+                }
+                setCustomInjuryText('');
+                setShowCustomInjury(false);
+              }}
+              activeOpacity={0.8}
+            >
+              <Text style={[s.chipText, s.chipTextActive]}>Add</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
 
       {injuries.filter((x) => x !== 'None' && x !== '+ Custom').length > 0 && (
@@ -572,7 +643,7 @@ export default function OnboardingScreen({ route, navigation }) {
       <View style={{ marginBottom: 24 }}>
         <Text style={s.sectionTitle}>ACTIVITIES INTERESTED IN</Text>
         <View style={[s.chips, { marginTop: 12 }]}>
-          {ACTIVITY_INTERESTS.map((act) => {
+          {ACTIVITY_INTERESTS.filter((a) => a.id !== 'custom').map((act) => {
             const active = activities.includes(act.id);
             return (
               <TouchableOpacity
@@ -585,7 +656,52 @@ export default function OnboardingScreen({ route, navigation }) {
               </TouchableOpacity>
             );
           })}
+          {activities
+            .filter((id) => !ACTIVITY_INTERESTS.find((a) => a.id === id))
+            .map((custom) => (
+              <TouchableOpacity
+                key={custom}
+                style={[s.chip, s.chipActive]}
+                onPress={() => setActivities(activities.filter((x) => x !== custom))}
+                activeOpacity={0.8}
+              >
+                <Text style={[s.chipText, s.chipTextActive]}>{custom}  ✕</Text>
+              </TouchableOpacity>
+            ))}
+          <TouchableOpacity
+            style={[s.chip, showCustomActivity && s.chipActive]}
+            onPress={() => { setShowCustomActivity((v) => !v); setCustomActivityText(''); }}
+            activeOpacity={0.8}
+          >
+            <Text style={[s.chipText, showCustomActivity && s.chipTextActive]}>+ Custom</Text>
+          </TouchableOpacity>
         </View>
+        {showCustomActivity && (
+          <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+            <TextInput
+              style={[s.input, { flex: 1, paddingVertical: 10 }]}
+              value={customActivityText}
+              onChangeText={setCustomActivityText}
+              placeholder="e.g. Calisthenics, Swimming…"
+              placeholderTextColor={COLORS.textMuted}
+              autoFocus
+            />
+            <TouchableOpacity
+              style={[s.chip, s.chipActive, { paddingHorizontal: 18, alignSelf: 'center' }]}
+              onPress={() => {
+                const t = customActivityText.trim();
+                if (t && !activities.includes(t)) {
+                  setActivities([...activities, t]);
+                }
+                setCustomActivityText('');
+                setShowCustomActivity(false);
+              }}
+              activeOpacity={0.8}
+            >
+              <Text style={[s.chipText, s.chipTextActive]}>Add</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
     </View>
   );
@@ -625,9 +741,6 @@ export default function OnboardingScreen({ route, navigation }) {
         </View>
       </Field>
 
-      <Field label="EMAIL" optional>
-        <Input value={ecEmail} onChangeText={setEcEmail} placeholder="e.g. priya@email.com" keyboardType="email-address" />
-      </Field>
 
       <InfoBanner text="This is only used in case of a medical emergency at the gym." />
 

@@ -122,10 +122,6 @@ export default function OTPScreen({ navigation, route }) {
             <Ionicons name="arrow-forward" size={20} color="#fff" />
           </TouchableOpacity>
 
-          {/* Demo hint */}
-          <Text style={styles.demoHint}>
-            <Text style={styles.demoHighlight}>Demo:</Text> Enter any 6 digits to proceed.
-          </Text>
         </View>
       </KeyboardAvoidingView>
     </View>

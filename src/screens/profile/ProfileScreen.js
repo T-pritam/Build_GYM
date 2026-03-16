@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, Alert, Linking,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, Alert,
+  Image, Modal, Pressable,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import { currentUser, membership, buildCoins } from '../../constants/dummyData';
@@ -35,6 +37,41 @@ export default function ProfileScreen({ navigation }) {
   const earned  = buildCoins?.totalEarned || 5000;
   const spent   = buildCoins?.totalSpent || 2550;
 
+  const [profilePhoto,      setProfilePhoto]      = useState(null);
+  const [photoModalVisible, setPhotoModalVisible] = useState(false);
+
+  const openCamera = async () => {
+    setPhotoModalVisible(false);
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Camera access is required to take a photo.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true, aspect: [1, 1], quality: 0.8,
+    });
+    if (!result.canceled) setProfilePhoto(result.assets[0].uri);
+  };
+
+  const openGallery = async () => {
+    setPhotoModalVisible(false);
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Photo library access is required.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true, aspect: [1, 1], quality: 0.8,
+    });
+    if (!result.canceled) setProfilePhoto(result.assets[0].uri);
+  };
+
+  const removePhoto = () => {
+    setProfilePhoto(null);
+    setPhotoModalVisible(false);
+  };
+
   const handleLogout = () =>
     Alert.alert('Log Out', 'Are you sure?', [
       { text: 'Cancel', style: 'cancel' },
@@ -58,14 +95,22 @@ export default function ProfileScreen({ navigation }) {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
         {/* Avatar + info */}
         <View style={styles.avatarSection}>
-          <View style={styles.avatarWrap}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarLetter}>{firstName.charAt(0)}</Text>
-            </View>
+          <TouchableOpacity
+            style={styles.avatarWrap}
+            onPress={() => setPhotoModalVisible(true)}
+            activeOpacity={0.85}
+          >
+            {profilePhoto ? (
+              <Image source={{ uri: profilePhoto }} style={styles.avatar} />
+            ) : (
+              <View style={styles.avatar}>
+                <Text style={styles.avatarLetter}>{firstName.charAt(0)}</Text>
+              </View>
+            )}
             <View style={styles.cameraBadge}>
               <Ionicons name="camera" size={13} color="#fff" />
             </View>
-          </View>
+          </TouchableOpacity>
           <Text style={styles.name}>{currentUser?.name || 'Arjun Sharma'}</Text>
           <Text style={styles.phone}>{currentUser?.mobile || '+91 98765 43210'}</Text>
           <View style={styles.memberBadge}>
@@ -144,6 +189,77 @@ export default function ProfileScreen({ navigation }) {
 
         <View style={{ height: 100 }} />
       </ScrollView>
+
+      {/* ── Profile Photo Modal ── */}
+      <Modal
+        visible={photoModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setPhotoModalVisible(false)}
+      >
+        <Pressable style={styles.photoOverlay} onPress={() => setPhotoModalVisible(false)}>
+          <Pressable style={styles.photoSheet} onPress={() => {}}>
+            <View style={styles.photoHandle} />
+
+            <View style={{ alignItems: 'center', marginBottom: 16 }}>
+              {profilePhoto ? (
+                <Image source={{ uri: profilePhoto }} style={styles.photoPreview} />
+              ) : (
+                <View style={[styles.photoPreview, styles.avatar, { alignItems: 'center', justifyContent: 'center' }]}>
+                  <Text style={styles.avatarLetter}>{firstName.charAt(0)}</Text>
+                </View>
+              )}
+            </View>
+
+            <Text style={styles.photoTitle}>Profile Photo</Text>
+            <Text style={styles.photoSub}>Choose how you’d like to update your photo</Text>
+
+            <TouchableOpacity style={styles.photoOption} onPress={openCamera} activeOpacity={0.8}>
+              <View style={styles.photoOptionIcon}>
+                <Ionicons name="camera" size={20} color={COLORS.secondary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.photoOptionLabel}>Take Photo</Text>
+                <Text style={styles.photoOptionSub}>Use your camera</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.photoOption} onPress={openGallery} activeOpacity={0.8}>
+              <View style={styles.photoOptionIcon}>
+                <Ionicons name="images" size={20} color={COLORS.secondary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.photoOptionLabel}>Choose from Library</Text>
+                <Text style={styles.photoOptionSub}>Pick from your gallery</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
+            </TouchableOpacity>
+
+            {profilePhoto && (
+              <TouchableOpacity style={[styles.photoOption, styles.photoOptionDanger]} onPress={removePhoto} activeOpacity={0.8}>
+                <View style={[styles.photoOptionIcon, { backgroundColor: 'rgba(239,68,68,0.12)' }]}>
+                  <Ionicons name="trash-outline" size={20} color="#EF4444" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.photoOptionLabel, { color: '#EF4444' }]}>Remove Photo</Text>
+                  <Text style={styles.photoOptionSub}>Revert to default avatar</Text>
+                </View>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity
+              style={styles.photoCancel}
+              onPress={() => setPhotoModalVisible(false)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.photoCancelText}>Cancel</Text>
+            </TouchableOpacity>
+
+            <View style={{ height: 12 }} />
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -238,4 +354,39 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(239,68,68,0.07)',
   },
   logoutText: { fontSize: 14, fontWeight: '700', color: '#EF4444' },
+
+  // Photo picker modal
+  photoOverlay:  { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
+  photoSheet: {
+    backgroundColor: '#1C1C1E', borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    padding: 20, paddingBottom: 4, borderWidth: 1, borderColor: '#333',
+  },
+  photoHandle: {
+    alignSelf: 'center', width: 40, height: 4, borderRadius: 2,
+    backgroundColor: '#444', marginBottom: 20,
+  },
+  photoPreview: {
+    width: 80, height: 80, borderRadius: 20,
+    borderWidth: 3, borderColor: COLORS.secondary, backgroundColor: COLORS.secondary,
+  },
+  photoTitle:   { fontSize: 18, fontWeight: '900', color: '#fff', textAlign: 'center', marginBottom: 4 },
+  photoSub:     { fontSize: 12, color: COLORS.textMuted, textAlign: 'center', marginBottom: 20 },
+  photoOption: {
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    backgroundColor: '#111', borderRadius: 14, borderWidth: 1, borderColor: '#333',
+    padding: 14, marginBottom: 10,
+  },
+  photoOptionDanger: { borderColor: 'rgba(239,68,68,0.3)' },
+  photoOptionIcon: {
+    width: 42, height: 42, borderRadius: 12,
+    backgroundColor: 'rgba(233,99,22,0.12)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  photoOptionLabel: { fontSize: 15, fontWeight: '700', color: '#fff', marginBottom: 2 },
+  photoOptionSub:   { fontSize: 12, color: COLORS.textMuted },
+  photoCancel: {
+    marginTop: 4, paddingVertical: 14, borderRadius: 14,
+    backgroundColor: '#111', borderWidth: 1, borderColor: '#333', alignItems: 'center',
+  },
+  photoCancelText: { fontSize: 15, fontWeight: '700', color: COLORS.textMuted },
 });

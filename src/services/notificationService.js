@@ -5,6 +5,8 @@ import { Platform } from 'react-native';
 import axios from 'axios';
 import { BASE_API_URL } from '@env';
 
+export const FCM_TOKEN_KEY = '@fcm_token';
+
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
@@ -29,12 +31,12 @@ export const registerForPushNotificationsAsync = async () => {
     if (Device.isDevice) {
       const { status: existingStatus } = await Notifications.getPermissionsAsync();
       let finalStatus = existingStatus;
-      
+
       if (existingStatus !== 'granted') {
         const { status } = await Notifications.requestPermissionsAsync();
         finalStatus = status;
       }
-      
+
       if (finalStatus !== 'granted') {
         console.log('Failed to get push token for push notification!');
         return null;
@@ -58,30 +60,23 @@ export const registerForPushNotificationsAsync = async () => {
   return token;
 };
 
-export const saveFCMToken = async (fcmToken) => {
+export const saveFCMToken = async (fcmToken, phone = null) => {
   try {
     const deviceId = Device.osInternalBuildId || Device.modelId || 'unknown';
-    console.log('Saving FCM token to backend:', { fcmToken, deviceId, deviceInfo: Device });
-    console.log('BASE_API_URL:', BASE_API_URL);
-    const response = await axios.post(`${BASE_API_URL}/fcm-tokens`, {
+
+    const payload = {
       token: fcmToken,
       deviceId,
-      userId: "Guest",
       platform: Platform.OS,
-      deviceInfo: {
-        brand: Device.brand,
-        modelName: Device.modelName,
-        osName: Device.osName,
-        osVersion: Device.osVersion,
-        platformApiLevel: Device.platformApiLevel,
-      },
-    });
+      ...(phone && { phone }),   // include phone if provided (pre-auth)
+    };
 
-    console.log('FCM token saved successfully:', response.data);
-    return {};
+    const response = await axios.post(`${BASE_API_URL}/fcm-tokens`, payload);
+
+    console.log('FCM token saved:', response.data);
+    return response.data;
   } catch (error) {
     console.error('Error saving FCM token:', error.response?.data || error.message);
-    // Don't throw error, just log it
     return null;
   }
 };
@@ -101,7 +96,7 @@ export const setupNotificationListeners = () => {
     // Handle FCM messages
     const unsubscribeOnMessage = messaging().onMessage(async remoteMessage => {
       console.log('FCM Message received in foreground:', remoteMessage);
-      
+
       if (remoteMessage.notification) {
         await Notifications.scheduleNotificationAsync({
           content: {
@@ -121,6 +116,6 @@ export const setupNotificationListeners = () => {
     };
   } catch (error) {
     console.error('Error setting up notification listeners:', error);
-    return () => {}; // Return empty cleanup function
+    return () => { }; // Return empty cleanup function
   }
 };
