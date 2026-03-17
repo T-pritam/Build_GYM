@@ -11,10 +11,14 @@ import {
   StatusBar,
   Switch,
   Modal,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import DatePickerModal from '../../components/DatePickerModal';
+import { useAuthStore } from '../../store/authStore';
+import api from '../../services/apiService';
 import {
   FITNESS_LEVELS,
   HEALTH_CONDITIONS,
@@ -167,8 +171,11 @@ function InfoBanner({ text, icon = 'information-circle-outline' }) {
 export default function OnboardingScreen({ route, navigation }) {
   const mobile = route?.params?.mobile || '+91 86494 65959';
 
+  const user               = useAuthStore((s) => s.user);
+  const markOnboardingComplete = useAuthStore((s) => s.markOnboardingComplete);
+
   const [step, setStep] = useState(0);
-  const [showPassword, setShowPassword] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [relationModal, setRelationModal] = useState(false);
 
   // Step 1 – Personal Info
@@ -229,10 +236,69 @@ export default function OnboardingScreen({ route, navigation }) {
     return true;
   };
 
-  const goNext = () => {
+  const goNext = async () => {
     scrollRef.current?.scrollTo({ y: 0, animated: false });
-    if (step < 5) { setStep((s) => s + 1); }
-    else { navigation.replace('Welcome', { firstName: firstName || 'Arjun' }); }
+
+    if (step < 5) {
+      setStep((s) => s + 1);
+      return;
+    }
+
+    // ── Final step: submit full onboarding to backend ─────────────────────
+    if (!user?.id) {
+      Alert.alert('Error', 'Session expired. Please log in again.');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const payload = {
+        // Step 1
+        firstName,
+        lastName,
+        fullName: `${firstName} ${lastName}`.trim(),
+        email,
+        dob,
+        // Step 2
+        fitnessLevel,
+        healthConditions,
+        hasMedications: hasMeds,
+        medicationsText: medsText,
+        dietaryPreference: dietary,
+        sleepPattern: sleep,
+        // Step 3
+        pastInjuries: injuries,
+        injuryStatusMap: injuryStatus,
+        hasPhysiotherapy: physiotherapy,
+        doctorClearance: doctorClear,
+        // Step 4
+        fitnessGoals: goals,
+        workoutFrequency: frequency,
+        preferredWorkoutTimes: workoutTime,
+        activityInterests: activities,
+        // Step 5
+        ecName,
+        ecRelationship: ecRelation,
+        ecPhone : '+91' + ecPhone,
+        // Step 6
+        consentTerms,
+        consentPrivacy,
+        consentMedicalFitness: consentFit,
+        optLeaderboard: optLeader,
+        optCommunity,
+        optPromotions: optPromo,
+      };
+
+      await api.post(`/members/${user.id}/onboarding`, payload);
+      await markOnboardingComplete();
+
+      navigation.replace('Welcome', { firstName: firstName || user.firstName || 'there' });
+    } catch (error) {
+      const msg = error.response?.data?.message || 'Failed to save onboarding. Please try again.';
+      Alert.alert('Submission Error', msg);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const goBack = () => {
@@ -882,15 +948,21 @@ export default function OnboardingScreen({ route, navigation }) {
       {/* ── Bottom CTA ── */}
       <View style={s.bottomBar}>
         <TouchableOpacity
-          style={[s.ctaBtn, !canNext() && { opacity: 0.4 }]}
+          style={[s.ctaBtn, (!canNext() || submitting) && { opacity: 0.4 }]}
           onPress={goNext}
-          disabled={!canNext()}
+          disabled={!canNext() || submitting}
           activeOpacity={0.85}
         >
-          <Text style={s.ctaText}>
-            {step === 5 ? 'GET STARTED 🚀' : 'CONTINUE'}
-          </Text>
-          {step < 5 && <Ionicons name="arrow-forward" size={18} color="#fff" style={{ marginLeft: 8 }} />}
+          {submitting ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <>
+              <Text style={s.ctaText}>
+                {step === 5 ? 'GET STARTED 🚀' : 'CONTINUE'}
+              </Text>
+              {step < 5 && <Ionicons name="arrow-forward" size={18} color="#fff" style={{ marginLeft: 8 }} />}
+            </>
+          )}
         </TouchableOpacity>
       </View>
     </View>

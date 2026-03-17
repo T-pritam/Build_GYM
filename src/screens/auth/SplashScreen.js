@@ -7,6 +7,7 @@ import {
   StatusBar,
   Dimensions,
 } from 'react-native';
+import { useAuthStore } from '../../store/authStore';
 
 const { width, height } = Dimensions.get('window');
 const LOGO = width * 0.44;
@@ -71,8 +72,12 @@ export default function SplashScreen({ navigation }) {
   const scaleAnim     = useRef(new Animated.Value(0.75)).current;
   const taglineAnim   = useRef(new Animated.Value(0)).current;
   const lineWidthAnim = useRef(new Animated.Value(0)).current;
+  const initialize    = useAuthStore((s) => s.initialize);
 
   useEffect(() => {
+    // Kick off auth restore and animation in parallel
+    initialize();
+
     Animated.sequence([
       Animated.parallel([
         Animated.timing(fadeAnim,  { toValue: 1, duration: 700, useNativeDriver: true }),
@@ -84,7 +89,20 @@ export default function SplashScreen({ navigation }) {
       ]),
     ]).start();
 
-    const t = setTimeout(() => navigation.replace('Login'), 3200);
+    const t = setTimeout(() => {
+      const { isAuthenticated, user } = useAuthStore.getState();
+
+      if (isAuthenticated && user) {
+        if (user.onboardingCompleted) {
+          navigation.replace('MainTabs');
+        } else {
+          navigation.replace('Onboarding');
+        }
+      } else {
+        navigation.replace('Login');
+      }
+    }, 3200);
+
     return () => clearTimeout(t);
   }, []);
 

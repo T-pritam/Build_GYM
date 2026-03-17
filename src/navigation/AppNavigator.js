@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { useAuthStore } from '../store/authStore';
+import { navigationRef } from './navigationRef';
 
 // Auth Screens
 import SplashScreen from '../screens/auth/SplashScreen';
@@ -65,8 +67,21 @@ function MainTabs() {
 }
 
 export default function AppNavigator() {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+
+  /**
+   * When the user is logged out from anywhere (token refresh failure, manual
+   * logout, etc.) reset the stack back to the Login screen so they can't
+   * navigate back into protected screens.
+   */
+  useEffect(() => {
+    if (!isAuthenticated && navigationRef.isReady()) {
+      navigationRef.reset({ index: 0, routes: [{ name: 'Login' }] });
+    }
+  }, [isAuthenticated]);
+
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       <Stack.Navigator
         initialRouteName="Splash"
         screenOptions={{

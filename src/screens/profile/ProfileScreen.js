@@ -7,6 +7,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import { currentUser, membership, buildCoins } from '../../constants/dummyData';
+import { useAuthStore } from '../../store/authStore';
 
 const MENU = [
   {
@@ -72,10 +73,20 @@ export default function ProfileScreen({ navigation }) {
     setPhotoModalVisible(false);
   };
 
+  const logout = useAuthStore((s) => s.logout);
+
   const handleLogout = () =>
-    Alert.alert('Log Out', 'Are you sure?', [
+    Alert.alert('Log Out', 'Are you sure you want to log out?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Log Out', style: 'destructive', onPress: () => navigation.replace('Login') },
+      {
+        text: 'Log Out',
+        style: 'destructive',
+        onPress: async () => {
+          await logout();
+          // AppNavigator's useEffect will detect isAuthenticated = false
+          // and reset the stack to Login automatically.
+        },
+      },
     ]);
 
   return (

@@ -72,7 +72,6 @@ export const saveFCMToken = async (fcmToken, phone = null) => {
     };
 
     const response = await axios.post(`${BASE_API_URL}/fcm-tokens`, payload);
-
     console.log('FCM token saved:', response.data);
     return response.data;
   } catch (error) {

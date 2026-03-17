@@ -1,17 +1,27 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
-  KeyboardAvoidingView, Platform, StatusBar,
+  KeyboardAvoidingView, Platform, StatusBar, Alert, ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
+import { verifyOTP, resendOTP } from '../../services/authService';
+import { useAuthStore } from '../../store/authStore';
 
 export default function OTPScreen({ navigation, route }) {
-  const { mobile } = route?.params || { mobile: '+91 98765 43210' };
+  const { phone } = route?.params || {};
+  // Display format: +91 98765 43210
+  const displayPhone = phone
+    ? phone.replace(/^\+91(\d{5})(\d{5})$/, '+91 $1 $2')
+    : '+91 XXXXX XXXXX';
+
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [timer, setTimer] = useState(30);
   const [canResend, setCanResend] = useState(false);
+  const [loading, setLoading] = useState(false);
   const inputRefs = useRef([]);
+
+  const setAuth = useAuthStore((s) => s.setAuth);
 
   useEffect(() => { startTimer(); }, []);
 
@@ -41,9 +51,43 @@ export default function OTPScreen({ navigation, route }) {
     }
   };
 
-  const handleVerify = (digits = otp) => {
-    if (digits.join('').length < 6) return;
-    navigation.replace('Onboarding');
+  const handleResend = async () => {
+    if (!canResend || !phone) return;
+    try {
+      await resendOTP(phone);
+      startTimer();
+    } catch {
+      Alert.alert('Error', 'Could not resend OTP. Please try again.');
+    }
+  };
+
+  const handleVerify = async (digits = otp) => {
+    const code = digits.join('');
+    if (code.length < 6 || loading || !phone) return;
+
+    setLoading(true);
+    try {
+      const { accessToken, refreshToken, user } = await verifyOTP(phone, code);
+      console.log('OTP verified, user:', user);
+
+      // Persist to store + SecureStore
+      await setAuth(user, accessToken, refreshToken);
+
+      // Route based on onboarding status
+      if (user.onboardingCompleted) {
+        navigation.replace('MainTabs');
+      } else {
+        navigation.replace('Onboarding', { mobile: phone });
+      }
+    } catch (error) {
+      const msg = error.response?.data?.message || 'Invalid or expired OTP.';
+      Alert.alert('Verification Failed', msg);
+      // Reset OTP boxes
+      setOtp(['', '', '', '', '', '']);
+      inputRefs.current[0]?.focus();
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -74,7 +118,7 @@ export default function OTPScreen({ navigation, route }) {
           <Text style={styles.title}>Verify OTP</Text>
           <Text style={styles.subtitle}>
             We sent a 6-digit code to{' '}
-            <Text style={styles.mobileText}>{mobile}</Text>
+            <Text style={styles.mobileText}>{displayPhone}</Text>
           </Text>
 
           {/* OTP Boxes */}
@@ -102,7 +146,7 @@ export default function OTPScreen({ navigation, route }) {
           {/* Timer */}
           <View style={styles.timerRow}>
             {canResend ? (
-              <TouchableOpacity onPress={startTimer}>
+              <TouchableOpacity onPress={handleResend}>
                 <Text style={styles.resendBtn}>Resend OTP</Text>
               </TouchableOpacity>
             ) : (
@@ -114,12 +158,19 @@ export default function OTPScreen({ navigation, route }) {
 
           {/* Verify button */}
           <TouchableOpacity
-            style={[styles.verifyBtn, otp.join('').length < 6 && styles.verifyBtnDisabled]}
+            style={[styles.verifyBtn, (otp.join('').length < 6 || loading) && styles.verifyBtnDisabled]}
             onPress={() => handleVerify()}
             activeOpacity={0.85}
+            disabled={loading}
           >
-            <Text style={styles.verifyBtnText}>VERIFY &amp; CONTINUE</Text>
-            <Ionicons name="arrow-forward" size={20} color="#fff" />
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <>
+                <Text style={styles.verifyBtnText}>VERIFY &amp; CONTINUE</Text>
+                <Ionicons name="arrow-forward" size={20} color="#fff" />
+              </>
+            )}
           </TouchableOpacity>
 
         </View>

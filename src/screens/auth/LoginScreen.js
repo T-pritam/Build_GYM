@@ -1,45 +1,45 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
-  KeyboardAvoidingView, Platform, StatusBar, Linking, ScrollView, Alert,
+  KeyboardAvoidingView, Platform, StatusBar, Linking, ScrollView, Alert, ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS } from '../../constants/colors';
-import axios from 'axios';
-import { BASE_API_URL } from '@env';
 import { FCM_TOKEN_KEY, saveFCMToken } from '../../services/notificationService';
+import { sendOTP } from '../../services/authService';
 
 
 export default function LoginScreen({ navigation }) {
   const [mobile, setMobile] = useState('');
   const [focused, setFocused] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const handleGetOTP = async () => {
-    if (mobile.length < 10) return;
-    const fcmToken = await AsyncStorage.getItem(FCM_TOKEN_KEY);
-    console.log('Current FCM token:', fcmToken, mobile);
-    console.log('Requesting OTP for:', mobile);
-    
-    try {
-      if (fcmToken) {
-        await saveFCMToken(fcmToken, mobile);
-      }
-      const response = await axios.post(`${BASE_API_URL}/otp/send`, {
-        phone: `${mobile}`,
-        deviceId: ""
-      });
-      console.log('OTP send response:', response.data);
+    if (mobile.length < 10 || loading) return;
 
-      if (response.data.success) {
-        navigation.navigate('OTP', { mobile: `+91 ${mobile}` });
+    const fullPhone = `+91${mobile}`;
+    setLoading(true);
+
+    try {
+      const fcmToken = await AsyncStorage.getItem(FCM_TOKEN_KEY);
+
+      // Associate FCM token with phone before sending OTP
+      if (fcmToken) {
+        await saveFCMToken(fcmToken, fullPhone);
       }
+
+      await sendOTP(fullPhone);
+
+      navigation.navigate('OTP', { phone: fullPhone });
     } catch (error) {
       if (error.response?.status === 404) {
         Alert.alert('Not Registered', 'This number is not registered. Please contact your admin.');
       } else {
         Alert.alert('Error', 'Failed to send OTP. Please try again.');
       }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -98,12 +98,19 @@ export default function LoginScreen({ navigation }) {
             </Text>
 
             <TouchableOpacity
-              style={[styles.otpBtn, mobile.length < 10 && styles.otpBtnDisabled]}
+              style={[styles.otpBtn, (mobile.length < 10 || loading) && styles.otpBtnDisabled]}
               onPress={handleGetOTP}
               activeOpacity={0.85}
+              disabled={mobile.length < 10 || loading}
             >
-              <Text style={styles.otpBtnText}>GET OTP</Text>
-              <Ionicons name="arrow-forward" size={20} color="#fff" />
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <>
+                  <Text style={styles.otpBtnText}>GET OTP</Text>
+                  <Ionicons name="arrow-forward" size={20} color="#fff" />
+                </>
+              )}
             </TouchableOpacity>
           </View>
 
