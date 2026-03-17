@@ -1,130 +1,336 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  StatusBar,
+  View, Text, ScrollView, StyleSheet, StatusBar,
+  TouchableOpacity, ActivityIndicator, RefreshControl, Modal,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
-import { notifications } from '../../constants/dummyData';
+import { fetchAnnouncements, markAnnouncementRead } from '../../services/announcementService';
+import { useAnnouncementStore } from '../../store/announcementStore';
 
-const NOTIF_ICONS = {
-  membership: { icon: 'card-outline', color: COLORS.secondary },
-  cafe: { icon: 'restaurant-outline', color: '#4CAF50' },
-  coins: { icon: 'logo-bitcoin', color: COLORS.secondary },
-  announcement: { icon: 'megaphone-outline', color: '#2196F3' },
-  access: { icon: 'lock-open-outline', color: '#9C27B0' },
-  default: { icon: 'notifications-outline', color: COLORS.textMuted },
+// ─── Type config ──────────────────────────────────────────────────────────────
+const TYPE_LABEL = {
+  general:     'General',
+  event:       'Event',
+  maintenance: 'Maintenance',
+  promotion:   'Promotion',
+  health:      'Health',
+};
+const TYPE_COLOR = {
+  event:       '#3B82F6',
+  maintenance: '#EF4444',
+  general:     '#64748B',
+  promotion:   '#EAB308',
+  health:      '#22C55E',
 };
 
-export default function NotificationsScreen({ navigation }) {
-  const [notifs, setNotifs] = useState(notifications);
-  const unreadCount = notifs.filter((n) => !n.read).length;
+const formatDate = (iso) =>
+  new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 
-  const markAllRead = () => setNotifs((prev) => prev.map((n) => ({ ...n, read: true })));
-  const markRead = (id) => setNotifs((prev) => prev.map((n) => n.id === id ? { ...n, read: true } : n));
+// ─── TypeTag ─────────────────────────────────────────────────────────────────
+function TypeTag({ type }) {
+  const color = TYPE_COLOR[type] ?? '#64748B';
+  const label = TYPE_LABEL[type] ?? type;
+  return (
+    <View style={[tt.tag, { borderColor: color + '60', backgroundColor: color + '20' }]}>
+      <Text style={[tt.tagText, { color }]}>{label.toUpperCase()}</Text>
+    </View>
+  );
+}
+const tt = StyleSheet.create({
+  tag: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 },
+  tagText: { fontSize: 9, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1 },
+});
+
+// ─── Card ─────────────────────────────────────────────────────────────────────
+function AnnouncementCard({ item, onPress, showPin }) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.75}
+      style={[s.card, showPin && { borderColor: COLORS.secondary + '50' }, !item.is_read && s.cardUnread]}
+    >
+      <View style={s.cardTop}>
+        <TypeTag type={item.type} />
+        {showPin && <Text style={s.pinIcon}>📌</Text>}
+        {item.urgent && <View style={s.urgentDot} />}
+        {!item.is_read && <View style={s.unreadDot} />}
+      </View>
+      <Text style={s.cardTitle}>{item.title}</Text>
+      <Text style={s.cardDesc} numberOfLines={2}>{item.message}</Text>
+      <View style={s.cardFooter}>
+        <Text style={s.footerText}>{formatDate(item.publishedAt)}</Text>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+// ─── Screen ──────────────────────────────────────────────────────────────────
+export default function NotificationsScreen({ navigation }) {
+  const [items, setItems]           = useState([]);
+  const [loading, setLoading]       = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [selected, setSelected]     = useState(null);
+  const [error, setError]           = useState(null);
+  const [nextCursor, setNextCursor] = useState(null);
+
+  const { unreadCount, refreshUnreadCount, markOneRead, clearUnread } =
+    useAnnouncementStore();
+
+  const loadingRef = useRef(false);
+
+  // ── Fetch ─────────────────────────────────────────────────────────────────
+  const loadItems = useCallback(async (replace = true) => {
+    if (loadingRef.current) return;
+    loadingRef.current = true;
+    try {
+      setError(null);
+      const res = await fetchAnnouncements({ limit: 50 });
+      setItems(replace ? (res.data ?? []) : (prev) => [...prev, ...(res.data ?? [])]);
+      setNextCursor(res.nextCursor ?? null);
+    } catch {
+      setError('Failed to load announcements.');
+    } finally {
+      loadingRef.current = false;
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      setLoading(true);
+      Promise.all([loadItems(true), refreshUnreadCount()]).finally(() => setLoading(false));
+    }, [])
+  );
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([loadItems(true), refreshUnreadCount()]);
+    setRefreshing(false);
+  };
+
+  // ── Open / close detail modal ─────────────────────────────────────────────
+  const handleOpen = (item) => {
+    setSelected(item);
+    if (!item.is_read) {
+      markAnnouncementRead(item.id).catch(() => {});
+      markOneRead();
+      setItems((prev) => prev.map((a) => a.id === item.id ? { ...a, is_read: true } : a));
+    }
+  };
+
+  const handleClose = () => setSelected(null);
+
+  // ── Mark all read ─────────────────────────────────────────────────────────
+  const handleMarkAllRead = () => {
+    items.filter((a) => !a.is_read).forEach((a) => markAnnouncementRead(a.id).catch(() => {}));
+    setItems((prev) => prev.map((a) => ({ ...a, is_read: true })));
+    clearUnread();
+  };
+
+  const pinned    = items.filter((a) => a.pinned);
+  const nonPinned = items.filter((a) => !a.pinned);
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
-      <LinearGradient colors={['#1A0800', '#0D0D0D']} style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={20} color={COLORS.white} />
+    <View style={s.root}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
+
+      {/* Header */}
+      <View style={s.header}>
+        <TouchableOpacity style={s.backBtn} onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={18} color={COLORS.white} />
         </TouchableOpacity>
-        <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>Notifications</Text>
-          {unreadCount > 0 && (
-            <View style={styles.unreadBadge}>
-              <Text style={styles.unreadBadgeText}>{unreadCount}</Text>
-            </View>
-          )}
-        </View>
+
+        <Text style={s.title}>Announcements</Text>
+
         {unreadCount > 0 ? (
-          <TouchableOpacity style={styles.markAllBtn} onPress={markAllRead}>
-            <Text style={styles.markAllText}>Mark all read</Text>
+          <TouchableOpacity style={s.markAllBtn} onPress={handleMarkAllRead}>
+            <Text style={s.markAllText}>Mark all read</Text>
           </TouchableOpacity>
         ) : (
-          <View style={{ width: 80 }} />
+          <View style={{ width: 88 }} />
         )}
-      </LinearGradient>
+      </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
-        {notifs.length === 0 ? (
-          <View style={styles.empty}>
-            <Ionicons name="notifications-off-outline" size={52} color={COLORS.textDim} />
-            <Text style={styles.emptyText}>No notifications yet</Text>
+      {loading ? (
+        <View style={s.center}>
+          <ActivityIndicator color={COLORS.secondary} size="large" />
+        </View>
+      ) : error ? (
+        <View style={s.center}>
+          <Text style={s.errorText}>{error}</Text>
+          <TouchableOpacity
+            style={s.retryBtn}
+            onPress={() => { setLoading(true); loadItems(true).finally(() => setLoading(false)); }}
+          >
+            <Text style={s.retryText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <ScrollView
+          contentContainerStyle={s.body}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor={COLORS.secondary}
+              colors={[COLORS.secondary]}
+            />
+          }
+        >
+          {/* Pinned section */}
+          {pinned.length > 0 && (
+            <>
+              <View style={s.sectionHeader}>
+                <View style={s.accentBar} />
+                <Text style={s.sectionTitle}>📌  Pinned</Text>
+              </View>
+              {pinned.map((a) => (
+                <AnnouncementCard key={a.id} item={a} showPin onPress={() => handleOpen(a)} />
+              ))}
+            </>
+          )}
+
+          {/* All announcements */}
+          <View style={[s.sectionHeader, { marginTop: pinned.length > 0 ? 8 : 0 }]}>
+            <View style={s.accentBar} />
+            <Text style={s.sectionTitle}>All Announcements</Text>
           </View>
-        ) : (
-          notifs.map((notif) => {
-            const { icon, color } = NOTIF_ICONS[notif.type] || NOTIF_ICONS.default;
-            return (
-              <TouchableOpacity
-                key={notif.id}
-                style={[styles.notifCard, !notif.read && styles.notifCardUnread]}
-                onPress={() => markRead(notif.id)}
-                activeOpacity={0.75}
-              >
-                {!notif.read && <View style={styles.unreadDot} />}
-                <View style={[styles.notifIcon, { backgroundColor: `${color}18` }]}>
-                  <Ionicons name={icon} size={20} color={color} />
+
+          {nonPinned.map((a) => (
+            <AnnouncementCard key={a.id} item={a} onPress={() => handleOpen(a)} />
+          ))}
+
+          {items.length === 0 && (
+            <View style={s.emptyState}>
+              <Text style={s.emptyIcon}>📢</Text>
+              <Text style={s.emptyText}>No announcements yet</Text>
+            </View>
+          )}
+        </ScrollView>
+      )}
+
+      {/* ── Detail bottom-sheet modal ────────────────────────────────────── */}
+      <Modal
+        visible={!!selected}
+        transparent
+        animationType="slide"
+        onRequestClose={handleClose}
+      >
+        <View style={s.modalBackdrop}>
+          <TouchableOpacity style={s.modalDismiss} activeOpacity={1} onPress={handleClose} />
+          <View style={s.modalSheet}>
+            {selected && (
+              <>
+                <View style={s.modalHandle} />
+
+                <View style={s.modalTop}>
+                  <TypeTag type={selected.type} />
+                  {selected.urgent && (
+                    <View style={s.modalUrgent}>
+                      <Text style={s.modalUrgentText}>● URGENT</Text>
+                    </View>
+                  )}
+                  {selected.pinned && <Text style={{ fontSize: 16 }}>📌</Text>}
                 </View>
-                <View style={styles.notifContent}>
-                  <Text style={styles.notifTitle}>{notif.title}</Text>
-                  <Text style={styles.notifBody}>{notif.body}</Text>
-                  <Text style={styles.notifTime}>{notif.time}</Text>
-                </View>
-              </TouchableOpacity>
-            );
-          })
-        )}
-        <View style={{ height: 60 }} />
-      </ScrollView>
+
+                <Text style={s.modalTitle}>{selected.title}</Text>
+                <Text style={s.modalMeta}>{formatDate(selected.publishedAt)}</Text>
+                <Text style={s.modalBody}>{selected.message}</Text>
+
+                <TouchableOpacity style={s.closeBtn} onPress={handleClose} activeOpacity={0.85}>
+                  <Text style={s.closeBtnText}>CLOSE</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
+// ─── Styles ───────────────────────────────────────────────────────────────────
+const s = StyleSheet.create({
+  root: { flex: 1, backgroundColor: COLORS.background },
+
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingTop: 52, paddingHorizontal: 20, paddingBottom: 16,
+    paddingHorizontal: 16, paddingTop: 52, paddingBottom: 16,
+    borderBottomWidth: 1, borderBottomColor: COLORS.border,
   },
   backBtn: {
-    width: 42, height: 42, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.07)',
-    alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
+    width: 36, height: 36, borderRadius: 10, backgroundColor: COLORS.surface,
+    borderWidth: 1, borderColor: COLORS.border,
+    justifyContent: 'center', alignItems: 'center',
   },
-  headerCenter: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  headerTitle: { fontSize: 18, fontWeight: '800', color: COLORS.white },
-  unreadBadge: {
-    backgroundColor: COLORS.secondary, borderRadius: 10, paddingHorizontal: 7,
-    paddingVertical: 1, minWidth: 20, alignItems: 'center',
-  },
-  unreadBadgeText: { fontSize: 11, fontWeight: '800', color: COLORS.white },
+  title: { color: COLORS.white, fontSize: 22, fontWeight: '800' },
   markAllBtn: {
     paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8,
     backgroundColor: COLORS.secondaryGlow, borderWidth: 1, borderColor: COLORS.secondaryBorder,
   },
   markAllText: { fontSize: 11, fontWeight: '700', color: COLORS.secondary },
-  scroll: { padding: 16 },
-  notifCard: {
-    flexDirection: 'row', alignItems: 'flex-start', backgroundColor: COLORS.surface,
-    borderRadius: 14, borderWidth: 1, borderColor: COLORS.border,
-    padding: 14, marginBottom: 10, gap: 12, position: 'relative',
+
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
+  errorText: { color: '#EF4444', fontSize: 14 },
+  retryBtn: {
+    backgroundColor: COLORS.secondary, borderRadius: 10,
+    paddingHorizontal: 20, paddingVertical: 8,
   },
-  notifCardUnread: { borderColor: COLORS.secondaryBorder, backgroundColor: `${COLORS.secondaryGlow}` },
-  unreadDot: {
-    position: 'absolute', top: 14, right: 14, width: 8, height: 8,
-    borderRadius: 4, backgroundColor: COLORS.secondary,
+  retryText: { color: '#000', fontWeight: '700' },
+
+  body: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 80, gap: 12 },
+
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 },
+  accentBar: { width: 4, height: 18, backgroundColor: COLORS.secondary, borderRadius: 2 },
+  sectionTitle: { color: COLORS.white, fontSize: 15, fontWeight: '800' },
+
+  // Card
+  card: {
+    backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border,
+    borderRadius: 16, padding: 16, gap: 8,
   },
-  notifIcon: { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  notifContent: { flex: 1 },
-  notifTitle: { fontSize: 14, fontWeight: '700', color: COLORS.white, marginBottom: 4 },
-  notifBody: { fontSize: 13, color: COLORS.textSecondary, lineHeight: 18, marginBottom: 6 },
-  notifTime: { fontSize: 11, color: COLORS.textMuted, fontWeight: '600' },
-  empty: { alignItems: 'center', paddingVertical: 80, gap: 14 },
-  emptyText: { fontSize: 16, color: COLORS.textMuted },
+  cardUnread: { borderColor: COLORS.secondary + '40' },
+  cardTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  pinIcon: { fontSize: 15 },
+  urgentDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#EF4444' },
+  unreadDot: { marginLeft: 'auto', width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.secondary },
+  cardTitle: { color: COLORS.white, fontSize: 15, fontWeight: '800', lineHeight: 22 },
+  cardDesc: { color: COLORS.textSecondary, fontSize: 13, lineHeight: 18 },
+  cardFooter: { flexDirection: 'row', gap: 10 },
+  footerText: { color: COLORS.textMuted, fontSize: 11 },
+
+  // Empty
+  emptyState: { alignItems: 'center', paddingTop: 60, gap: 8 },
+  emptyIcon: { fontSize: 40 },
+  emptyText: { color: COLORS.textMuted, fontSize: 15 },
+
+  // Modal
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'flex-end' },
+  modalDismiss: { flex: 1 },
+  modalSheet: {
+    backgroundColor: COLORS.surface,
+    borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    padding: 24, paddingBottom: 40,
+    borderTopWidth: 1, borderTopColor: COLORS.border,
+  },
+  modalHandle: {
+    alignSelf: 'center', width: 40, height: 4,
+    borderRadius: 2, backgroundColor: COLORS.border, marginBottom: 20,
+  },
+  modalTop: { flexDirection: 'row', gap: 8, alignItems: 'center', marginBottom: 12 },
+  modalUrgent: {
+    borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4,
+    backgroundColor: 'rgba(239,68,68,0.12)',
+  },
+  modalUrgentText: { color: '#EF4444', fontSize: 10, fontWeight: '700' },
+  modalTitle: { color: COLORS.white, fontSize: 20, fontWeight: '800', marginBottom: 6, lineHeight: 28 },
+  modalMeta: { color: COLORS.textMuted, fontSize: 12, marginBottom: 14 },
+  modalBody: { color: COLORS.textSecondary, fontSize: 14, lineHeight: 22, marginBottom: 20 },
+  closeBtn: {
+    backgroundColor: COLORS.secondary, borderRadius: 14,
+    paddingVertical: 14, alignItems: 'center',
+  },
+  closeBtnText: { color: '#000', fontWeight: '800', fontSize: 14, letterSpacing: 1 },
 });

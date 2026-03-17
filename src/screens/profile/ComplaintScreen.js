@@ -8,6 +8,7 @@ import {
   StatusBar,
   TextInput,
   Alert,
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
@@ -15,18 +16,33 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import { complaintCategories } from '../../constants/dummyData';
+import { submitComplaint } from '../../services/complaintService';
 
 export default function ComplaintScreen({ navigation }) {
   const [selectedCategory, setSelectedCategory] = useState('');
   const [description, setDescription] = useState('');
   const [submitted, setSubmitted] = useState(false);
+  const [submittedRef, setSubmittedRef] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!selectedCategory || description.trim().length < 20) {
       Alert.alert('Missing Info', 'Please select a category and provide a description (min 20 characters).');
       return;
     }
-    setSubmitted(true);
+    setIsLoading(true);
+    try {
+      const response = await submitComplaint({ category: selectedCategory, description });
+      setSubmittedRef(response.data.data.ref);
+      setSubmitted(true);
+    } catch (error) {
+      Alert.alert(
+        'Submission Failed',
+        error?.response?.data?.message || 'Something went wrong. Please try again.',
+      );
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   if (submitted) {
@@ -55,7 +71,7 @@ export default function ComplaintScreen({ navigation }) {
           </View>
           <View style={[styles.successRow, { borderBottomWidth: 0 }]}>
             <Text style={styles.successLabel}>Reference ID</Text>
-            <Text style={styles.successValue}>#CMP-{Math.floor(Math.random() * 9000) + 1000}</Text>
+            <Text style={styles.successValue}>{submittedRef}</Text>
           </View>
         </View>
         <TouchableOpacity
@@ -129,9 +145,19 @@ export default function ComplaintScreen({ navigation }) {
             multiline
             numberOfLines={5}
             textAlignVertical="top"
-            maxLength={500}
+            maxLength={1000}
           />
-          <Text style={styles.charCount}>{description.length}/500</Text>
+          <Text style={styles.charCount}>{description.length}/1000</Text>
+
+          {/* Image Attachments (coming soon) */}
+          <Text style={styles.fieldLabel}>ATTACHMENTS (OPTIONAL)</Text>
+          <View style={styles.imageStubBox}>
+            <Ionicons name="image-outline" size={20} color={COLORS.textMuted} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.imageStubTitle}>Attach up to 3 images</Text>
+              <Text style={styles.imageStubSub}>JPG / PNG · max 5 MB each · coming soon</Text>
+            </View>
+          </View>
 
           {/* Guidelines */}
           <View style={styles.guidelinesBox}>
@@ -153,14 +179,15 @@ export default function ComplaintScreen({ navigation }) {
           <TouchableOpacity
             style={[
               styles.submitBtn,
-              (!selectedCategory || description.trim().length < 20) && styles.submitBtnDisabled,
+              (!selectedCategory || description.trim().length < 20 || isLoading) && styles.submitBtnDisabled,
             ]}
             onPress={handleSubmit}
             activeOpacity={0.85}
+            disabled={isLoading}
           >
             <LinearGradient
               colors={
-                selectedCategory && description.trim().length >= 20
+                selectedCategory && description.trim().length >= 20 && !isLoading
                   ? [COLORS.secondary, COLORS.secondaryDark]
                   : ['#333', '#222']
               }
@@ -168,19 +195,25 @@ export default function ComplaintScreen({ navigation }) {
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
             >
-              <Ionicons
-                name="send-outline"
-                size={18}
-                color={selectedCategory && description.trim().length >= 20 ? COLORS.white : COLORS.textMuted}
-              />
-              <Text
-                style={[
-                  styles.submitBtnText,
-                  (!selectedCategory || description.trim().length < 20) && { color: COLORS.textMuted },
-                ]}
-              >
-                SUBMIT COMPLAINT
-              </Text>
+              {isLoading ? (
+                <ActivityIndicator size="small" color={COLORS.white} />
+              ) : (
+                <>
+                  <Ionicons
+                    name="send-outline"
+                    size={18}
+                    color={selectedCategory && description.trim().length >= 20 ? COLORS.white : COLORS.textMuted}
+                  />
+                  <Text
+                    style={[
+                      styles.submitBtnText,
+                      (!selectedCategory || description.trim().length < 20) && { color: COLORS.textMuted },
+                    ]}
+                  >
+                    SUBMIT COMPLAINT
+                  </Text>
+                </>
+              )}
             </LinearGradient>
           </TouchableOpacity>
 
@@ -226,6 +259,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16, paddingVertical: 14, minHeight: 120, lineHeight: 20,
   },
   charCount: { fontSize: 11, color: COLORS.textMuted, textAlign: 'right', marginTop: 6, marginBottom: 20 },
+  imageStubBox: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border,
+    borderRadius: 12, padding: 14, marginBottom: 24, opacity: 0.55,
+  },
+  imageStubTitle: { fontSize: 13, color: COLORS.textSecondary, fontWeight: '600' },
+  imageStubSub:   { fontSize: 11, color: COLORS.textMuted, marginTop: 2 },
   guidelinesBox: {
     backgroundColor: COLORS.surface, borderRadius: 14, borderWidth: 1,
     borderColor: COLORS.border, padding: 16, marginBottom: 24,

@@ -27,6 +27,10 @@ const MENU = [
     sub: 'Report an issue', nav: 'Complaint', color: '#EF4444', bg: 'rgba(239,68,68,0.12)',
   },
   {
+    id: 'myComplaints', label: 'My Complaints', icon: 'list-circle-outline',
+    sub: 'Track your tickets', nav: 'MyComplaints', color: '#EF4444', bg: 'rgba(239,68,68,0.08)',
+  },
+  {
     id: 'health', label: 'Health & Emergency Info', icon: 'heart-outline',
     sub: 'Medical & contact details', nav: null, color: '#22C55E', bg: 'rgba(34,197,94,0.12)',
   },

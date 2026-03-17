@@ -4,8 +4,28 @@ import messaging from '@react-native-firebase/messaging';
 import { Platform } from 'react-native';
 import axios from 'axios';
 import { BASE_API_URL } from '@env';
+import { navigateTo } from '../navigation/navigationRef';
 
 export const FCM_TOKEN_KEY = '@fcm_token';
+
+/**
+ * Parse a buildfitness:// deep link and navigate to the correct screen.
+ * Supports: buildfitness://announcements/<id>
+ */
+export const handleDeepLink = (deepLink) => {
+  if (!deepLink) return;
+  try {
+    // deepLink format: buildfitness://announcements/uuid
+    const withoutScheme = deepLink.replace('buildfitness://', '');
+    const [resource, id] = withoutScheme.split('/');
+
+    if (resource === 'announcements' && id) {
+      navigateTo('AnnouncementDetail', { id });
+    }
+  } catch (err) {
+    console.warn('handleDeepLink error:', err);
+  }
+};
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -87,9 +107,10 @@ export const setupNotificationListeners = () => {
       console.log('Notification received in foreground:', notification);
     });
 
-    // Handle notification interactions
+    // Handle notification tap (Expo local notifications)
     const responseSubscription = Notifications.addNotificationResponseReceivedListener(response => {
-      console.log('Notification response:', response);
+      const deepLink = response.notification.request.content.data?.deep_link;
+      if (deepLink) handleDeepLink(deepLink);
     });
 
     // Handle FCM messages

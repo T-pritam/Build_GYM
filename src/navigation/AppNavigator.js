@@ -29,11 +29,14 @@ import MembershipScreen from '../screens/profile/MembershipScreen';
 import BuildCoinTransactionsScreen from '../screens/profile/BuildCoinTransactionsScreen';
 import ActivityDashboardScreen from '../screens/profile/ActivityDashboardScreen';
 import ComplaintScreen from '../screens/profile/ComplaintScreen';
+import MyComplaintsScreen from '../screens/profile/MyComplaintsScreen';
+import MyComplaintDetailScreen from '../screens/profile/MyComplaintDetailScreen';
 import NotificationsScreen from '../screens/profile/NotificationsScreen';
 
 // Detail screens
 import TrainerDetailScreen from '../screens/detail/TrainerDetailScreen';
 import ArticleReaderScreen from '../screens/community/ArticleReaderScreen';
+import AnnouncementDetailScreen from '../screens/main/AnnouncementDetailScreen';
 
 // Main extra screens
 import CommunityScreen from '../screens/main/CommunityScreen';
@@ -132,10 +135,17 @@ export default function AppNavigator() {
         <Stack.Screen name="BuildCoinTransactions" component={BuildCoinTransactionsScreen} />
         <Stack.Screen name="Activity" component={ActivityDashboardScreen} />
         <Stack.Screen name="Complaint" component={ComplaintScreen} />
+        <Stack.Screen name="MyComplaints" component={MyComplaintsScreen} />
+        <Stack.Screen name="MyComplaintDetail" component={MyComplaintDetailScreen} />
         <Stack.Screen name="Notifications" component={NotificationsScreen} />
 
         {/* Detail screens */}
         <Stack.Screen name="TrainerDetail" component={TrainerDetailScreen} />
+        <Stack.Screen
+          name="AnnouncementDetail"
+          component={AnnouncementDetailScreen}
+          options={{ animation: 'slide_from_right' }}
+        />
 
         {/* Community & Leaderboard */}
         <Stack.Screen name="Community" component={CommunityScreen} />

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useAnnouncementStore } from '../../store/announcementStore';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   StatusBar, Linking,
@@ -29,6 +30,8 @@ const DUMMY_ANNOUNCEMENTS = [
 ];
 
 export default function HomeScreen({ navigation }) {
+  const unreadCount = useAnnouncementStore((s) => s.unreadCount);
+
   const getGreeting = () => {
     const h = new Date().getHours();
     if (h < 12) return 'Good Morning,';
@@ -61,7 +64,13 @@ export default function HomeScreen({ navigation }) {
               onPress={() => navigation.navigate('Notifications')}
             >
               <Ionicons name="notifications-outline" size={22} color={COLORS.white} />
-              <View style={styles.notifDot} />
+              {unreadCount > 0 && (
+                <View style={styles.notifBadge}>
+                  <Text style={styles.notifBadgeText}>
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </Text>
+                </View>
+              )}
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.avatarBtn}
@@ -392,10 +401,15 @@ const styles = StyleSheet.create({
   userName: { fontSize: 24, fontWeight: '900', color: COLORS.white },
   topActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   topBtn: { position: 'relative', padding: 8 },
-  notifDot: {
-    position: 'absolute', top: 8, right: 8, width: 8, height: 8,
-    borderRadius: 4, backgroundColor: COLORS.secondary, borderWidth: 1.5, borderColor: COLORS.background,
+  notifBadge: {
+    position: 'absolute', top: 4, right: 4,
+    minWidth: 16, height: 16, borderRadius: 8,
+    backgroundColor: COLORS.secondary,
+    borderWidth: 1.5, borderColor: COLORS.background,
+    alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: 3,
   },
+  notifBadgeText: { fontSize: 9, fontWeight: '900', color: '#fff' },
   avatarBtn: {},
   avatarBox: {
     width: 40, height: 40, borderRadius: 10, backgroundColor: COLORS.secondary,
