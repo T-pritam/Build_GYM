@@ -2,8 +2,11 @@
 // DUMMY DATA – Replace with API responses when backend is ready
 // ============================================================
 
+// Demo user ID from seeded database (Arjun Kumar, phone +919876543210)
+export const DEMO_USER_ID = '9895fa34-0cef-4bbd-a685-78125627b9be';
+
 export const currentUser = {
-  id: 'u001',
+  id: DEMO_USER_ID,
   name: 'Arjun Sharma',
   mobile: '+91 98765 43210',
   email: 'arjun.sharma@email.com',

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,27 +6,49 @@ import {
   ScrollView,
   TouchableOpacity,
   StatusBar,
+  ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
-import { notifications } from '../../constants/dummyData';
+import { fetchMemberNotifications, markNotificationRead, markAllNotificationsRead } from '../../services/api';
+import { useUser } from '../../context/UserContext';
 
 const NOTIF_ICONS = {
   membership: { icon: 'card-outline', color: COLORS.secondary },
   cafe: { icon: 'restaurant-outline', color: '#4CAF50' },
   coins: { icon: 'logo-bitcoin', color: COLORS.secondary },
   announcement: { icon: 'megaphone-outline', color: '#2196F3' },
+  activity: { icon: 'barbell-outline', color: '#9C27B0' },
   access: { icon: 'lock-open-outline', color: '#9C27B0' },
+  general: { icon: 'notifications-outline', color: COLORS.textMuted },
   default: { icon: 'notifications-outline', color: COLORS.textMuted },
 };
 
 export default function NotificationsScreen({ navigation }) {
-  const [notifs, setNotifs] = useState(notifications);
-  const unreadCount = notifs.filter((n) => !n.read).length;
+  const { userId } = useUser();
+  const [notifs, setNotifs] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const markAllRead = () => setNotifs((prev) => prev.map((n) => ({ ...n, read: true })));
-  const markRead = (id) => setNotifs((prev) => prev.map((n) => n.id === id ? { ...n, read: true } : n));
+  useEffect(() => {
+    if (!userId) return;
+    fetchMemberNotifications(userId)
+      .then((res) => setNotifs(res?.data || []))
+      .catch(() => setNotifs([]))
+      .finally(() => setLoading(false));
+  }, [userId]);
+
+  const unreadCount = notifs.filter((n) => !n.isRead).length;
+
+  const markAllRead = async () => {
+    setNotifs((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    try { await markAllNotificationsRead(userId); } catch {}
+  };
+
+  const markRead = async (id) => {
+    setNotifs((prev) => prev.map((n) => n.id === id ? { ...n, isRead: true } : n));
+    try { await markNotificationRead(id); } catch {}
+  };
 
   return (
     <View style={styles.container}>
@@ -53,7 +75,11 @@ export default function NotificationsScreen({ navigation }) {
       </LinearGradient>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
-        {notifs.length === 0 ? (
+        {loading ? (
+          <View style={styles.empty}>
+            <ActivityIndicator size="large" color={COLORS.secondary} />
+          </View>
+        ) : notifs.length === 0 ? (
           <View style={styles.empty}>
             <Ionicons name="notifications-off-outline" size={52} color={COLORS.textDim} />
             <Text style={styles.emptyText}>No notifications yet</Text>
@@ -61,21 +87,24 @@ export default function NotificationsScreen({ navigation }) {
         ) : (
           notifs.map((notif) => {
             const { icon, color } = NOTIF_ICONS[notif.type] || NOTIF_ICONS.default;
+            const timeStr = notif.createdAt
+              ? new Date(notif.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+              : '';
             return (
               <TouchableOpacity
                 key={notif.id}
-                style={[styles.notifCard, !notif.read && styles.notifCardUnread]}
+                style={[styles.notifCard, !notif.isRead && styles.notifCardUnread]}
                 onPress={() => markRead(notif.id)}
                 activeOpacity={0.75}
               >
-                {!notif.read && <View style={styles.unreadDot} />}
+                {!notif.isRead && <View style={styles.unreadDot} />}
                 <View style={[styles.notifIcon, { backgroundColor: `${color}18` }]}>
                   <Ionicons name={icon} size={20} color={color} />
                 </View>
                 <View style={styles.notifContent}>
                   <Text style={styles.notifTitle}>{notif.title}</Text>
                   <Text style={styles.notifBody}>{notif.body}</Text>
-                  <Text style={styles.notifTime}>{notif.time}</Text>
+                  <Text style={styles.notifTime}>{timeStr}</Text>
                 </View>
               </TouchableOpacity>
             );

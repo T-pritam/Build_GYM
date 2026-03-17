@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   StatusBar, Linking,
@@ -6,7 +6,8 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
-import { currentUser, membership, buildCoins, trainers, announcements, gymServices } from '../../constants/dummyData';
+import { membership, trainers, announcements, gymServices } from '../../constants/dummyData';
+import { useUser } from '../../context/UserContext';
 
 const RECEPTION_PHONE = '+919876543210';
 
@@ -29,6 +30,8 @@ const DUMMY_ANNOUNCEMENTS = [
 ];
 
 export default function HomeScreen({ navigation }) {
+  const { user, wallet } = useUser();
+
   const getGreeting = () => {
     const h = new Date().getHours();
     if (h < 12) return 'Good Morning,';
@@ -36,7 +39,8 @@ export default function HomeScreen({ navigation }) {
     return 'Good Evening,';
   };
 
-  const firstName = currentUser?.name?.split(' ')[0] || 'Arjun';
+  const firstName = user?.firstName || user?.fullName?.split(' ')[0] || 'User';
+  const coinsBalance = wallet?.balance ?? membership?.balance ?? 0;
 
   return (
     <View style={styles.container}>
@@ -149,7 +153,7 @@ export default function HomeScreen({ navigation }) {
               <View>
                 <Text style={styles.coinsLabel}>BUILD COINS BALANCE</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
-                  <Text style={styles.coinsValue}>{(buildCoins?.balance || 2450).toLocaleString()}</Text>
+                  <Text style={styles.coinsValue}>{coinsBalance.toLocaleString('en-IN')}</Text>
                   <Text style={styles.coinsUnit}>coins</Text>
                 </View>
               </View>

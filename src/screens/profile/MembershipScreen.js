@@ -1,29 +1,50 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, Linking,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, Linking, ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS } from '../../constants/colors';
-import { membership, coinTransactions } from '../../constants/dummyData';
-
-const PLAN_FEATURES = [
-  'Unlimited gym access',
-  'Free locker',
-  '2 PT sessions / month',
-  'Café discount — 10%',
-  'Steam & recovery zone access',
-  'Group fitness classes included',
-];
+import { useUser } from '../../context/UserContext';
+import { fetchMemberMembership } from '../../services/api';
 
 const RECEPTION = '+919876543210';
 
+function fmtDate(dateStr) {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
 export default function MembershipScreen({ navigation }) {
-  const validFrom = membership?.validFrom || '1 Jan 2026';
-  const validTill = membership?.validTill || '1 Jul 2026';
-  const daysLeft  = membership?.daysLeft || 128;
-  const totalDays = membership?.totalDays || 183;
-  const progress  = Math.max(0.05, Math.min(1, daysLeft / totalDays));
+  const { userId, wallet } = useUser();
+  const [memData, setMemData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!userId) return;
+    fetchMemberMembership(userId)
+      .then((data) => setMemData(data))
+      .catch(() => setMemData(null))
+      .finally(() => setLoading(false));
+  }, [userId]);
+
+  const planName   = memData?.plan?.name || '—';
+  const validFrom  = fmtDate(memData?.validFrom);
+  const validTill  = fmtDate(memData?.validTill);
+  const daysLeft   = memData?.daysLeft ?? 0;
+  const totalDays  = memData?.totalDays ?? 1;
+  const progress   = Math.max(0.05, Math.min(1, daysLeft / totalDays));
+  const perks      = memData?.plan?.perks ?? [];
+  const transactions = wallet?.transactions ?? null;
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { alignItems: 'center', justifyContent: 'center' }]}>
+        <ActivityIndicator size="large" color={COLORS.secondary} />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -50,7 +71,7 @@ export default function MembershipScreen({ navigation }) {
           {/* Badges */}
           <View style={styles.memBadgeRow}>
             <View style={styles.eliteBadge}>
-              <Text style={styles.eliteBadgeText}>Elite</Text>
+              <Text style={styles.eliteBadgeText}>{planName}</Text>
             </View>
             <View style={styles.activeBadge}>
               <View style={styles.activeDot} />
@@ -88,12 +109,17 @@ export default function MembershipScreen({ navigation }) {
         {/* Plan Features */}
         <Text style={styles.sectionTitle}>Plan Features</Text>
         <View style={styles.featuresCard}>
-          {PLAN_FEATURES.map((f, i) => (
-            <View key={i} style={[styles.featureRow, i < PLAN_FEATURES.length - 1 && styles.featureRowBorder]}>
-              <Ionicons name="checkmark-circle" size={22} color={COLORS.secondary} />
-              <Text style={styles.featureText}>{f}</Text>
-            </View>
-          ))}
+          {perks.length > 0
+            ? perks.map((f, i) => (
+                <View key={i} style={[styles.featureRow, i < perks.length - 1 && styles.featureRowBorder]}>
+                  <Ionicons name="checkmark-circle" size={22} color={COLORS.secondary} />
+                  <Text style={styles.featureText}>{f}</Text>
+                </View>
+              ))
+            : <View style={styles.featureRow}>
+                <Text style={styles.featureText}>No membership assigned yet. Contact reception to get started.</Text>
+              </View>
+          }
         </View>
 
         {/* Info banner */}
@@ -124,7 +150,7 @@ export default function MembershipScreen({ navigation }) {
 
         {/* Recent Transactions */}
         <Text style={styles.sectionTitle}>Recent Transactions</Text>
-        {(coinTransactions || DUMMY_TXN).slice(0, 5).map((t, i) => (
+        {(transactions || DUMMY_TXN).slice(0, 5).map((t, i) => (
           <View key={i} style={styles.txnRow}>
             <View style={[styles.txnIcon, { backgroundColor: t.type === 'credit' ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)' }]}>
               <Ionicons

@@ -60,7 +60,7 @@ export const registerForPushNotificationsAsync = async () => {
   return token;
 };
 
-export const saveFCMToken = async (fcmToken, phone = null) => {
+export const saveFCMToken = async (fcmToken, phone = null, userId = null) => {
   try {
     const deviceId = Device.osInternalBuildId || Device.modelId || 'unknown';
 
@@ -68,7 +68,8 @@ export const saveFCMToken = async (fcmToken, phone = null) => {
       token: fcmToken,
       deviceId,
       platform: Platform.OS,
-      ...(phone && { phone }),   // include phone if provided (pre-auth)
+      ...(phone && { phone }),
+      ...(userId && { userId }),
     };
 
     const response = await axios.post(`${BASE_API_URL}/fcm-tokens`, payload);

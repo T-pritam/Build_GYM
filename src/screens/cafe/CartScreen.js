@@ -1,16 +1,19 @@
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
-import { buildCoins } from '../../constants/dummyData';
+import { placeOrder } from '../../services/api';
+import { useUser } from '../../context/UserContext';
 
 const ITEM_EMOJI = { Shakes: '🥤', Meals: '🍽️', Snacks: '🍫', Supps: '💊' };
 
 export default function CartScreen({ navigation, route }) {
+  const { userId, wallet, refreshWallet } = useUser();
   const initialCart = route?.params?.cart || [];
   const [cart, setCart] = useState(initialCart);
+  const [placing, setPlacing] = useState(false);
 
   const addQty = (id) => setCart((prev) =>
     prev.map((c) => c.id === id ? { ...c, qty: c.qty + 1 } : c));
@@ -21,17 +24,30 @@ export default function CartScreen({ navigation, route }) {
     return prev.map((c) => c.id === id ? { ...c, qty: c.qty - 1 } : c);
   });
 
-  const totalCoins = cart.reduce((sum, c) => sum + c.price * c.qty, 0);
-  const balance = buildCoins?.balance || 2450;
+  const totalCoins = cart.reduce((sum, c) => sum + (c.priceCoins ?? c.price ?? 0) * c.qty, 0);
+  const balance = wallet?.balance ?? 0;
   const afterOrder = balance - totalCoins;
 
-  const handlePlaceOrder = () => {
-    navigation.replace('OrderConfirmation', {
-      cart,
-      totalCoins,
-      balance,
-      afterOrder,
-    });
+  const handlePlaceOrder = async () => {
+    if (placing) return;
+    setPlacing(true);
+    try {
+      const apiItems = cart.map((c) => ({ itemId: c.id, qty: c.qty }));
+      const order = await placeOrder(userId, apiItems);
+      refreshWallet();
+      navigation.replace('OrderConfirmation', {
+        cart,
+        totalCoins,
+        balance,
+        afterOrder,
+        order,
+      });
+    } catch (err) {
+      const msg = err?.response?.data?.message || 'Failed to place order. Please try again.';
+      Alert.alert('Order Failed', msg);
+    } finally {
+      setPlacing(false);
+    }
   };
 
   return (

@@ -15,7 +15,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { COLORS } from '../../constants/colors';
-import { membership, currentUser } from '../../constants/dummyData';
+import { membership } from '../../constants/dummyData';
+import { useUser } from '../../context/UserContext';
 
 const ACCESS_MODES = [
   {
@@ -37,6 +38,7 @@ const ACCESS_MODES = [
 ];
 
 export default function AccessScreen({ navigation }) {
+  const { user, userId } = useUser();
   const [mode, setMode] = useState('gate');
   const [status, setStatus] = useState('idle'); // idle | scanning | success | denied
   const [memberPhoto, setMemberPhoto] = useState(null);
@@ -198,7 +200,7 @@ export default function AccessScreen({ navigation }) {
               colors={[COLORS.secondaryDark, '#2A1200']}
               style={styles.memberPhotoPlaceholder}
             >
-              <Text style={styles.memberPhotoInitial}>{currentUser.name.charAt(0)}</Text>
+              <Text style={styles.memberPhotoInitial}>{(user?.firstName || user?.fullName || 'U').charAt(0).toUpperCase()}</Text>
             </LinearGradient>
           )}
           <View style={styles.photoEditBtn}>
@@ -206,8 +208,8 @@ export default function AccessScreen({ navigation }) {
           </View>
         </TouchableOpacity>
         <View style={styles.memberCardInfo}>
-          <Text style={styles.memberCardName}>{currentUser.name}</Text>
-          <Text style={styles.memberCardId}>ID: {currentUser.id.toUpperCase()}</Text>
+          <Text style={styles.memberCardName}>{user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : user?.fullName || 'Member'}</Text>
+          <Text style={styles.memberCardId}>ID: {(userId || '—').toUpperCase()}</Text>
           <View style={styles.memberCardBadge}>
             <View style={[styles.memStatusDot, { backgroundColor: COLORS.success }]} />
             <Text style={styles.memberCardBadgeText}>{membership.type} MEMBER</Text>

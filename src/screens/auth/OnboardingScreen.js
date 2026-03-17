@@ -11,10 +11,14 @@ import {
   StatusBar,
   Switch,
   Modal,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import DatePickerModal from '../../components/DatePickerModal';
+import { completeOnboarding } from '../../services/api';
+import { useUser } from '../../context/UserContext';
 import {
   FITNESS_LEVELS,
   HEALTH_CONDITIONS,
@@ -165,9 +169,12 @@ function InfoBanner({ text, icon = 'information-circle-outline' }) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 export default function OnboardingScreen({ route, navigation }) {
-  const mobile = route?.params?.mobile || '+91 86494 65959';
+  const mobile  = route?.params?.mobile  || '+91 86494 65959';
+  const userId  = route?.params?.userId  || null;
 
+  const { signIn } = useUser();
   const [step, setStep] = useState(0);
+  const [submitting, setSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [relationModal, setRelationModal] = useState(false);
 
@@ -229,10 +236,36 @@ export default function OnboardingScreen({ route, navigation }) {
     return true;
   };
 
-  const goNext = () => {
+  const goNext = async () => {
     scrollRef.current?.scrollTo({ y: 0, animated: false });
-    if (step < 5) { setStep((s) => s + 1); }
-    else { navigation.replace('Welcome', { firstName: firstName || 'Arjun' }); }
+    if (step < 5) { setStep((s) => s + 1); return; }
+
+    // Step 6 complete — save to backend if we have a userId
+    if (userId) {
+      setSubmitting(true);
+      try {
+        const updatedUser = await completeOnboarding(userId, {
+          firstName, lastName, email, dob,
+          fitnessLevel, healthConditions, hasMedications: hasMeds, medicationsText: medsText,
+          dietaryPreference: dietary, sleepPattern: sleep,
+          pastInjuries: injuries, injuryStatusMap: injuryStatus,
+          hasPhysiotherapy: physiotherapy, doctorClearance: doctorClear,
+          fitnessGoals: goals, workoutFrequency: frequency,
+          preferredWorkoutTimes: workoutTime, activityInterests: activities,
+          ecName, ecRelationship: ecRelation, ecPhone,
+          consentTerms, consentPrivacy, consentMedicalFitness: consentFit,
+          optLeaderboard: optLeader, optCommunity, optPromotions: optPromo,
+        });
+        // Update persisted session with completed profile
+        await signIn(userId, { ...updatedUser, onboardingCompleted: true });
+      } catch {
+        // Non-fatal — proceed to Welcome even if save fails
+      } finally {
+        setSubmitting(false);
+      }
+    }
+
+    navigation.replace('Welcome', { firstName: firstName || 'User' });
   };
 
   const goBack = () => {
@@ -882,15 +915,21 @@ export default function OnboardingScreen({ route, navigation }) {
       {/* ── Bottom CTA ── */}
       <View style={s.bottomBar}>
         <TouchableOpacity
-          style={[s.ctaBtn, !canNext() && { opacity: 0.4 }]}
+          style={[s.ctaBtn, (!canNext() || submitting) && { opacity: 0.4 }]}
           onPress={goNext}
-          disabled={!canNext()}
+          disabled={!canNext() || submitting}
           activeOpacity={0.85}
         >
-          <Text style={s.ctaText}>
-            {step === 5 ? 'GET STARTED 🚀' : 'CONTINUE'}
-          </Text>
-          {step < 5 && <Ionicons name="arrow-forward" size={18} color="#fff" style={{ marginLeft: 8 }} />}
+          {submitting ? (
+            <ActivityIndicator color="#fff" size="small" />
+          ) : (
+            <>
+              <Text style={s.ctaText}>
+                {step === 5 ? 'GET STARTED 🚀' : 'CONTINUE'}
+              </Text>
+              {step < 5 && <Ionicons name="arrow-forward" size={18} color="#fff" style={{ marginLeft: 8 }} />}
+            </>
+          )}
         </TouchableOpacity>
       </View>
     </View>

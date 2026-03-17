@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import AppNavigator from './src/navigation/AppNavigator';
+import { UserProvider } from './src/context/UserContext';
 import {
   FCM_TOKEN_KEY,
   registerForPushNotificationsAsync,
@@ -48,7 +49,9 @@ export default function App() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <AppNavigator />
+      <UserProvider>
+        <AppNavigator />
+      </UserProvider>
     </GestureHandlerRootView>
   );
 }

@@ -1,38 +1,50 @@
-import React from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
-import { currentOrder } from '../../constants/dummyData';
+import { fetchOrder } from '../../services/api';
 
-const STEPS = [
-  {
-    key: 'placed',
-    label: 'Order Placed',
-    sub: 'Completed at 12:05 PM',
-    status: 'done',   // done | active | pending
-  },
-  {
-    key: 'preparing',
-    label: 'Preparing',
-    sub: 'Estimated ~15 mins',
-    status: 'active',
-  },
-  {
-    key: 'pickup',
-    label: 'Ready for Pickup',
-    sub: 'Waiting for preparation',
-    status: 'pending',
-  },
-];
+const STATUS_ORDER = ['received', 'preparing', 'ready', 'done'];
+
+function getSteps(status) {
+  const idx = STATUS_ORDER.indexOf(status);
+  return [
+    { key: 'received',  label: 'Order Placed',      sub: 'Your order was received',      status: idx >= 0 ? 'done' : 'pending' },
+    { key: 'preparing', label: 'Preparing',          sub: 'Estimated ~15 mins',           status: idx > 0 ? (idx === 1 ? 'active' : 'done') : 'pending' },
+    { key: 'ready',     label: 'Ready for Pickup',   sub: 'Show OTP to café staff',       status: idx > 1 ? (idx === 2 ? 'active' : 'done') : 'pending' },
+  ];
+}
 
 export default function OrderTrackingScreen({ navigation, route }) {
-  const { orderId, cart = [], totalCoins = 0 } = route?.params || {};
-  const otp = currentOrder?.pickupOTP || '482715';
-  const orderNumber = orderId || currentOrder?.id || 1042;
+  const { orderId, orderRef, cart = [], totalCoins = 0 } = route?.params || {};
+  const [order, setOrder] = useState(null);
+  const pollRef = useRef(null);
 
-  const firstItem = cart[0] || { name: 'Whey Protein Shake', qty: 1, price: 120 };
+  const loadOrder = async () => {
+    if (!orderId) return;
+    try {
+      const data = await fetchOrder(orderId);
+      setOrder(data);
+      if (data?.status === 'done') {
+        clearInterval(pollRef.current);
+      }
+    } catch {}
+  };
+
+  useEffect(() => {
+    loadOrder();
+    pollRef.current = setInterval(loadOrder, 5000);
+    return () => clearInterval(pollRef.current);
+  }, [orderId]);
+
+  const status = order?.status || 'received';
+  const otp = order?.pickupOtp || '------';
+  const displayRef = orderRef || order?.orderRef || '—';
+  const STEPS = getSteps(status);
+
+  const firstItem = cart[0] || { name: 'Item', qty: 1, priceCoins: totalCoins };
 
   const StepIcon = ({ status }) => {
     if (status === 'done') {
@@ -68,7 +80,7 @@ export default function OrderTrackingScreen({ navigation, route }) {
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={20} color={COLORS.white} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Order #{orderNumber}</Text>
+        <Text style={styles.headerTitle}>{displayRef}</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -115,11 +127,14 @@ export default function OrderTrackingScreen({ navigation, route }) {
         <View style={styles.otpCard}>
           <Text style={styles.otpLabel}>YOUR PICKUP OTP</Text>
           <View style={styles.otpDigits}>
-            {otp.split('').map((digit, i) => (
-              <View key={i} style={styles.otpDigitBox}>
-                <Text style={styles.otpDigitText}>{digit}</Text>
-              </View>
-            ))}
+            {(status === 'ready' || status === 'done') && otp !== '------'
+              ? otp.split('').map((digit, i) => (
+                  <View key={i} style={styles.otpDigitBox}>
+                    <Text style={styles.otpDigitText}>{digit}</Text>
+                  </View>
+                ))
+              : <Text style={{ color: COLORS.textMuted, fontSize: 14 }}>Available when order is ready</Text>
+            }
           </View>
           <Text style={styles.otpHint}>Show this code to the café staff</Text>
         </View>

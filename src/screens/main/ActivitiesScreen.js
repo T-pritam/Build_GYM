@@ -1,20 +1,45 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
+import { fetchActivitySessions } from '../../services/api';
 
-const ACTIVITIES = [
-  { id: 'yoga',    label: 'Yoga',       duration: '45 min', cost: 80,  emoji: '🧘', color: ['#7C3AED', '#4C1D95'], icon: 'person-outline' },
-  { id: 'boxing',  label: 'Boxing',     duration: '45 min', cost: 80,  emoji: '🥊', color: ['#DC2626', '#7F1D1D'], icon: 'fitness-outline' },
-  { id: 'pickle',  label: 'Pickleball', duration: '45 min', cost: 80,  emoji: '🏓', color: ['#16A34A', '#14532D'], icon: 'tennisball-outline' },
-  { id: 'hiit',    label: 'HIIT',       duration: '45 min', cost: 80,  emoji: '⚡', color: ['#D97706', '#78350F'], icon: 'flash-outline' },
-  { id: 'sauna',   label: 'Sauna & Steam', duration: '45 min', cost: 80, emoji: '♨️', color: ['#B45309', '#451A03'], icon: 'water-outline' },
-  { id: 'cycle',   label: 'Cycling',    duration: '30 min', cost: 60,  emoji: '🚴', color: ['#2563EB', '#1E3A8A'], icon: 'bicycle-outline' },
-];
+const TYPE_DISPLAY = {
+  yoga:       { emoji: '🧘', color: ['#7C3AED', '#4C1D95'] },
+  boxing:     { emoji: '🥊', color: ['#DC2626', '#7F1D1D'] },
+  pickleball: { emoji: '🏓', color: ['#16A34A', '#14532D'] },
+  hiit:       { emoji: '⚡', color: ['#D97706', '#78350F'] },
+  sauna:      { emoji: '♨️', color: ['#B45309', '#451A03'] },
+  cycling:    { emoji: '🚴', color: ['#2563EB', '#1E3A8A'] },
+  other:      { emoji: '🏋️', color: ['#374151', '#1F2937'] },
+};
+
+function fmtDate(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+}
+
+function fmtTime(timeStr) {
+  if (!timeStr) return '';
+  const [h, m] = timeStr.split(':');
+  const hour = parseInt(h, 10);
+  return `${hour % 12 || 12}:${m} ${hour < 12 ? 'AM' : 'PM'}`;
+}
 
 export default function ActivitiesScreen({ navigation }) {
+  const [sessions, setSessions] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchActivitySessions()
+      .then((data) => setSessions(data || []))
+      .catch(() => setSessions([]))
+      .finally(() => setLoading(false));
+  }, []);
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#000" />
@@ -34,41 +59,57 @@ export default function ActivitiesScreen({ navigation }) {
 
       <Text style={styles.subtitle}>Book sessions & amenities with Build Coins</Text>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
-        <View style={styles.grid}>
-          {ACTIVITIES.map((act) => (
-            <TouchableOpacity
-              key={act.id}
-              style={styles.card}
-              onPress={() => navigation.navigate('ActivityDetail', { activity: act })}
-              activeOpacity={0.85}
-            >
-              {/* Hero color block */}
-              <View style={[styles.heroBlock, { backgroundColor: act.color[1] }]}>
-                <View style={[styles.heroGradient, { backgroundColor: act.color[0] + '99' }]} />
-                <Text style={styles.heroEmoji}>{act.emoji}</Text>
-                <Text style={styles.heroLabel}>{act.label}</Text>
-              </View>
-
-              {/* Info footer */}
-              <View style={styles.cardFooter}>
-                <View style={styles.cardMeta}>
-                  <Text style={styles.cardDuration}>{act.duration}</Text>
-                  <Text style={styles.cardDot}>·</Text>
-                  <Text style={styles.cardCost}>₿ {act.cost}</Text>
-                </View>
-                <TouchableOpacity
-                  onPress={() => navigation.navigate('ActivityDetail', { activity: act })}
-                >
-                  <Text style={styles.bookNow}>BOOK NOW →</Text>
-                </TouchableOpacity>
-              </View>
-            </TouchableOpacity>
-          ))}
+      {loading ? (
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator size="large" color={COLORS.secondary} />
         </View>
+      ) : (
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+          <View style={styles.grid}>
+            {sessions.map((session) => {
+              const display = TYPE_DISPLAY[session.type] || TYPE_DISPLAY.other;
+              const spotsLeft = session.capacityMax - session.capacityBooked;
+              return (
+                <TouchableOpacity
+                  key={session.id}
+                  style={styles.card}
+                  onPress={() => navigation.navigate('ActivityDetail', { session })}
+                  activeOpacity={0.85}
+                >
+                  <View style={[styles.heroBlock, { backgroundColor: display.color[1] }]}>
+                    <View style={[styles.heroGradient, { backgroundColor: display.color[0] + '99' }]} />
+                    <Text style={styles.heroEmoji}>{display.emoji}</Text>
+                    <Text style={styles.heroLabel}>{session.title}</Text>
+                    {spotsLeft <= 3 && (
+                      <View style={styles.limitedBadge}>
+                        <Text style={styles.limitedText}>{spotsLeft} spots left</Text>
+                      </View>
+                    )}
+                  </View>
+                  <View style={styles.cardFooter}>
+                    <Text style={styles.cardDate}>{fmtDate(session.sessionDate)} · {fmtTime(session.sessionTime)}</Text>
+                    <View style={styles.cardMeta}>
+                      <Text style={styles.cardCost}>₿ {session.coinCost}</Text>
+                      <Text style={styles.cardDot}>·</Text>
+                      <Text style={styles.cardDuration}>{session.capacityBooked}/{session.capacityMax}</Text>
+                    </View>
+                    <Text style={styles.bookNow}>BOOK NOW →</Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
 
-        <View style={{ height: 100 }} />
-      </ScrollView>
+          {sessions.length === 0 && (
+            <View style={{ alignItems: 'center', paddingVertical: 60 }}>
+              <Ionicons name="calendar-outline" size={48} color="#555" />
+              <Text style={{ color: '#666', marginTop: 12 }}>No upcoming sessions</Text>
+            </View>
+          )}
+
+          <View style={{ height: 100 }} />
+        </ScrollView>
+      )}
     </View>
   );
 }
@@ -108,8 +149,14 @@ const styles = StyleSheet.create({
   },
   heroEmoji: { fontSize: 48, position: 'absolute', top: '30%', alignSelf: 'center' },
   heroLabel: { fontSize: 18, fontWeight: '900', color: '#fff', zIndex: 1 },
+  limitedBadge: {
+    position: 'absolute', top: 8, right: 8,
+    backgroundColor: 'rgba(239,68,68,0.85)', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2,
+  },
+  limitedText: { fontSize: 9, fontWeight: '800', color: '#fff' },
 
-  cardFooter: { padding: 12, gap: 8 },
+  cardFooter: { padding: 12, gap: 6 },
+  cardDate: { fontSize: 11, color: '#9A9A9A', fontWeight: '600' },
   cardMeta: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   cardDuration: { fontSize: 12, color: '#9A9A9A', fontWeight: '600' },
   cardDot: { fontSize: 12, color: '#555' },

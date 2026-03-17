@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, Alert,
+  ActivityIndicator, RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
-import { buildCoins, coinTransactions } from '../../constants/dummyData';
+import { fetchWallet } from '../../services/api';
+import { useUser } from '../../context/UserContext';
 
 const TOP_UP_PACKS = [
   { coins: 500, price: '₹50', popular: false },
@@ -21,8 +23,35 @@ const DUMMY_TXN = [
 ];
 
 export default function BuildCoinTransactionsScreen({ navigation }) {
-  const balance = buildCoins?.balance || 2450;
-  const txns    = coinTransactions || DUMMY_TXN;
+  const { userId } = useUser();
+  const [wallet, setWallet]       = useState(null);
+  const [txns, setTxns]           = useState(DUMMY_TXN);
+  const [loading, setLoading]     = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadWallet = async (isRefresh = false) => {
+    if (!userId) { setLoading(false); return; }
+    if (isRefresh) setRefreshing(true); else setLoading(true);
+    try {
+      const data = await fetchWallet(userId);
+      setWallet(data.wallet);
+      setTxns(data.transactions.map(t => ({
+        type: t.type,
+        description: t.description || 'Transaction',
+        date: new Date(t.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
+        amount: t.amount,
+      })));
+    } catch (e) {
+      // Fall back to dummy data on error
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => { loadWallet(); }, [userId]);
+
+  const balance = wallet?.balance ?? 2450;
 
   return (
     <View style={styles.container}>
@@ -38,7 +67,11 @@ export default function BuildCoinTransactionsScreen({ navigation }) {
         <View style={styles.backBtn} />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scroll}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadWallet(true)} tintColor={COLORS.secondary} />}
+      >
         {/* Balance hero */}
         <View style={styles.balanceSection}>
           <View style={styles.balanceRow}>
@@ -86,8 +119,12 @@ export default function BuildCoinTransactionsScreen({ navigation }) {
 
         {/* Transactions */}
         <Text style={styles.sectionLabel}>RECENT TRANSACTIONS</Text>
+        {loading && <ActivityIndicator color={COLORS.secondary} style={{ marginVertical: 16 }} />}
+        {!loading && txns.length === 0 && (
+          <Text style={{ color: '#666', fontSize: 13, textAlign: 'center', marginVertical: 16 }}>No transactions yet</Text>
+        )}
         {txns.map((t, i) => (
-          <View key={i} style={styles.txnRow}>
+          <View key={t.id || i} style={styles.txnRow}>
             <View style={[
               styles.txnIcon,
               { backgroundColor: t.type === 'credit' ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)' },

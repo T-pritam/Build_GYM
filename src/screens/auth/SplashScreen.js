@@ -7,6 +7,9 @@ import {
   StatusBar,
   Dimensions,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const SESSION_KEY = '@bg_session_v1';
 
 const { width, height } = Dimensions.get('window');
 const LOGO = width * 0.44;
@@ -84,7 +87,16 @@ export default function SplashScreen({ navigation }) {
       ]),
     ]).start();
 
-    const t = setTimeout(() => navigation.replace('Login'), 3200);
+    const t = setTimeout(async () => {
+      try {
+        const raw = await AsyncStorage.getItem(SESSION_KEY);
+        if (raw) {
+          const { userId } = JSON.parse(raw);
+          if (userId) { navigation.replace('MainTabs'); return; }
+        }
+      } catch {}
+      navigation.replace('Login');
+    }, 3200);
     return () => clearTimeout(t);
   }, []);
 

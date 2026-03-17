@@ -6,39 +6,45 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
-import { currentUser, membership, buildCoins } from '../../constants/dummyData';
-
-const MENU = [
-  {
-    id: 'membership', label: 'Membership Details', icon: 'card-outline',
-    sub: 'ELITE · 128 days left', nav: 'Membership', color: COLORS.secondary, bg: COLORS.secondaryGlow,
-  },
-  {
-    id: 'activity', label: 'Activity Dashboard', icon: 'bar-chart-outline',
-    sub: '18 visits this month · 5-day streak', nav: 'Activity', color: '#3B82F6', bg: 'rgba(59,130,246,0.12)',
-  },
-  {
-    id: 'personal', label: 'Personal Details', icon: 'person-outline',
-    sub: currentUser?.email || 'arjun.sharma@email.com', nav: null, color: '#A855F7', bg: 'rgba(168,85,247,0.12)',
-  },
-  {
-    id: 'complaint', label: 'Register Complaint', icon: 'alert-circle-outline',
-    sub: 'Report an issue', nav: 'Complaint', color: '#EF4444', bg: 'rgba(239,68,68,0.12)',
-  },
-  {
-    id: 'health', label: 'Health & Emergency Info', icon: 'heart-outline',
-    sub: 'Medical & contact details', nav: null, color: '#22C55E', bg: 'rgba(34,197,94,0.12)',
-  },
-];
+import { useUser } from '../../context/UserContext';
 
 export default function ProfileScreen({ navigation }) {
-  const firstName = currentUser?.name?.split(' ')[0] || 'Arjun';
-  const balance = buildCoins?.balance || 2450;
-  const earned  = buildCoins?.totalEarned || 5000;
-  const spent   = buildCoins?.totalSpent || 2550;
+  const { user, wallet, trainer: trainerData, signOut } = useUser();
+
+  const firstName = user?.firstName || user?.fullName?.split(' ')[0] || 'User';
+  const fullName  = user?.firstName && user?.lastName
+    ? `${user.firstName} ${user.lastName}`
+    : user?.fullName || user?.firstName || 'User';
+
+  const MENU = [
+    {
+      id: 'membership', label: 'Membership Details', icon: 'card-outline',
+      sub: 'ELITE · View details', nav: 'Membership', color: COLORS.secondary, bg: COLORS.secondaryGlow,
+    },
+    {
+      id: 'activity', label: 'Activity Dashboard', icon: 'bar-chart-outline',
+      sub: '18 visits this month · 5-day streak', nav: 'Activity', color: '#3B82F6', bg: 'rgba(59,130,246,0.12)',
+    },
+    {
+      id: 'personal', label: 'Personal Details', icon: 'person-outline',
+      sub: user?.email || 'No email set', nav: null, color: '#A855F7', bg: 'rgba(168,85,247,0.12)',
+    },
+    {
+      id: 'complaint', label: 'Register Complaint', icon: 'alert-circle-outline',
+      sub: 'Report an issue', nav: 'Complaint', color: '#EF4444', bg: 'rgba(239,68,68,0.12)',
+    },
+    {
+      id: 'health', label: 'Health & Emergency Info', icon: 'heart-outline',
+      sub: 'Medical & contact details', nav: null, color: '#22C55E', bg: 'rgba(34,197,94,0.12)',
+    },
+  ];
 
   const [profilePhoto,      setProfilePhoto]      = useState(null);
   const [photoModalVisible, setPhotoModalVisible] = useState(false);
+
+  const balance = wallet?.balance      ?? 0;
+  const earned  = wallet?.totalEarned  ?? 0;
+  const spent   = wallet?.totalSpent   ?? 0;
 
   const openCamera = async () => {
     setPhotoModalVisible(false);
@@ -75,7 +81,12 @@ export default function ProfileScreen({ navigation }) {
   const handleLogout = () =>
     Alert.alert('Log Out', 'Are you sure?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Log Out', style: 'destructive', onPress: () => navigation.replace('Login') },
+      {
+        text: 'Log Out', style: 'destructive', onPress: async () => {
+          await signOut();
+          navigation.replace('Login');
+        }
+      },
     ]);
 
   return (
@@ -111,10 +122,10 @@ export default function ProfileScreen({ navigation }) {
               <Ionicons name="camera" size={13} color="#fff" />
             </View>
           </TouchableOpacity>
-          <Text style={styles.name}>{currentUser?.name || 'Arjun Sharma'}</Text>
-          <Text style={styles.phone}>{currentUser?.mobile || '+91 98765 43210'}</Text>
+          <Text style={styles.name}>{fullName}</Text>
+          <Text style={styles.phone}>{user?.phone ? `+91 ${user.phone}` : ''}</Text>
           <View style={styles.memberBadge}>
-            <Text style={styles.memberBadgeText}>★ Member since {currentUser?.memberSince || 'Jan 2024'}</Text>
+            <Text style={styles.memberBadgeText}>★ Member since Jan 2024</Text>
           </View>
         </View>
 
@@ -159,6 +170,35 @@ export default function ProfileScreen({ navigation }) {
           </View>
           <Text style={styles.memDaysLeft}>{membership?.daysLeft || 128} days left</Text>
         </View>
+
+        {/* Assigned Trainer Card */}
+        {trainerData && (
+          <View style={styles.trainerCard}>
+            <View style={styles.trainerCardLeft}>
+              <View style={styles.trainerAvatar}>
+                {trainerData.trainerPhotoUrl
+                  ? <Image source={{ uri: trainerData.trainerPhotoUrl }} style={styles.trainerAvatarImg} />
+                  : <Text style={styles.trainerAvatarLetter}>
+                      {(trainerData.trainerFullName || 'T')[0]}
+                    </Text>
+                }
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.trainerLabel}>MY TRAINER</Text>
+                <Text style={styles.trainerName}>{trainerData.trainerFullName || 'Trainer'}</Text>
+                {trainerData.trainerProfile?.specialisations?.length > 0 && (
+                  <Text style={styles.trainerSpec}>
+                    {trainerData.trainerProfile.specialisations.slice(0, 2).join(' · ')}
+                  </Text>
+                )}
+              </View>
+            </View>
+            <View style={styles.trainerBadge}>
+              <View style={styles.trainerBadgeDot} />
+              <Text style={styles.trainerBadgeText}>Assigned</Text>
+            </View>
+          </View>
+        )}
 
         {/* Menu items */}
         <View style={styles.menuList}>
@@ -265,6 +305,28 @@ export default function ProfileScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
+  // ── Trainer Card ────────────────────────────────────────────
+  trainerCard: {
+    marginHorizontal: 24, marginBottom: 12,
+    backgroundColor: 'rgba(233,99,22,0.08)', borderWidth: 1, borderColor: 'rgba(233,99,22,0.3)',
+    borderRadius: 16, padding: 14,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+  },
+  trainerCardLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
+  trainerAvatar: {
+    width: 48, height: 48, borderRadius: 24, backgroundColor: '#2A1A0A',
+    borderWidth: 2, borderColor: COLORS.secondary,
+    justifyContent: 'center', alignItems: 'center', overflow: 'hidden',
+  },
+  trainerAvatarImg: { width: 48, height: 48, borderRadius: 24 },
+  trainerAvatarLetter: { color: COLORS.secondary, fontSize: 20, fontWeight: '900' },
+  trainerLabel: { color: COLORS.secondary, fontSize: 9, fontWeight: '900', letterSpacing: 1.5, textTransform: 'uppercase' },
+  trainerName: { color: '#fff', fontSize: 15, fontWeight: '800', marginTop: 2 },
+  trainerSpec: { color: '#aaa', fontSize: 11, marginTop: 2 },
+  trainerBadge: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  trainerBadgeDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#22C55E' },
+  trainerBadgeText: { color: '#22C55E', fontSize: 11, fontWeight: '700' },
+
   container: { flex: 1, backgroundColor: '#000' },
   glowTop: {
     position: 'absolute', top: 0, left: 0, right: 0, height: 300,

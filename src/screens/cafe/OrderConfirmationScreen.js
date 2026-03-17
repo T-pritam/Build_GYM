@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 
 export default function OrderConfirmationScreen({ navigation, route }) {
-  const { cart = [], totalCoins = 0, balance = 2450, afterOrder = 2330 } = route?.params || {};
+  const { cart = [], totalCoins = 0, balance = 0, afterOrder = 0, order } = route?.params || {};
 
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
@@ -19,7 +19,8 @@ export default function OrderConfirmationScreen({ navigation, route }) {
   }, []);
 
   const itemCount = cart.reduce((s, c) => s + c.qty, 0);
-  const orderId = Math.floor(1000 + Math.random() * 9000);
+  const orderId = order?.id;
+  const orderRef = order?.orderRef || `ORD-${Math.floor(1000 + Math.random() * 9000)}`;
 
   return (
     <View style={styles.container}>
@@ -56,7 +57,7 @@ export default function OrderConfirmationScreen({ navigation, route }) {
       {/* Summary card */}
       <Animated.View style={[styles.summaryCard, { opacity: opacityAnim }]}>
         <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Order #{orderId}</Text>
+          <Text style={styles.summaryLabel}>{orderRef}</Text>
           <View style={styles.activeBadge}>
             <Text style={styles.activeBadgeText}>CONFIRMED</Text>
           </View>
@@ -82,7 +83,7 @@ export default function OrderConfirmationScreen({ navigation, route }) {
       <View style={styles.footer}>
         <TouchableOpacity
           style={styles.trackBtn}
-          onPress={() => navigation.navigate('OrderTracking', { orderId, cart, totalCoins })}
+          onPress={() => navigation.navigate('OrderTracking', { orderId, orderRef, cart, totalCoins })}
           activeOpacity={0.85}
         >
           <Ionicons name="location-outline" size={18} color={COLORS.secondary} />

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,11 +9,15 @@ import {
   TextInput,
   Dimensions,
   Image,
+  ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
-import { cafeCategories, cafeItems, buildCoins } from '../../constants/dummyData';
+import { fetchCafeMenu } from '../../services/api';
+import { useUser } from '../../context/UserContext';
+
+const cafeCategories = ['All', 'Shakes', 'Meals', 'Snacks', 'Supps'];
 
 const { width } = Dimensions.get('window');
 const HORIZONTAL_PAD = 14;
@@ -36,11 +40,21 @@ const ITEM_EMOJI = {
 };
 
 export default function CafeScreen({ navigation }) {
+  const { wallet } = useUser();
   const [activeCategory, setActiveCategory] = useState('All');
   const [search, setSearch] = useState('');
   const [cart, setCart] = useState([]);
+  const [menuItems, setMenuItems] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const filteredItems = cafeItems.filter((item) => {
+  useEffect(() => {
+    fetchCafeMenu()
+      .then((items) => setMenuItems(items || []))
+      .catch(() => setMenuItems([]))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const filteredItems = menuItems.filter((item) => {
     const matchCat = activeCategory === 'All' || item.category === activeCategory;
     const matchSearch =
       search.trim() === '' ||
@@ -66,11 +80,21 @@ export default function CafeScreen({ navigation }) {
 
   const getQty = (itemId) => cart.find((c) => c.id === itemId)?.qty || 0;
   const totalItems = cart.reduce((sum, c) => sum + c.qty, 0);
-  const totalCoins = cart.reduce((sum, c) => sum + c.price * c.qty, 0);
+  const totalCoins = cart.reduce((sum, c) => sum + (c.priceCoins ?? c.price ?? 0) * c.qty, 0);
+  const balance = wallet?.balance ?? 0;
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { alignItems: 'center', justifyContent: 'center' }]}>
+        <ActivityIndicator size="large" color={COLORS.secondary} />
+      </View>
+    );
+  }
 
   const renderItem = ({ item }) => {
     const qty = getQty(item.id);
     const emoji = ITEM_EMOJI[item.category] || '🥗';
+    const itemPrice = item.priceCoins ?? item.price ?? 0;
 
     return (
       <TouchableOpacity
@@ -80,8 +104,8 @@ export default function CafeScreen({ navigation }) {
       >
         {/* Image area */}
         <LinearGradient colors={['#2A1200', '#160800']} style={styles.imgBox}>
-          {item.image ? (
-            <Image source={{ uri: item.image }} style={styles.itemImage} resizeMode="cover" />
+          {item.imageUrl ? (
+            <Image source={{ uri: item.imageUrl }} style={styles.itemImage} resizeMode="cover" />
           ) : (
             <Text style={styles.emoji}>{emoji}</Text>
           )}
@@ -116,7 +140,7 @@ export default function CafeScreen({ navigation }) {
           {/* Price */}
           <View style={styles.priceRow}>
             <MaterialCommunityIcons name="bitcoin" size={11} color={COLORS.secondary} />
-            <Text style={styles.priceText}>{item.price}</Text>
+            <Text style={styles.priceText}>{itemPrice}</Text>
           </View>
 
           {/* ADD button or qty stepper */}
@@ -170,7 +194,7 @@ export default function CafeScreen({ navigation }) {
           <View style={styles.headerRight}>
             <View style={styles.coinsPill}>
               <MaterialCommunityIcons name="bitcoin" size={13} color={COLORS.secondary} />
-              <Text style={styles.coinsPillText}>{buildCoins.balance.toLocaleString()}</Text>
+              <Text style={styles.coinsPillText}>{balance.toLocaleString()}</Text>
             </View>
             <TouchableOpacity
               style={styles.cartBtn}
