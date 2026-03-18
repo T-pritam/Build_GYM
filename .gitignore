@@ -9,7 +9,7 @@ dist/
 web-build/
 expo-env.d.ts
 
-# Native
+# Native - build artifacts only (android/ and ios/ are committed for prebuild)
 .kotlin/
 *.orig.*
 *.jks
@@ -17,6 +17,20 @@ expo-env.d.ts
 *.p12
 *.key
 *.mobileprovision
+
+# Android build artifacts
+android/app/build/
+android/build/
+android/app/.cxx/
+android/.gradle/
+android/local.properties
+
+# iOS build artifacts
+ios/build/
+ios/Pods/
+ios/*.xcworkspace/xcuserdata
+ios/*.xcodeproj/xcuserdata
+ios/*.xcodeproj/project.xcworkspace/xcuserdata
 
 # Metro
 .metro-health-check*
@@ -32,11 +46,7 @@ yarn-error.*
 
 # local env files
 .env*.local
+.env
 
 # typescript
 *.tsbuildinfo
-
-# generated native folders
-/ios
-/android
-.env
