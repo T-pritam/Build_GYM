@@ -1,5 +1,7 @@
 import React, { useEffect } from 'react';
-import { AppState } from 'react-native';
+import { AppState, Platform } from 'react-native';
+import * as Notifications from 'expo-notifications';
+import { AndroidImportance } from 'expo-notifications';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import messaging from '@react-native-firebase/messaging';
@@ -16,6 +18,17 @@ import { useAnnouncementStore } from './src/store/announcementStore';
 
 export default function App() {
   useEffect(() => {
+    if (Platform.OS === 'android') {
+      Notifications.setNotificationChannelAsync('default', {
+        name: 'Build Fitness',
+        importance: AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#FF6B35',
+        sound: 'default',
+        enableVibrate: true,
+      });
+    }
+
     let cleanupNotifications;
     let appStateSubscription;
 

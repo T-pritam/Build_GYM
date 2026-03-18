@@ -5,6 +5,10 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
+    "notification": {
+      "icon": "./assets/ic_notification.png",
+      "color": "#FF6B35"
+    },
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "splash": {
@@ -25,6 +29,9 @@
         "backgroundColor": "#000000"
       },
       "edgeToEdgeEnabled": true,
+      "notification": {
+        "icon": "ic_notification"
+      },
       "package": "com.buildgym.app",
       "googleServicesFile": "./google-services.json"
     },
@@ -38,6 +45,14 @@
     },
     "plugins": [
       "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/ic_notification.png",
+          "color": "#FF6B35",
+          "sounds": []
+        }
+      ],
       "@react-native-firebase/app",
       "@react-native-firebase/messaging",
       "@react-native-firebase/crashlytics",

@@ -4,6 +4,7 @@ import messaging from '@react-native-firebase/messaging';
 import { Platform } from 'react-native';
 import axios from 'axios';
 import { BASE_API_URL } from '@env';
+
 import { navigateTo } from '../navigation/navigationRef';
 
 export const FCM_TOKEN_KEY = '@fcm_token';

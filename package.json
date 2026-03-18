@@ -3,8 +3,10 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "start": "expo start --offline",
-    "android": "expo run:android",
+    "start": "expo start",
+    "start:offline": "expo start --offline",
+    "android": "expo run:android --no-bundler",
+    "android:build": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web"
   },
