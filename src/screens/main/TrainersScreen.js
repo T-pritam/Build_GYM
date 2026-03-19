@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,15 +8,26 @@ import {
   StatusBar,
   TextInput,
   FlatList,
+  ActivityIndicator,
+  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
-import { trainers } from '../../constants/dummyData';
+import { fetchTrainers } from '../../services/trainerService';
 
 export default function TrainersScreen({ navigation }) {
   const [searchText, setSearchText] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('all');
+  const [trainers, setTrainers] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchTrainers()
+      .then((data) => setTrainers(data || []))
+      .catch(() => setTrainers([]))
+      .finally(() => setLoading(false));
+  }, []);
 
   const filters = [
     { id: 'all', label: 'All', value: 'all' },
@@ -44,20 +55,34 @@ export default function TrainersScreen({ navigation }) {
       activeOpacity={0.85}
     >
       {/* Avatar */}
-      <LinearGradient
-        colors={['#2A1200', COLORS.secondaryDark, '#1A0800']}
-        style={styles.trainerAvatar}
-      >
-        <Text style={styles.trainerAvatarText}>{trainer.name.charAt(0)}</Text>
-        <View style={[
-          styles.trainerAvailBadge,
-          { backgroundColor: trainer.available ? COLORS.success : COLORS.textMuted },
-        ]}>
-          <Text style={styles.trainerAvailBadgeText}>
-            {trainer.available ? 'Available' : 'Full'}
-          </Text>
+      {trainer.profilePhotoUrl ? (
+        <View style={styles.trainerAvatar}>
+          <Image source={{ uri: trainer.profilePhotoUrl }} style={styles.trainerAvatarPhoto} />
+          <View style={[
+            styles.trainerAvailBadge,
+            { backgroundColor: trainer.available ? COLORS.success : COLORS.textMuted },
+          ]}>
+            <Text style={styles.trainerAvailBadgeText}>
+              {trainer.available ? 'Available' : 'Full'}
+            </Text>
+          </View>
         </View>
-      </LinearGradient>
+      ) : (
+        <LinearGradient
+          colors={['#2A1200', COLORS.secondaryDark, '#1A0800']}
+          style={styles.trainerAvatar}
+        >
+          <Text style={styles.trainerAvatarText}>{trainer.name.charAt(0)}</Text>
+          <View style={[
+            styles.trainerAvailBadge,
+            { backgroundColor: trainer.available ? COLORS.success : COLORS.textMuted },
+          ]}>
+            <Text style={styles.trainerAvailBadgeText}>
+              {trainer.available ? 'Available' : 'Full'}
+            </Text>
+          </View>
+        </LinearGradient>
+      )}
 
       {/* Details */}
       <View style={styles.trainerDetails}>
@@ -147,7 +172,9 @@ export default function TrainersScreen({ navigation }) {
         </View>
 
         {/* Trainers Grid */}
-        {filteredTrainers.length > 0 ? (
+        {loading ? (
+          <ActivityIndicator color={COLORS.secondary} style={{ marginTop: 60 }} size="large" />
+        ) : filteredTrainers.length > 0 ? (
           <FlatList
             data={filteredTrainers}
             renderItem={renderTrainerCard}
@@ -223,6 +250,7 @@ const styles = StyleSheet.create({
     paddingBottom: 12, gap: 8, position: 'relative',
   },
   trainerAvatarText: { fontSize: 40, fontWeight: '900', color: COLORS.white },
+  trainerAvatarPhoto: { width: '100%', height: '100%', resizeMode: 'cover' },
   trainerAvailBadge: {
     borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3,
     position: 'absolute', bottom: 8, right: 8,

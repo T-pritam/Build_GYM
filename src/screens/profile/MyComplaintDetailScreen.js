@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  StatusBar, ActivityIndicator,
+  StatusBar, ActivityIndicator, Modal, Dimensions,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import { getComplaintById } from '../../services/complaintService';
@@ -20,9 +21,12 @@ const STATUS_CONFIG = {
 export default function MyComplaintDetailScreen({ navigation, route }) {
   const { complaintId } = route.params;
 
-  const [complaint, setComplaint] = useState(null);
-  const [loading,   setLoading]   = useState(true);
-  const [error,     setError]     = useState(null);
+  const [complaint,      setComplaint]      = useState(null);
+  const [loading,        setLoading]        = useState(true);
+  const [error,          setError]          = useState(null);
+  const [lightboxUrl,    setLightboxUrl]    = useState(null);
+
+  const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
   useEffect(() => {
     (async () => {
@@ -88,6 +92,16 @@ export default function MyComplaintDetailScreen({ navigation, route }) {
         </View>
       </View>
 
+      {/* Lightbox */}
+      <Modal visible={!!lightboxUrl} transparent animationType="fade" onRequestClose={() => setLightboxUrl(null)}>
+        <View style={[styles.lightboxBackdrop, { width: SCREEN_W, height: SCREEN_H }]}>
+          <Image source={{ uri: lightboxUrl }} style={{ width: SCREEN_W, height: SCREEN_H }} contentFit="contain" />
+          <TouchableOpacity style={styles.lightboxClose} onPress={() => setLightboxUrl(null)}>
+            <Ionicons name="close-circle" size={36} color="#fff" />
+          </TouchableOpacity>
+        </View>
+      </Modal>
+
       <ScrollView
         contentContainerStyle={styles.body}
         showsVerticalScrollIndicator={false}
@@ -127,9 +141,9 @@ export default function MyComplaintDetailScreen({ navigation, route }) {
             <View style={styles.imagesGrid}>
               {/* Thumbnail grid — will render real images once upload is live */}
               {complaint.imageUrls.map((url, i) => (
-                <View key={i} style={styles.imagePlaceholder}>
-                  <Ionicons name="image" size={28} color={COLORS.textMuted} />
-                </View>
+                <TouchableOpacity key={i} onPress={() => setLightboxUrl(url)} activeOpacity={0.85}>
+                  <Image source={{ uri: url }} style={styles.imageThumbnail} contentFit="cover" />
+                </TouchableOpacity>
               ))}
             </View>
           ) : (
@@ -221,10 +235,16 @@ const styles = StyleSheet.create({
   },
   descText: { color: COLORS.textPrimary, fontSize: 14, lineHeight: 22 },
   imagesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  imagePlaceholder: {
+  imageThumbnail: {
     width: 80, height: 80, borderRadius: 10,
-    backgroundColor: COLORS.surface2, borderWidth: 1, borderColor: COLORS.border,
+    backgroundColor: COLORS.surface2,
+  },
+  lightboxBackdrop: {
+    backgroundColor: 'rgba(0,0,0,0.95)',
     alignItems: 'center', justifyContent: 'center',
+  },
+  lightboxClose: {
+    position: 'absolute', top: 52, right: 20,
   },
   noImagesBox: {
     flexDirection: 'row', alignItems: 'center', gap: 8,

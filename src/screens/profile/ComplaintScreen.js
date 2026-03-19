@@ -11,12 +11,14 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { COLORS } from '../../constants/colors';
 import { complaintCategories } from '../../constants/dummyData';
-import { submitComplaint } from '../../services/complaintService';
+import { submitComplaint, uploadComplaintImages } from '../../services/complaintService';
 
 export default function ComplaintScreen({ navigation }) {
   const [selectedCategory, setSelectedCategory] = useState('');
@@ -24,6 +26,35 @@ export default function ComplaintScreen({ navigation }) {
   const [submitted, setSubmitted] = useState(false);
   const [submittedRef, setSubmittedRef] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [images, setImages] = useState([]);
+
+  const MAX_IMAGES = 3;
+
+  const pickImages = async () => {
+    const remaining = MAX_IMAGES - images.length;
+    if (remaining <= 0) return;
+
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission Required', 'Please allow access to your photo library to attach images.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: 'images',
+      allowsMultipleSelection: true,
+      selectionLimit: remaining,
+      quality: 1,
+    });
+
+    if (!result.canceled) {
+      setImages(prev => [...prev, ...result.assets].slice(0, MAX_IMAGES));
+    }
+  };
+
+  const removeImage = (index) => {
+    setImages(prev => prev.filter((_, i) => i !== index));
+  };
 
   const handleSubmit = async () => {
     if (!selectedCategory || description.trim().length < 20) {
@@ -33,6 +64,16 @@ export default function ComplaintScreen({ navigation }) {
     setIsLoading(true);
     try {
       const response = await submitComplaint({ category: selectedCategory, description });
+      const complaintId = response.data.data.id;
+
+      if (images.length > 0) {
+        try {
+          await uploadComplaintImages(complaintId, images);
+        } catch {
+          // Non-fatal — complaint is submitted even if image upload fails
+        }
+      }
+
       setSubmittedRef(response.data.data.ref);
       setSubmitted(true);
     } catch (error) {
@@ -149,15 +190,25 @@ export default function ComplaintScreen({ navigation }) {
           />
           <Text style={styles.charCount}>{description.length}/1000</Text>
 
-          {/* Image Attachments (coming soon) */}
+          {/* Image Attachments */}
           <Text style={styles.fieldLabel}>ATTACHMENTS (OPTIONAL)</Text>
-          <View style={styles.imageStubBox}>
-            <Ionicons name="image-outline" size={20} color={COLORS.textMuted} />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.imageStubTitle}>Attach up to 3 images</Text>
-              <Text style={styles.imageStubSub}>JPG / PNG · max 5 MB each · coming soon</Text>
-            </View>
+          <View style={styles.imagePickerRow}>
+            {images.map((asset, index) => (
+              <View key={index} style={styles.imageThumbnailWrap}>
+                <Image source={{ uri: asset.uri }} style={styles.imageThumbnail} />
+                <TouchableOpacity style={styles.imageRemoveBtn} onPress={() => removeImage(index)}>
+                  <Ionicons name="close-circle" size={20} color={COLORS.white} />
+                </TouchableOpacity>
+              </View>
+            ))}
+            {images.length < MAX_IMAGES && (
+              <TouchableOpacity style={styles.imageAddBtn} onPress={pickImages}>
+                <Ionicons name="camera-outline" size={22} color={COLORS.textMuted} />
+                <Text style={styles.imageAddText}>{images.length === 0 ? 'Add photo' : 'Add more'}</Text>
+              </TouchableOpacity>
+            )}
           </View>
+          <Text style={styles.imageHint}>{images.length}/{MAX_IMAGES} · JPEG, PNG, WebP, GIF, AVIF, HEIC</Text>
 
           {/* Guidelines */}
           <View style={styles.guidelinesBox}>
@@ -259,13 +310,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16, paddingVertical: 14, minHeight: 120, lineHeight: 20,
   },
   charCount: { fontSize: 11, color: COLORS.textMuted, textAlign: 'right', marginTop: 6, marginBottom: 20 },
-  imageStubBox: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border,
-    borderRadius: 12, padding: 14, marginBottom: 24, opacity: 0.55,
+  imagePickerRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 8 },
+  imageThumbnailWrap: { width: 88, height: 88, borderRadius: 10, overflow: 'visible' },
+  imageThumbnail: { width: 88, height: 88, borderRadius: 10, backgroundColor: COLORS.surface },
+  imageRemoveBtn: {
+    position: 'absolute', top: -8, right: -8,
+    backgroundColor: COLORS.background, borderRadius: 10,
   },
-  imageStubTitle: { fontSize: 13, color: COLORS.textSecondary, fontWeight: '600' },
-  imageStubSub:   { fontSize: 11, color: COLORS.textMuted, marginTop: 2 },
+  imageAddBtn: {
+    width: 88, height: 88, borderRadius: 10, borderWidth: 1.5,
+    borderColor: COLORS.border, borderStyle: 'dashed',
+    alignItems: 'center', justifyContent: 'center', gap: 4,
+  },
+  imageAddText: { fontSize: 11, color: COLORS.textMuted, fontWeight: '600' },
+  imageHint: { fontSize: 11, color: COLORS.textMuted, marginBottom: 24 },
   guidelinesBox: {
     backgroundColor: COLORS.surface, borderRadius: 14, borderWidth: 1,
     borderColor: COLORS.border, padding: 16, marginBottom: 24,

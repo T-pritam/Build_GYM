@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, Alert,
-  Image, Modal, Pressable,
+  Image, Modal, Pressable, ActivityIndicator,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
-import { currentUser, membership, buildCoins } from '../../constants/dummyData';
+import { membership } from '../../constants/dummyData';
 import { useAuthStore } from '../../store/authStore';
+import { uploadProfilePhoto, removeProfilePhoto } from '../../services/profileService';
 
 const MENU = [
   {
@@ -20,7 +21,7 @@ const MENU = [
   },
   {
     id: 'personal', label: 'Personal Details', icon: 'person-outline',
-    sub: currentUser?.email || 'arjun.sharma@email.com', nav: null, color: '#A855F7', bg: 'rgba(168,85,247,0.12)',
+    sub: 'Name, email, date of birth', nav: 'PersonalDetails', color: '#A855F7', bg: 'rgba(168,85,247,0.12)',
   },
   {
     id: 'complaint', label: 'Register Complaint', icon: 'alert-circle-outline',
@@ -32,18 +33,37 @@ const MENU = [
   },
   {
     id: 'health', label: 'Health & Emergency Info', icon: 'heart-outline',
-    sub: 'Medical & contact details', nav: null, color: '#22C55E', bg: 'rgba(34,197,94,0.12)',
+    sub: 'Medical & contact details', nav: 'HealthEmergency', color: '#22C55E', bg: 'rgba(34,197,94,0.12)',
   },
 ];
 
 export default function ProfileScreen({ navigation }) {
-  const firstName = currentUser?.name?.split(' ')[0] || 'Arjun';
-  const balance = buildCoins?.balance || 2450;
-  const earned  = buildCoins?.totalEarned || 5000;
-  const spent   = buildCoins?.totalSpent || 2550;
+  const user               = useAuthStore((s) => s.user);
+  const logout             = useAuthStore((s) => s.logout);
+  const updateProfilePhoto = useAuthStore((s) => s.updateProfilePhoto);
 
-  const [profilePhoto,      setProfilePhoto]      = useState(null);
+  const firstName = user?.firstName || user?.fullName?.split(' ')[0] || 'Athlete';
+  const balance = 0;
+  const earned  = 0;
+  const spent   = 0;
+
+  // Use persisted photo URL from auth store; fall back to null (shows initials)
+  const profilePhoto = user?.profilePhotoUrl ?? null;
+
   const [photoModalVisible, setPhotoModalVisible] = useState(false);
+  const [uploading,         setUploading]         = useState(false);
+
+  const handlePickedImage = async (uri) => {
+    setUploading(true);
+    try {
+      const { profilePhotoUrl } = await uploadProfilePhoto(uri);
+      await updateProfilePhoto(profilePhotoUrl);
+    } catch (err) {
+      Alert.alert('Upload failed', err?.response?.data?.message || 'Could not upload photo. Please try again.');
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const openCamera = async () => {
     setPhotoModalVisible(false);
@@ -55,7 +75,7 @@ export default function ProfileScreen({ navigation }) {
     const result = await ImagePicker.launchCameraAsync({
       allowsEditing: true, aspect: [1, 1], quality: 0.8,
     });
-    if (!result.canceled) setProfilePhoto(result.assets[0].uri);
+    if (!result.canceled) await handlePickedImage(result.assets[0].uri);
   };
 
   const openGallery = async () => {
@@ -69,15 +89,18 @@ export default function ProfileScreen({ navigation }) {
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true, aspect: [1, 1], quality: 0.8,
     });
-    if (!result.canceled) setProfilePhoto(result.assets[0].uri);
+    if (!result.canceled) await handlePickedImage(result.assets[0].uri);
   };
 
-  const removePhoto = () => {
-    setProfilePhoto(null);
+  const removePhoto = async () => {
     setPhotoModalVisible(false);
+    try {
+      await removeProfilePhoto();
+      await updateProfilePhoto(null);
+    } catch (err) {
+      Alert.alert('Error', err?.response?.data?.message || 'Could not remove photo. Please try again.');
+    }
   };
-
-  const logout = useAuthStore((s) => s.logout);
 
   const handleLogout = () =>
     Alert.alert('Log Out', 'Are you sure you want to log out?', [
@@ -112,7 +135,7 @@ export default function ProfileScreen({ navigation }) {
         <View style={styles.avatarSection}>
           <TouchableOpacity
             style={styles.avatarWrap}
-            onPress={() => setPhotoModalVisible(true)}
+            onPress={() => !uploading && setPhotoModalVisible(true)}
             activeOpacity={0.85}
           >
             {profilePhoto ? (
@@ -122,14 +145,20 @@ export default function ProfileScreen({ navigation }) {
                 <Text style={styles.avatarLetter}>{firstName.charAt(0)}</Text>
               </View>
             )}
-            <View style={styles.cameraBadge}>
-              <Ionicons name="camera" size={13} color="#fff" />
-            </View>
+            {uploading ? (
+              <View style={[styles.cameraBadge, { backgroundColor: '#1C1C1E' }]}>
+                <ActivityIndicator size={10} color={COLORS.secondary} />
+              </View>
+            ) : (
+              <View style={styles.cameraBadge}>
+                <Ionicons name="camera" size={13} color="#fff" />
+              </View>
+            )}
           </TouchableOpacity>
-          <Text style={styles.name}>{currentUser?.name || 'Arjun Sharma'}</Text>
-          <Text style={styles.phone}>{currentUser?.mobile || '+91 98765 43210'}</Text>
+          <Text style={styles.name}>{user?.fullName || firstName}</Text>
+          <Text style={styles.phone}>{user?.phone || ''}</Text>
           <View style={styles.memberBadge}>
-            <Text style={styles.memberBadgeText}>★ Member since {currentUser?.memberSince || 'Jan 2024'}</Text>
+            <Text style={styles.memberBadgeText}>★ Member since {user?.createdAt ? new Date(user.createdAt).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }) : 'BuildGym'}</Text>
           </View>
         </View>
 

@@ -32,6 +32,8 @@ import ComplaintScreen from '../screens/profile/ComplaintScreen';
 import MyComplaintsScreen from '../screens/profile/MyComplaintsScreen';
 import MyComplaintDetailScreen from '../screens/profile/MyComplaintDetailScreen';
 import NotificationsScreen from '../screens/profile/NotificationsScreen';
+import PersonalDetailsScreen from '../screens/profile/PersonalDetailsScreen';
+import HealthEmergencyScreen from '../screens/profile/HealthEmergencyScreen';
 
 // Detail screens
 import TrainerDetailScreen from '../screens/detail/TrainerDetailScreen';
@@ -138,6 +140,8 @@ export default function AppNavigator() {
         <Stack.Screen name="MyComplaints" component={MyComplaintsScreen} />
         <Stack.Screen name="MyComplaintDetail" component={MyComplaintDetailScreen} />
         <Stack.Screen name="Notifications" component={NotificationsScreen} />
+        <Stack.Screen name="PersonalDetails" component={PersonalDetailsScreen} />
+        <Stack.Screen name="HealthEmergency" component={HealthEmergencyScreen} />
 
         {/* Detail screens */}
         <Stack.Screen name="TrainerDetail" component={TrainerDetailScreen} />

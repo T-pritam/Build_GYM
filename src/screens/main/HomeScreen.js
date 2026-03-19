@@ -1,13 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAnnouncementStore } from '../../store/announcementStore';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  StatusBar, Linking,
+  StatusBar, Linking, ActivityIndicator, Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
-import { currentUser, membership, buildCoins, trainers, announcements, gymServices } from '../../constants/dummyData';
+import { membership, buildCoins, gymServices } from '../../constants/dummyData';
+import { useAuthStore } from '../../store/authStore';
+import { fetchAnnouncements } from '../../services/announcementService';
+import { fetchTrainers } from '../../services/trainerService';
 
 const RECEPTION_PHONE = '+919876543210';
 
@@ -23,14 +26,26 @@ const SERVICE_COLORS = [
 
 const SERVICE_ICONS = ['barbell-outline', 'people-outline', 'nutrition-outline', 'water-outline', 'lock-closed-outline'];
 
-const DUMMY_ANNOUNCEMENTS = [
-  { id: 'a1', date: '23 Feb 2026', title: '🏆 Build Games — March Edition', body: 'Internal fitness competition. Register before 28 Feb.' },
-  { id: 'a2', date: '21 Feb 2026', title: '⚡ New Equipment Arrived', body: 'Our new Hammer Strength racks are now ready in the strength zone.' },
-  { id: 'a3', date: '20 Feb 2026', title: '🚨 Holiday Timings — Holi', body: 'Gym will be open from 6 AM to 12 PM only on March 14.' },
-];
-
 export default function HomeScreen({ navigation }) {
   const unreadCount = useAnnouncementStore((s) => s.unreadCount);
+  const user = useAuthStore((s) => s.user);
+
+  const [announcements, setAnnouncements] = useState([]);
+  const [trainers, setTrainers] = useState([]);
+  const [loadingAnnouncements, setLoadingAnnouncements] = useState(true);
+  const [loadingTrainers, setLoadingTrainers] = useState(true);
+
+  useEffect(() => {
+    fetchAnnouncements({ limit: 3 })
+      .then((res) => setAnnouncements(res.data || []))
+      .catch(() => setAnnouncements([]))
+      .finally(() => setLoadingAnnouncements(false));
+
+    fetchTrainers()
+      .then((data) => setTrainers(data || []))
+      .catch(() => setTrainers([]))
+      .finally(() => setLoadingTrainers(false));
+  }, []);
 
   const getGreeting = () => {
     const h = new Date().getHours();
@@ -39,7 +54,7 @@ export default function HomeScreen({ navigation }) {
     return 'Good Evening,';
   };
 
-  const firstName = currentUser?.name?.split(' ')[0] || 'Arjun';
+  const firstName = user?.firstName || user?.fullName?.split(' ')[0] || 'Athlete';
 
   return (
     <View style={styles.container}>
@@ -204,21 +219,29 @@ export default function HomeScreen({ navigation }) {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Announcements</Text>
-            <View style={styles.announceBadge}>
-              <Text style={styles.announceBadgeText}>{(announcements || []).length || 3}</Text>
-            </View>
-          </View>
-          {(announcements || DUMMY_ANNOUNCEMENTS).map((a, i) => (
-            <View key={a.id || i} style={styles.announceCard}>
-              <View style={[styles.announceBorder, { backgroundColor: ANNOUNCEMENT_COLORS[i % ANNOUNCEMENT_COLORS.length] }]} />
-              <View style={styles.announceContent}>
-                <Text style={styles.announceDate}>{a.date}</Text>
-                <Text style={styles.announceTitle}>{a.title}</Text>
-                <Text style={styles.announceBody} numberOfLines={2}>{a.subtitle || a.body}</Text>
+            {announcements.length > 0 && (
+              <View style={styles.announceBadge}>
+                <Text style={styles.announceBadgeText}>{announcements.length}</Text>
               </View>
-              <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
-            </View>
-          ))}
+            )}
+          </View>
+          {loadingAnnouncements ? (
+            <ActivityIndicator color={COLORS.secondary} style={{ marginVertical: 20 }} />
+          ) : announcements.length === 0 ? (
+            <Text style={{ color: COLORS.textMuted, fontSize: 13, textAlign: 'center', paddingVertical: 16 }}>No announcements yet.</Text>
+          ) : (
+            announcements.map((a, i) => (
+              <View key={a.id || i} style={styles.announceCard}>
+                <View style={[styles.announceBorder, { backgroundColor: ANNOUNCEMENT_COLORS[i % ANNOUNCEMENT_COLORS.length] }]} />
+                <View style={styles.announceContent}>
+                  <Text style={styles.announceDate}>{a.date || (a.createdAt ? new Date(a.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '')}</Text>
+                  <Text style={styles.announceTitle}>{a.title}</Text>
+                  <Text style={styles.announceBody} numberOfLines={2}>{a.subtitle || a.body}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
+              </View>
+            ))
+          )}
         </View>
 
         {/* ── THIS WEEK ────────────────────────────── */}
@@ -257,9 +280,15 @@ export default function HomeScreen({ navigation }) {
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Our Trainers</Text>
             <TouchableOpacity onPress={() => navigation.navigate('Trainers')} activeOpacity={0.7}>
-              <Text style={styles.sectionSeeAll}>{trainers.length} trainers →</Text>
+              <Text style={styles.sectionSeeAll}>{trainers.length > 0 ? `${trainers.length} trainers →` : 'See all →'}</Text>
             </TouchableOpacity>
           </View>
+
+          {loadingTrainers ? (
+            <ActivityIndicator color={COLORS.secondary} style={{ marginVertical: 20 }} />
+          ) : trainers.length === 0 ? (
+            <Text style={{ color: COLORS.textMuted, fontSize: 13, textAlign: 'center', paddingVertical: 16 }}>No trainers available yet.</Text>
+          ) : null}
 
           {trainers.slice(0, 3).map((trainer) => (
             <TouchableOpacity
@@ -268,20 +297,37 @@ export default function HomeScreen({ navigation }) {
               onPress={() => navigation.navigate('TrainerDetail', { trainer })}
               activeOpacity={0.85}
             >
-              <LinearGradient
-                colors={['#2A1200', COLORS.secondaryDark, '#1A0800']}
-                style={styles.trainerAvatarPanel}
-              >
-                <Text style={styles.trainerAvatarText}>{trainer.name.charAt(0)}</Text>
-                <View style={[
-                  styles.trainerAvailBadge,
-                  { backgroundColor: trainer.available ? COLORS.success : COLORS.textMuted },
-                ]}>
-                  <Text style={styles.trainerAvailBadgeText}>
-                    {trainer.available ? 'Available' : 'Full'}
-                  </Text>
+              {trainer.profilePhotoUrl ? (
+                <View style={[styles.trainerAvatarPanel, { paddingVertical: 0 }]}>
+                  <Image
+                    source={{ uri: trainer.profilePhotoUrl }}
+                    style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, resizeMode: 'cover' }}
+                  />
+                  <View style={[
+                    styles.trainerAvailBadge,
+                    { position: 'absolute', bottom: 8, backgroundColor: trainer.available ? COLORS.success : COLORS.textMuted },
+                  ]}>
+                    <Text style={styles.trainerAvailBadgeText}>
+                      {trainer.available ? 'Available' : 'Full'}
+                    </Text>
+                  </View>
                 </View>
-              </LinearGradient>
+              ) : (
+                <LinearGradient
+                  colors={['#2A1200', COLORS.secondaryDark, '#1A0800']}
+                  style={styles.trainerAvatarPanel}
+                >
+                  <Text style={styles.trainerAvatarText}>{trainer.name.charAt(0)}</Text>
+                  <View style={[
+                    styles.trainerAvailBadge,
+                    { backgroundColor: trainer.available ? COLORS.success : COLORS.textMuted },
+                  ]}>
+                    <Text style={styles.trainerAvailBadgeText}>
+                      {trainer.available ? 'Available' : 'Full'}
+                    </Text>
+                  </View>
+                </LinearGradient>
+              )}
 
               <View style={styles.trainerInfo}>
                 <Text style={styles.trainerName} numberOfLines={1}>{trainer.name}</Text>

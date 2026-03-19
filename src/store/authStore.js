@@ -71,6 +71,34 @@ export const useAuthStore = create((set, get) => ({
   },
 
   /**
+   * Merge partial user fields into the stored user object (in-memory + SecureStore).
+   * Used after personal details edits to keep the auth store in sync.
+   */
+  updateUser: async (fields) => {
+    const { user } = get();
+    if (!user) return;
+    const updatedUser = { ...user, ...fields };
+    try {
+      await SecureStore.setItemAsync(KEYS.USER_DATA, JSON.stringify(updatedUser));
+    } catch (_) {}
+    set({ user: updatedUser });
+  },
+
+  /**
+   * Update the user's profile photo URL in-memory + storage.
+   * Pass null to clear the photo.
+   */
+  updateProfilePhoto: async (profilePhotoUrl) => {
+    const { user } = get();
+    if (!user) return;
+    const updatedUser = { ...user, profilePhotoUrl };
+    try {
+      await SecureStore.setItemAsync(KEYS.USER_DATA, JSON.stringify(updatedUser));
+    } catch (_) {}
+    set({ user: updatedUser });
+  },
+
+  /**
    * Update user's onboardingCompleted flag in-memory + storage.
    */
   markOnboardingComplete: async () => {
