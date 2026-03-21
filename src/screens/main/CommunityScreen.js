@@ -14,6 +14,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 const TABS = [
   { key: 'community', label: 'Community', icon: 'document-text-outline' },
   { key: 'reviews', label: 'Reviews', icon: 'star-outline' },
+  { key: 'blog', label: 'Blog', icon: 'newspaper-outline' },
   { key: 'faq', label: 'FAQ', icon: 'help-circle-outline' },
 ];
 
@@ -262,6 +263,49 @@ export default function CommunityScreen({ navigation }) {
 
       {activeTab === 'reviews' && <ReviewsTab />}
 
+      {activeTab === 'blog' && (
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.tabScrollContent}>
+          {communityArticles.map((article) => {
+            const catColor = CATEGORY_COLORS[article.category] || COLORS.secondary;
+            return (
+              <TouchableOpacity
+                key={article.id}
+                style={styles.blogCard}
+                activeOpacity={0.85}
+                onPress={() => navigation.navigate('BlogFeed', { articleId: article.id })}
+              >
+                <View style={[styles.blogCover, { backgroundColor: catColor }]} />
+                <View style={styles.blogBody}>
+                  <View style={styles.blogBadgeRow}>
+                    <View style={[styles.badge, { backgroundColor: catColor + '22' }]}>
+                      <Text style={[styles.badgeText, { color: catColor }]}>{article.category?.toUpperCase()}</Text>
+                    </View>
+                    {article.pinned && (
+                      <View style={[styles.badge, { backgroundColor: COLORS.secondaryGlow }]}>
+                        <Text style={[styles.badgeText, { color: COLORS.secondary }]}>📌 PINNED</Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text style={styles.blogTitle} numberOfLines={2}>{article.title}</Text>
+                  <Text style={styles.blogExcerpt} numberOfLines={2}>{article.summary}</Text>
+                  <View style={styles.blogMeta}>
+                    <Text style={styles.blogMetaText}>
+                      {article.author} · {article.date} ·{' '}
+                      <Text style={{ color: catColor }}>{article.readTime}</Text>
+                    </Text>
+                    <View style={styles.blogReadBtn}>
+                      <Ionicons name="book-outline" size={12} color={COLORS.secondary} />
+                      <Text style={styles.blogReadBtnText}>Read</Text>
+                    </View>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+          <View style={{ height: 20 }} />
+        </ScrollView>
+      )}
+
       {activeTab === 'faq' && (
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.tabScrollContent}>
           <View style={styles.faqHeadingRow}>
@@ -409,4 +453,27 @@ const styles = StyleSheet.create({
 
   emptyState: { alignItems: 'center', paddingVertical: 40, gap: 10 },
   emptyText: { fontSize: 14, color: COLORS.textMuted },
+
+  // Blog tab
+  blogCard: {
+    backgroundColor: COLORS.surface, borderRadius: 14, borderWidth: 1, borderColor: COLORS.border,
+    overflow: 'hidden', marginBottom: 12,
+  },
+  blogCover: { width: '100%', height: 90 },
+  blogBody: { padding: 14, gap: 6 },
+  blogBadgeRow: { flexDirection: 'row', gap: 6 },
+  blogTitle: { fontSize: 14, fontWeight: '800', color: COLORS.white, lineHeight: 20 },
+  blogExcerpt: { fontSize: 11, color: COLORS.textMuted, lineHeight: 16 },
+  blogMeta: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)', paddingTop: 8, marginTop: 2,
+  },
+  blogMetaText: { fontSize: 10, color: COLORS.textMuted },
+  blogReadBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 10, paddingVertical: 5,
+    borderRadius: 7, borderWidth: 1, borderColor: COLORS.secondaryBorder,
+    backgroundColor: COLORS.secondaryGlow,
+  },
+  blogReadBtnText: { fontSize: 11, fontWeight: '700', color: COLORS.secondary },
 });

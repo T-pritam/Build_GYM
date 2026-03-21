@@ -27,9 +27,9 @@ const publicClient = axios.create({
  * @param {string} phone - E.164 formatted phone number
  * @returns {Promise<object>} API response data
  */
-export const sendOTP = async (phone) => {
+export const sendOTP = async (phone, context = 'member') => {
     console.log('Requesting OTP for:', phone);
-  const { data } = await publicClient.post('/otp/send', { phone });
+  const { data } = await publicClient.post('/otp/send', { phone, context });
   return data;
 };
 
@@ -52,7 +52,7 @@ export const verifyOTP = async (phone, code) => {
  * Invalidates current OTP and sends a new one.
  * @param {string} phone - E.164 formatted phone number
  */
-export const resendOTP = async (phone) => {
-  const { data } = await publicClient.post('/otp/resend', { phone });
+export const resendOTP = async (phone, context = 'member') => {
+  const { data } = await publicClient.post('/otp/resend', { phone, context });
   return data;
 };

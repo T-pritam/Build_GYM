@@ -29,12 +29,17 @@ export default function LoginScreen({ navigation }) {
         await saveFCMToken(fcmToken, fullPhone);
       }
 
-      await sendOTP(fullPhone);
+      await sendOTP(fullPhone, 'member');
 
       navigation.navigate('OTP', { phone: fullPhone });
     } catch (error) {
       if (error.response?.status === 404) {
         Alert.alert('Not Registered', 'This number is not registered. Please contact your admin.');
+      } else if (error.response?.status === 403) {
+        Alert.alert(
+          'Staff Account Detected',
+          'This number is registered as a staff account. Please use the BuildGym Staff app to sign in.'
+        );
       } else {
         Alert.alert('Error', 'Failed to send OTP. Please try again.');
       }

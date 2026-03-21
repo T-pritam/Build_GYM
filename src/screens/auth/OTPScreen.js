@@ -68,7 +68,17 @@ export default function OTPScreen({ navigation, route }) {
     setLoading(true);
     try {
       const { accessToken, refreshToken, user } = await verifyOTP(phone, code);
-      console.log('OTP verified, user:', user);
+
+      // Belt-and-suspenders: block staff accounts from the member app
+      if (user.role !== 'member') {
+        Alert.alert(
+          'Access Denied',
+          'This app is for members only. Please use the BuildGym Staff app to sign in.'
+        );
+        setOtp(['', '', '', '', '', '']);
+        inputRefs.current[0]?.focus();
+        return;
+      }
 
       // Persist to store + SecureStore
       await setAuth(user, accessToken, refreshToken);
