@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
+  ActivityIndicator,
   ScrollView,
   StyleSheet,
   Text,
@@ -7,72 +8,198 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
-import { communityArticles } from '../../constants/dummyData';
+import { useAuthStore } from '../../store/authStore';
+import { fetchBlogBySlug, voteBlog, fetchBlogComments, postBlogComment } from '../../services/blogService';
+import { renderMarkdown } from '../../utils/markdownRenderer';
 
-const CATEGORY_COLORS = {
+const TAG_COLORS = {
+  Fitness: COLORS.secondary,
   Training: COLORS.secondary,
   Nutrition: '#22C55E',
-  Update: '#3B82F6',
   Recovery: '#A855F7',
-  Events: '#F59E0B',
+  Motivation: '#F59E0B',
 };
 
-function coverColorForCategory(cat) {
-  return CATEGORY_COLORS[cat] || COLORS.secondary;
+function tagColor(tag) {
+  return TAG_COLORS[tag] || COLORS.secondary;
 }
 
-const DUMMY_COMMENTS = [
-  { id: 'c1', name: 'Amith Naik',   initials: 'AN', time: '2 hours ago', text: 'Great tips, really helped with my soreness!' },
-  { id: 'c2', name: 'Priya Sharma', initials: 'PS', time: '4 hours ago', text: 'Is the foam rolling video coming soon?' },
-  { id: 'c3', name: 'Rahul Desai',  initials: 'RD', time: '1 day ago',   text: "I've been using these techniques for a week now." },
-  { id: 'c4', name: 'Amith Naik',   initials: 'AN', time: '1 day ago',   text: "Also, don't forget the importance of sleep!" },
-];
+function formatDate(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function timeAgo(dateStr) {
+  if (!dateStr) return '';
+  const now = Date.now();
+  const past = new Date(dateStr).getTime();
+  const diffMs = now - past;
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  return formatDate(dateStr);
+}
+
+function getInitials(name) {
+  if (!name) return '??';
+  return name.split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
+}
 
 export default function BlogFeedScreen({ navigation, route }) {
-  const { articleId } = route.params ?? {};
-  const article = communityArticles.find((a) => a.id === articleId) ?? communityArticles[0];
-  const catColor = coverColorForCategory(article.category);
-  const [upvoted, setUpvoted] = useState(false);
-  const [downvoted, setDownvoted] = useState(false);
-  const [upCount, setUpCount] = useState(24);
-  const [downCount, setDownCount] = useState(3);
+  const { postId, slug, articleId } = route.params ?? {};
+  const user = useAuthStore((s) => s.user);
+
+  // The identifier to fetch blog — prefer slug, fall back to postId or articleId
+  const blogIdentifier = slug || postId || articleId;
+
+  const [blog, setBlog] = useState(null);
+  const [comments, setComments] = useState([]);
+  const [upvotes, setUpvotes] = useState(0);
+  const [downvotes, setDownvotes] = useState(0);
+  const [userVote, setUserVote] = useState(null);
   const [comment, setComment] = useState('');
-  const [comments, setComments] = useState(DUMMY_COMMENTS);
+  const [submitting, setSubmitting] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  function handleUpvote() {
-    if (upvoted) {
-      setUpvoted(false);
-      setUpCount(c => c - 1);
+  const loadBlog = useCallback(async () => {
+    if (!blogIdentifier) {
+      setError('No blog identifier provided');
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const data = await fetchBlogBySlug(blogIdentifier);
+      setBlog(data);
+      setUpvotes(data.upvotes || 0);
+      setDownvotes(data.downvotes || 0);
+      setUserVote(data.userVote || null);
+
+      // Fetch comments using blog id
+      try {
+        const result = await fetchBlogComments(data.id);
+        if (result?.data) setComments(result.data);
+      } catch (commentErr) {
+        console.warn('Comments load error:', commentErr);
+        // Non-fatal — blog still displays
+      }
+    } catch (err) {
+      console.warn('BlogFeed load error:', err);
+      setError(err?.response?.data?.message || err?.message || 'Failed to load blog');
+    } finally {
+      setLoading(false);
+    }
+  }, [blogIdentifier]);
+
+  useEffect(() => {
+    loadBlog();
+  }, [loadBlog]);
+
+  async function handleVote(type) {
+    if (!blog) return;
+
+    // Optimistic update
+    const prevUpvotes = upvotes;
+    const prevDownvotes = downvotes;
+    const prevUserVote = userVote;
+
+    if (userVote === type) {
+      // Toggle off
+      setUserVote(null);
+      if (type === 'upvote') setUpvotes((c) => c - 1);
+      else setDownvotes((c) => c - 1);
     } else {
-      setUpvoted(true);
-      setUpCount(c => c + 1);
-      if (downvoted) { setDownvoted(false); setDownCount(c => c - 1); }
+      // Switch or new vote
+      setUserVote(type);
+      if (type === 'upvote') {
+        setUpvotes((c) => c + 1);
+        if (userVote === 'downvote') setDownvotes((c) => c - 1);
+      } else {
+        setDownvotes((c) => c + 1);
+        if (userVote === 'upvote') setUpvotes((c) => c - 1);
+      }
+    }
+
+    try {
+      const result = await voteBlog(blog.id, type);
+      setUpvotes(result.upvotes);
+      setDownvotes(result.downvotes);
+      setUserVote(result.userVote);
+    } catch {
+      // Revert on error
+      setUpvotes(prevUpvotes);
+      setDownvotes(prevDownvotes);
+      setUserVote(prevUserVote);
     }
   }
 
-  function handleDownvote() {
-    if (downvoted) {
-      setDownvoted(false);
-      setDownCount(c => c - 1);
-    } else {
-      setDownvoted(true);
-      setDownCount(c => c + 1);
-      if (upvoted) { setUpvoted(false); setUpCount(c => c - 1); }
-    }
-  }
-
-  function handleSendComment() {
+  async function handleSendComment() {
     const text = comment.trim();
-    if (!text) return;
-    setComments(prev => [
-      { id: String(Date.now()), name: 'You', initials: 'YO', time: 'Just now', text },
-      ...prev,
-    ]);
-    setComment('');
+    if (!text || !blog || submitting) return;
+    setSubmitting(true);
+    try {
+      const newComment = await postBlogComment(blog.id, text);
+      setComments((prev) => [newComment, ...prev]);
+      setComment('');
+    } catch (err) {
+      console.warn('Comment post error:', err);
+    } finally {
+      setSubmitting(false);
+    }
   }
+
+  // Loading state
+  if (loading) {
+    return (
+      <View style={[styles.root, { alignItems: 'center', justifyContent: 'center' }]}>
+        <ActivityIndicator size="large" color={COLORS.secondary} />
+      </View>
+    );
+  }
+
+  // Error state
+  if (error || !blog) {
+    return (
+      <View style={styles.root}>
+        <View style={styles.header}>
+          <View style={styles.headerLeft}>
+            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+              <Ionicons name="arrow-back" size={22} color={COLORS.white} />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Blog</Text>
+          </View>
+        </View>
+        <View style={styles.errorContainer}>
+          <Ionicons name="alert-circle-outline" size={48} color={COLORS.textMuted} />
+          <Text style={styles.errorTitle}>Couldn't load this article</Text>
+          <Text style={styles.errorMessage}>{error || 'Blog not found'}</Text>
+          <TouchableOpacity style={styles.retryBtn} onPress={loadBlog} activeOpacity={0.85}>
+            <Ionicons name="refresh" size={16} color={COLORS.white} />
+            <Text style={styles.retryBtnText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
+  const primaryTag = blog.tags?.[0] || 'Fitness';
+  const catColor = tagColor(primaryTag);
+  const upvoted = userVote === 'upvote';
+  const downvoted = userVote === 'downvote';
+  const readTime = blog.estimatedReadTime || 1;
 
   return (
     <View style={styles.root}>
@@ -82,7 +209,7 @@ export default function BlogFeedScreen({ navigation, route }) {
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={22} color={COLORS.white} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle} numberOfLines={1}>{article.title}</Text>
+          <Text style={styles.headerTitle} numberOfLines={1}>{blog.title}</Text>
         </View>
         <Text style={styles.brand}>BUILD GYM</Text>
       </View>
@@ -93,65 +220,72 @@ export default function BlogFeedScreen({ navigation, route }) {
         showsVerticalScrollIndicator={false}
       >
         {/* Hero block */}
-        <View style={[styles.hero, { backgroundColor: catColor }]}>
-          <LinearGradient
-            colors={['transparent', 'rgba(0,0,0,0.3)', COLORS.background]}
-            locations={[0, 0.5, 1]}
-            style={StyleSheet.absoluteFill}
-          />
-        </View>
+        {blog.coverImageUrl ? (
+          <View style={styles.hero}>
+            <Image
+              source={{ uri: blog.coverImageUrl }}
+              style={StyleSheet.absoluteFill}
+              contentFit="cover"
+            />
+            <LinearGradient
+              colors={['transparent', 'rgba(0,0,0,0.3)', COLORS.background]}
+              locations={[0, 0.5, 1]}
+              style={StyleSheet.absoluteFill}
+            />
+          </View>
+        ) : (
+          <View style={[styles.hero, { backgroundColor: catColor }]}>
+            <LinearGradient
+              colors={['transparent', 'rgba(0,0,0,0.3)', COLORS.background]}
+              locations={[0, 0.5, 1]}
+              style={StyleSheet.absoluteFill}
+            />
+          </View>
+        )}
 
         {/* Article card overlapping hero */}
         <View style={styles.articleCard}>
-          {/* Category + pinned badges */}
+          {/* Category badges */}
           <View style={styles.badgesRow}>
-            <View style={[styles.catBadge, { backgroundColor: catColor + '22' }]}>
-              <Text style={[styles.catBadgeText, { color: catColor }]}>
-                {article.category?.toUpperCase()}
-              </Text>
-            </View>
-            {article.pinned && (
-              <View style={[styles.catBadge, { backgroundColor: COLORS.secondaryGlow }]}>
-                <Text style={[styles.catBadgeText, { color: COLORS.secondary }]}>📌 PINNED</Text>
+            {(blog.tags || []).map((t) => (
+              <View key={t} style={[styles.catBadge, { backgroundColor: tagColor(t) + '22' }]}>
+                <Text style={[styles.catBadgeText, { color: tagColor(t) }]}>
+                  {t.toUpperCase()}
+                </Text>
               </View>
-            )}
+            ))}
           </View>
 
           {/* Title */}
-          <Text style={styles.articleTitle}>{article.title}</Text>
+          <Text style={styles.articleTitle}>{blog.title}</Text>
 
           {/* Meta */}
           <View style={styles.metaRow}>
-            <Text style={styles.metaText}>{article.author}</Text>
-            <Text style={[styles.metaDot, { color: catColor }]}>•</Text>
-            <Text style={styles.metaText}>{article.date}</Text>
-            <Text style={[styles.metaDot, { color: catColor }]}>•</Text>
-            <Text style={[styles.metaText, { color: catColor }]}>{article.readTime}</Text>
+            <Text style={styles.metaText}>{blog.authorName || 'Build Gym'}</Text>
+            <Text style={[styles.metaDot, { color: catColor }]}>{'\u2022'}</Text>
+            <Text style={styles.metaText}>{formatDate(blog.publishedAt)}</Text>
+            <Text style={[styles.metaDot, { color: catColor }]}>{'\u2022'}</Text>
+            <Text style={[styles.metaText, { color: catColor }]}>{readTime} min read</Text>
           </View>
 
           <View style={styles.divider} />
 
-          {/* Summary */}
-          {article.summary ? (
-            <Text style={styles.summaryText}>{article.summary}</Text>
-          ) : null}
-
-          {/* Body content */}
-          <Text style={styles.bodyText}>{article.content}</Text>
+          {/* Body content — rendered markdown */}
+          <View>{renderMarkdown(blog.content || '')}</View>
 
           {/* Engagement — votes */}
           <View style={styles.engagementRow}>
-            <TouchableOpacity style={styles.voteBtn} onPress={handleUpvote} activeOpacity={0.8}>
+            <TouchableOpacity style={styles.voteBtn} onPress={() => handleVote('upvote')} activeOpacity={0.8}>
               <View style={[styles.voteBtnBox, upvoted && { backgroundColor: COLORS.secondaryGlow, borderColor: COLORS.secondaryBorder }]}>
                 <Ionicons name={upvoted ? 'thumbs-up' : 'thumbs-up-outline'} size={18} color={upvoted ? COLORS.secondary : COLORS.textMuted} />
               </View>
-              <Text style={[styles.voteCount, upvoted && { color: COLORS.secondary }]}>{upCount}</Text>
+              <Text style={[styles.voteCount, upvoted && { color: COLORS.secondary }]}>{upvotes}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.voteBtn} onPress={handleDownvote} activeOpacity={0.8}>
+            <TouchableOpacity style={styles.voteBtn} onPress={() => handleVote('downvote')} activeOpacity={0.8}>
               <View style={[styles.voteBtnBox, downvoted && { backgroundColor: 'rgba(255,68,68,0.12)', borderColor: 'rgba(255,68,68,0.3)' }]}>
                 <Ionicons name={downvoted ? 'thumbs-down' : 'thumbs-down-outline'} size={18} color={downvoted ? COLORS.error : COLORS.textMuted} />
               </View>
-              <Text style={[styles.voteCount, downvoted && { color: COLORS.error }]}>{downCount}</Text>
+              <Text style={[styles.voteCount, downvoted && { color: COLORS.error }]}>{downvotes}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -165,9 +299,17 @@ export default function BlogFeedScreen({ navigation, route }) {
 
           {/* Comment input */}
           <View style={styles.commentInputRow}>
-            <View style={styles.commentAvatar}>
-              <Ionicons name="person" size={16} color={COLORS.textMuted} />
-            </View>
+            {user?.profilePhotoUrl ? (
+              <Image
+                source={{ uri: user.profilePhotoUrl }}
+                style={styles.commentAvatar}
+                contentFit="cover"
+              />
+            ) : (
+              <View style={styles.commentAvatar}>
+                <Ionicons name="person" size={16} color={COLORS.textMuted} />
+              </View>
+            )}
             <TextInput
               style={styles.commentInput}
               placeholder="Write a comment..."
@@ -177,23 +319,37 @@ export default function BlogFeedScreen({ navigation, route }) {
               returnKeyType="send"
               onSubmitEditing={handleSendComment}
             />
-            <TouchableOpacity style={styles.sendBtn} onPress={handleSendComment} activeOpacity={0.8}>
-              <Ionicons name="send" size={16} color={COLORS.secondary} />
+            <TouchableOpacity style={styles.sendBtn} onPress={handleSendComment} activeOpacity={0.8} disabled={submitting}>
+              {submitting ? (
+                <ActivityIndicator size={16} color={COLORS.secondary} />
+              ) : (
+                <Ionicons name="send" size={16} color={COLORS.secondary} />
+              )}
             </TouchableOpacity>
           </View>
 
           {/* Comment list */}
-          {comments.map(c => (
+          {comments.map((c) => (
             <View key={c.id} style={styles.commentCard}>
-              <View style={[styles.commentAvatarSmall, { borderColor: catColor }]}>
-                <Text style={[styles.commentInitials, { color: catColor }]}>{c.initials}</Text>
-              </View>
+              {c.userProfilePhotoUrl ? (
+                <Image
+                  source={{ uri: c.userProfilePhotoUrl }}
+                  style={[styles.commentAvatarSmall, { borderColor: catColor }]}
+                  contentFit="cover"
+                />
+              ) : (
+                <View style={[styles.commentAvatarSmall, { borderColor: catColor }]}>
+                  <Text style={[styles.commentInitials, { color: catColor }]}>
+                    {getInitials(c.userName)}
+                  </Text>
+                </View>
+              )}
               <View style={{ flex: 1 }}>
                 <View style={styles.commentHeaderRow}>
-                  <Text style={styles.commentName}>{c.name}</Text>
-                  <Text style={styles.commentTime}>{c.time}</Text>
+                  <Text style={styles.commentName}>{c.userName || 'User'}</Text>
+                  <Text style={styles.commentTime}>{timeAgo(c.createdAt)}</Text>
                 </View>
-                <Text style={styles.commentText}>{c.text}</Text>
+                <Text style={styles.commentText}>{c.content}</Text>
               </View>
             </View>
           ))}
@@ -251,16 +407,6 @@ const styles = StyleSheet.create({
 
   divider: { height: 1, backgroundColor: COLORS.border, marginVertical: 20 },
 
-  summaryText: {
-    fontSize: 14, color: COLORS.white, fontWeight: '600',
-    lineHeight: 22, marginBottom: 16,
-    paddingLeft: 12,
-    borderLeftWidth: 3, borderLeftColor: COLORS.secondary,
-  },
-  bodyText: {
-    fontSize: 14, color: COLORS.textSecondary, lineHeight: 24,
-  },
-
   engagementRow: {
     flexDirection: 'row', gap: 20, marginTop: 24, paddingTop: 20,
     borderTopWidth: 1, borderTopColor: COLORS.border,
@@ -273,6 +419,19 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: COLORS.border,
   },
   voteCount: { fontSize: 16, fontWeight: '700', color: COLORS.textMuted },
+
+  errorContainer: {
+    flex: 1, alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: 32, gap: 10,
+  },
+  errorTitle: { fontSize: 18, fontWeight: '700', color: COLORS.white, marginTop: 8 },
+  errorMessage: { fontSize: 13, color: COLORS.textMuted, textAlign: 'center', lineHeight: 20 },
+  retryBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: COLORS.secondary, borderRadius: 12,
+    paddingHorizontal: 20, paddingVertical: 12, marginTop: 10,
+  },
+  retryBtnText: { fontSize: 14, fontWeight: '700', color: COLORS.white },
 
   commentsSection: { marginTop: 24, paddingHorizontal: 16, paddingBottom: 40 },
   commentsSectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
@@ -289,6 +448,7 @@ const styles = StyleSheet.create({
     width: 36, height: 36, borderRadius: 18,
     backgroundColor: COLORS.surface2,
     alignItems: 'center', justifyContent: 'center',
+    overflow: 'hidden',
   },
   commentInput: {
     flex: 1, fontSize: 14, color: COLORS.white,
@@ -307,6 +467,7 @@ const styles = StyleSheet.create({
     width: 38, height: 38, borderRadius: 19,
     backgroundColor: COLORS.surface2, borderWidth: 2,
     alignItems: 'center', justifyContent: 'center',
+    overflow: 'hidden',
   },
   commentInitials: { fontSize: 12, fontWeight: '800' },
   commentHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },

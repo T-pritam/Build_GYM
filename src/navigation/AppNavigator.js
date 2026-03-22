@@ -38,6 +38,7 @@ import HealthEmergencyScreen from '../screens/profile/HealthEmergencyScreen';
 // Detail screens
 import TrainerDetailScreen from '../screens/detail/TrainerDetailScreen';
 import ArticleReaderScreen from '../screens/community/ArticleReaderScreen';
+import BlogListScreen from '../screens/community/BlogListScreen';
 import BlogFeedScreen from '../screens/community/BlogFeedScreen';
 import AnnouncementDetailScreen from '../screens/main/AnnouncementDetailScreen';
 
@@ -171,6 +172,11 @@ export default function AppNavigator() {
           name="ArticleReader"
           component={ArticleReaderScreen}
           options={{ animation: 'slide_from_bottom' }}
+        />
+        <Stack.Screen
+          name="BlogList"
+          component={BlogListScreen}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="BlogFeed"

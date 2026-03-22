@@ -1,11 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   StatusBar, Linking, LayoutAnimation, UIManager, Platform,
+  ActivityIndicator, FlatList, RefreshControl,
 } from 'react-native';
+import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import { communityArticles, faqs, reviews } from '../../constants/dummyData';
+import { fetchPublishedBlogs } from '../../services/blogService';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -156,6 +160,159 @@ function FAQItem({ faq }) {
   );
 }
 
+const BLOG_TAG_COLORS = {
+  Fitness: COLORS.secondary,
+  Training: COLORS.secondary,
+  Nutrition: '#22C55E',
+  Recovery: '#A855F7',
+  Motivation: '#F59E0B',
+};
+
+function blogTagColor(tag) {
+  return BLOG_TAG_COLORS[tag] || COLORS.secondary;
+}
+
+function formatBlogDate(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+// Blog tab — inline blog list fetched from API
+function BlogTab({ navigation }) {
+  const [posts, setPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [nextCursor, setNextCursor] = useState(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState(null);
+
+  const loadBlogs = useCallback(async (cursor = null, isRefresh = false) => {
+    try {
+      if (!cursor) setError(null);
+      const result = await fetchPublishedBlogs({ cursor, limit: 20 });
+      if (cursor && !isRefresh) {
+        setPosts((prev) => [...prev, ...result.data]);
+      } else {
+        setPosts(result.data);
+      }
+      setNextCursor(result.nextCursor);
+    } catch (err) {
+      if (!cursor) setError(err?.response?.data?.message || err?.message || 'Failed to load blogs');
+    }
+  }, []);
+
+  useEffect(() => {
+    setLoading(true);
+    loadBlogs().finally(() => setLoading(false));
+  }, [loadBlogs]);
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadBlogs(null, true);
+    setRefreshing(false);
+  }, [loadBlogs]);
+
+  const handleLoadMore = useCallback(() => {
+    if (!nextCursor || loadingMore) return;
+    setLoadingMore(true);
+    loadBlogs(nextCursor).finally(() => setLoadingMore(false));
+  }, [nextCursor, loadingMore, loadBlogs]);
+
+  if (loading) {
+    return (
+      <View style={styles.blogLoadingContainer}>
+        <ActivityIndicator size="large" color={COLORS.secondary} />
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.blogLoadingContainer}>
+        <Ionicons name="cloud-offline-outline" size={40} color={COLORS.textMuted} />
+        <Text style={styles.blogErrorTitle}>Couldn't load blogs</Text>
+        <Text style={styles.blogErrorMsg}>{error}</Text>
+        <TouchableOpacity
+          style={styles.blogRetryBtn}
+          activeOpacity={0.85}
+          onPress={() => { setLoading(true); loadBlogs().finally(() => setLoading(false)); }}
+        >
+          <Ionicons name="refresh" size={14} color={COLORS.white} />
+          <Text style={styles.blogRetryText}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  const renderBlogCard = ({ item: post }) => {
+    const primaryTag = post.tags?.[0] || 'Fitness';
+    const color = blogTagColor(primaryTag);
+    return (
+      <TouchableOpacity
+        style={styles.blogCard}
+        activeOpacity={0.85}
+        onPress={() => navigation.navigate('BlogFeed', { postId: post.id, slug: post.slug })}
+      >
+        {post.coverImageUrl ? (
+          <View style={styles.blogCover}>
+            <Image source={{ uri: post.coverImageUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
+            <LinearGradient colors={['transparent', 'rgba(0,0,0,0.5)']} style={StyleSheet.absoluteFill} />
+          </View>
+        ) : (
+          <View style={[styles.blogCover, { backgroundColor: color }]}>
+            <LinearGradient colors={['transparent', 'rgba(0,0,0,0.5)']} style={StyleSheet.absoluteFill} />
+          </View>
+        )}
+        <View style={styles.blogBody}>
+          <View style={styles.blogBadgeRow}>
+            <View style={[styles.badge, { backgroundColor: color + '22' }]}>
+              <Text style={[styles.badgeText, { color }]}>{primaryTag.toUpperCase()}</Text>
+            </View>
+            <Text style={styles.blogMetaText}>{post.estimatedReadTime || 1} min read</Text>
+          </View>
+          <Text style={styles.blogTitle} numberOfLines={2}>{post.title}</Text>
+          <View style={styles.blogMeta}>
+            <Text style={styles.blogMetaText}>{post.authorName || 'Build Gym'} · {formatBlogDate(post.publishedAt)}</Text>
+            <View style={styles.blogReadBtn}>
+              <Ionicons name="book-outline" size={11} color={COLORS.secondary} />
+              <Text style={styles.blogReadBtnText}>Read</Text>
+            </View>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  return (
+    <FlatList
+      data={posts}
+      keyExtractor={(p) => p.id}
+      renderItem={renderBlogCard}
+      contentContainerStyle={styles.blogListContent}
+      showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={COLORS.secondary} colors={[COLORS.secondary]} />
+      }
+      onEndReached={handleLoadMore}
+      onEndReachedThreshold={0.5}
+      ListHeaderComponent={
+        <TouchableOpacity style={styles.blogViewAllBtn} activeOpacity={0.85} onPress={() => navigation.navigate('BlogList')}>
+          <Text style={styles.blogViewAllText}>View All with Filters</Text>
+          <Ionicons name="arrow-forward" size={14} color={COLORS.secondary} />
+        </TouchableOpacity>
+      }
+      ListFooterComponent={loadingMore ? <ActivityIndicator size="small" color={COLORS.secondary} style={{ paddingVertical: 16 }} /> : null}
+      ListEmptyComponent={
+        <View style={styles.emptyState}>
+          <Ionicons name="newspaper-outline" size={40} color={COLORS.textMuted} />
+          <Text style={styles.emptyText}>No blog posts yet.</Text>
+        </View>
+      }
+    />
+  );
+}
+
 export default function CommunityScreen({ navigation }) {
   const [activeTab, setActiveTab] = useState('community');
   const [activeCategory, setActiveCategory] = useState('All');
@@ -264,46 +421,7 @@ export default function CommunityScreen({ navigation }) {
       {activeTab === 'reviews' && <ReviewsTab />}
 
       {activeTab === 'blog' && (
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.tabScrollContent}>
-          {communityArticles.map((article) => {
-            const catColor = CATEGORY_COLORS[article.category] || COLORS.secondary;
-            return (
-              <TouchableOpacity
-                key={article.id}
-                style={styles.blogCard}
-                activeOpacity={0.85}
-                onPress={() => navigation.navigate('BlogFeed', { articleId: article.id })}
-              >
-                <View style={[styles.blogCover, { backgroundColor: catColor }]} />
-                <View style={styles.blogBody}>
-                  <View style={styles.blogBadgeRow}>
-                    <View style={[styles.badge, { backgroundColor: catColor + '22' }]}>
-                      <Text style={[styles.badgeText, { color: catColor }]}>{article.category?.toUpperCase()}</Text>
-                    </View>
-                    {article.pinned && (
-                      <View style={[styles.badge, { backgroundColor: COLORS.secondaryGlow }]}>
-                        <Text style={[styles.badgeText, { color: COLORS.secondary }]}>📌 PINNED</Text>
-                      </View>
-                    )}
-                  </View>
-                  <Text style={styles.blogTitle} numberOfLines={2}>{article.title}</Text>
-                  <Text style={styles.blogExcerpt} numberOfLines={2}>{article.summary}</Text>
-                  <View style={styles.blogMeta}>
-                    <Text style={styles.blogMetaText}>
-                      {article.author} · {article.date} ·{' '}
-                      <Text style={{ color: catColor }}>{article.readTime}</Text>
-                    </Text>
-                    <View style={styles.blogReadBtn}>
-                      <Ionicons name="book-outline" size={12} color={COLORS.secondary} />
-                      <Text style={styles.blogReadBtnText}>Read</Text>
-                    </View>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            );
-          })}
-          <View style={{ height: 20 }} />
-        </ScrollView>
+        <BlogTab navigation={navigation} />
       )}
 
       {activeTab === 'faq' && (
@@ -455,15 +573,31 @@ const styles = StyleSheet.create({
   emptyText: { fontSize: 14, color: COLORS.textMuted },
 
   // Blog tab
+  blogListContent: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 100 },
+  blogLoadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10 },
+  blogErrorTitle: { fontSize: 16, fontWeight: '700', color: COLORS.white, marginTop: 4 },
+  blogErrorMsg: { fontSize: 12, color: COLORS.textMuted, textAlign: 'center' },
+  blogRetryBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: COLORS.secondary, borderRadius: 10,
+    paddingHorizontal: 16, paddingVertical: 10, marginTop: 6,
+  },
+  blogRetryText: { fontSize: 13, fontWeight: '700', color: COLORS.white },
+  blogViewAllBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    paddingVertical: 10, marginBottom: 12,
+    borderWidth: 1, borderColor: COLORS.secondaryBorder, borderRadius: 10,
+    backgroundColor: COLORS.secondaryGlow,
+  },
+  blogViewAllText: { fontSize: 12, fontWeight: '700', color: COLORS.secondary },
   blogCard: {
     backgroundColor: COLORS.surface, borderRadius: 14, borderWidth: 1, borderColor: COLORS.border,
     overflow: 'hidden', marginBottom: 12,
   },
-  blogCover: { width: '100%', height: 90 },
+  blogCover: { width: '100%', height: 130 },
   blogBody: { padding: 14, gap: 6 },
-  blogBadgeRow: { flexDirection: 'row', gap: 6 },
+  blogBadgeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   blogTitle: { fontSize: 14, fontWeight: '800', color: COLORS.white, lineHeight: 20 },
-  blogExcerpt: { fontSize: 11, color: COLORS.textMuted, lineHeight: 16 },
   blogMeta: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)', paddingTop: 8, marginTop: 2,

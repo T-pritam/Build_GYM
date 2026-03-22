@@ -1,81 +1,150 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
+  ActivityIndicator,
   FlatList,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
-import { communityArticles } from '../../constants/dummyData';
+import { fetchPublishedBlogs } from '../../services/blogService';
 
-const CATEGORY_COLORS = {
+const TAG_COLORS = {
+  Fitness: COLORS.secondary,
   Training: COLORS.secondary,
   Nutrition: '#22C55E',
-  Update: '#3B82F6',
   Recovery: '#A855F7',
-  Events: '#F59E0B',
+  Motivation: '#F59E0B',
 };
 
-const ALL_CATEGORIES = ['All', ...Array.from(new Set(communityArticles.map((a) => a.category)))];
+const CATEGORIES = ['All', 'Fitness', 'Training', 'Nutrition', 'Recovery', 'Motivation'];
 
-function coverColorForCategory(cat) {
-  return CATEGORY_COLORS[cat] || COLORS.secondary;
+function tagColor(tag) {
+  return TAG_COLORS[tag] || COLORS.secondary;
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 export default function BlogListScreen({ navigation }) {
   const [activeCategory, setActiveCategory] = useState('All');
+  const [posts, setPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [nextCursor, setNextCursor] = useState(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState(null);
 
-  const filtered = communityArticles.filter(
-    (a) => activeCategory === 'All' || a.category === activeCategory
-  );
+  const fetchBlogs = useCallback(async (cursor = null, isRefresh = false) => {
+    try {
+      setError(null);
+      const tag = activeCategory === 'All' ? undefined : activeCategory;
+      const result = await fetchPublishedBlogs({ cursor, limit: 20, tag });
+      if (cursor && !isRefresh) {
+        setPosts((prev) => [...prev, ...result.data]);
+      } else {
+        setPosts(result.data);
+      }
+      setNextCursor(result.nextCursor);
+    } catch (err) {
+      console.warn('fetchBlogs error:', err);
+      if (!cursor) {
+        setError(err?.response?.data?.message || err?.message || 'Failed to load blogs');
+      }
+    }
+  }, [activeCategory]);
 
-  function renderCard({ item: article }) {
-    const catColor = coverColorForCategory(article.category);
+  useEffect(() => {
+    setLoading(true);
+    setPosts([]);
+    setNextCursor(null);
+    setError(null);
+    fetchBlogs().finally(() => setLoading(false));
+  }, [fetchBlogs]);
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchBlogs(null, true);
+    setRefreshing(false);
+  }, [fetchBlogs]);
+
+  const handleLoadMore = useCallback(async () => {
+    if (!nextCursor || loadingMore) return;
+    setLoadingMore(true);
+    await fetchBlogs(nextCursor);
+    setLoadingMore(false);
+  }, [nextCursor, loadingMore, fetchBlogs]);
+
+  const handleRetry = useCallback(() => {
+    setLoading(true);
+    setPosts([]);
+    setError(null);
+    fetchBlogs().finally(() => setLoading(false));
+  }, [fetchBlogs]);
+
+  function renderCard({ item: post }) {
+    const primaryTag = post.tags?.[0] || 'Fitness';
+    const color = tagColor(primaryTag);
+    const readTime = post.estimatedReadTime || 1;
 
     return (
       <TouchableOpacity
         style={styles.card}
         activeOpacity={0.85}
-        onPress={() => navigation.navigate('BlogFeed', { articleId: article.id })}
+        onPress={() => navigation.navigate('BlogFeed', { postId: post.id, slug: post.slug })}
       >
-        {/* Cover strip */}
-        <View style={[styles.cover, { backgroundColor: catColor }]}>
-          <LinearGradient
-            colors={['transparent', 'rgba(0,0,0,0.5)']}
-            style={StyleSheet.absoluteFill}
-          />
-          {article.pinned && (
-            <View style={styles.pinnedBadge}>
-              <Ionicons name="pin" size={10} color={COLORS.secondary} />
-              <Text style={styles.pinnedText}>PINNED</Text>
-            </View>
-          )}
-        </View>
+        {/* Cover */}
+        {post.coverImageUrl ? (
+          <View style={styles.cover}>
+            <Image
+              source={{ uri: post.coverImageUrl }}
+              style={StyleSheet.absoluteFill}
+              contentFit="cover"
+            />
+            <LinearGradient
+              colors={['transparent', 'rgba(0,0,0,0.5)']}
+              style={StyleSheet.absoluteFill}
+            />
+          </View>
+        ) : (
+          <View style={[styles.cover, { backgroundColor: color }]}>
+            <LinearGradient
+              colors={['transparent', 'rgba(0,0,0,0.5)']}
+              style={StyleSheet.absoluteFill}
+            />
+          </View>
+        )}
 
         {/* Content */}
         <View style={styles.cardContent}>
           <View style={styles.topRow}>
-            <View style={[styles.categoryBadge, { backgroundColor: catColor + '22' }]}>
-              <Text style={[styles.categoryBadgeText, { color: catColor }]}>
-                {article.category?.toUpperCase()}
+            <View style={[styles.categoryBadge, { backgroundColor: color + '22' }]}>
+              <Text style={[styles.categoryBadgeText, { color }]}>
+                {primaryTag.toUpperCase()}
               </Text>
             </View>
-            <Text style={styles.readTime}>{article.readTime}</Text>
+            <Text style={styles.readTime}>{readTime} min</Text>
           </View>
 
-          <Text style={styles.postTitle} numberOfLines={2}>{article.title}</Text>
-          <Text style={styles.postExcerpt} numberOfLines={2}>{article.summary}</Text>
-          <Text style={styles.postMeta}>{article.author} · {article.date}</Text>
+          <Text style={styles.postTitle} numberOfLines={2}>{post.title}</Text>
+          <Text style={styles.postMeta}>
+            {post.authorName || 'Build Gym'} · {formatDate(post.publishedAt)}
+          </Text>
 
           <View style={styles.actionsRow}>
             <TouchableOpacity
               style={styles.readBtn}
               activeOpacity={0.8}
-              onPress={() => navigation.navigate('BlogFeed', { articleId: article.id })}
+              onPress={() => navigation.navigate('BlogFeed', { postId: post.id, slug: post.slug })}
             >
               <Ionicons name="book-outline" size={13} color={COLORS.secondary} />
               <Text style={styles.readBtnText}>Read Article</Text>
@@ -113,7 +182,7 @@ export default function BlogListScreen({ navigation }) {
         contentContainerStyle={styles.filterRow}
         style={styles.filterScroll}
       >
-        {ALL_CATEGORIES.map((cat) => (
+        {CATEGORIES.map((cat) => (
           <TouchableOpacity
             key={cat}
             style={[styles.chip, activeCategory === cat ? styles.chipActive : styles.chipInactive]}
@@ -132,20 +201,53 @@ export default function BlogListScreen({ navigation }) {
       </ScrollView>
 
       {/* List */}
-      <FlatList
-        data={filtered}
-        keyExtractor={(a) => a.id}
-        renderItem={renderCard}
-        style={{ flex: 1 }}
-        contentContainerStyle={styles.list}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Ionicons name="newspaper-outline" size={40} color={COLORS.textMuted} />
-            <Text style={styles.emptyText}>No articles in this category.</Text>
-          </View>
-        }
-      />
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={COLORS.secondary} />
+        </View>
+      ) : error ? (
+        <View style={styles.errorContainer}>
+          <Ionicons name="cloud-offline-outline" size={48} color={COLORS.textMuted} />
+          <Text style={styles.errorTitle}>Couldn't load blogs</Text>
+          <Text style={styles.errorMessage}>{error}</Text>
+          <TouchableOpacity style={styles.retryBtn} onPress={handleRetry} activeOpacity={0.85}>
+            <Ionicons name="refresh" size={16} color={COLORS.white} />
+            <Text style={styles.retryBtnText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <FlatList
+          data={posts}
+          keyExtractor={(a) => a.id}
+          renderItem={renderCard}
+          style={{ flex: 1 }}
+          contentContainerStyle={styles.list}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor={COLORS.secondary}
+              colors={[COLORS.secondary]}
+            />
+          }
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={
+            loadingMore ? (
+              <View style={styles.footerLoader}>
+                <ActivityIndicator size="small" color={COLORS.secondary} />
+              </View>
+            ) : null
+          }
+          ListEmptyComponent={
+            <View style={styles.emptyState}>
+              <Ionicons name="newspaper-outline" size={40} color={COLORS.textMuted} />
+              <Text style={styles.emptyText}>No articles in this category.</Text>
+            </View>
+          }
+        />
+      )}
     </View>
   );
 }
@@ -186,20 +288,28 @@ const styles = StyleSheet.create({
 
   list: { paddingHorizontal: 20, paddingBottom: 100 },
 
+  loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  footerLoader: { paddingVertical: 20, alignItems: 'center' },
+
+  errorContainer: {
+    flex: 1, alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: 32, gap: 10,
+  },
+  errorTitle: { fontSize: 18, fontWeight: '700', color: COLORS.white, marginTop: 8 },
+  errorMessage: { fontSize: 13, color: COLORS.textMuted, textAlign: 'center', lineHeight: 20 },
+  retryBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: COLORS.secondary, borderRadius: 12,
+    paddingHorizontal: 20, paddingVertical: 12, marginTop: 10,
+  },
+  retryBtnText: { fontSize: 14, fontWeight: '700', color: COLORS.white },
+
   card: {
     backgroundColor: COLORS.surface,
     borderWidth: 1, borderColor: COLORS.border,
     borderRadius: 14, overflow: 'hidden', marginBottom: 16,
   },
   cover: { width: '100%', height: 160 },
-
-  pinnedBadge: {
-    position: 'absolute', bottom: 8, left: 12,
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6,
-  },
-  pinnedText: { fontSize: 9, fontWeight: '800', color: COLORS.secondary },
 
   cardContent: { padding: 16 },
 
@@ -216,9 +326,6 @@ const styles = StyleSheet.create({
   postTitle: {
     fontSize: 15, fontWeight: '800', color: COLORS.white,
     lineHeight: 21, marginBottom: 4,
-  },
-  postExcerpt: {
-    fontSize: 12, color: COLORS.textMuted, lineHeight: 17, marginBottom: 6,
   },
   postMeta: { fontSize: 11, color: COLORS.textMuted },
 
