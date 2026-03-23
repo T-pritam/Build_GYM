@@ -89,6 +89,7 @@ export const saveFCMToken = async (fcmToken, phone = null) => {
       token: fcmToken,
       deviceId,
       platform: Platform.OS,
+      app: 'member',
       ...(phone && { phone }),   // include phone if provided (pre-auth)
     };
 
