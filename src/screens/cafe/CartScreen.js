@@ -1,37 +1,48 @@
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity,
+  StatusBar, Image, Alert, ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
-import { buildCoins } from '../../constants/dummyData';
+import { useCartStore, cartTotal, hasUnavailableItems } from '../../store/cartStore';
+import { placeOrder } from '../../services/cafeService';
 
-const ITEM_EMOJI = { Shakes: '🥤', Meals: '🍽️', Snacks: '🍫', Supps: '💊' };
+export default function CartScreen({ navigation }) {
+  const { items, addItem, removeItem, clearCart } = useCartStore();
+  const [placing, setPlacing] = useState(false);
 
-export default function CartScreen({ navigation, route }) {
-  const initialCart = route?.params?.cart || [];
-  const [cart, setCart] = useState(initialCart);
+  const totalCoins = cartTotal(items);
+  const anyUnavailable = hasUnavailableItems(items);
+  const totalQty = items.reduce((s, c) => s + c.qty, 0);
 
-  const addQty = (id) => setCart((prev) =>
-    prev.map((c) => c.id === id ? { ...c, qty: c.qty + 1 } : c));
+  const handlePlaceOrder = async () => {
+    if (anyUnavailable) {
+      Alert.alert(
+        'Unavailable Items',
+        'Some items in your cart are no longer available. Please remove them before placing your order.',
+      );
+      return;
+    }
+    if (items.length === 0) return;
 
-  const removeQty = (id) => setCart((prev) => {
-    const item = prev.find((c) => c.id === id);
-    if (item?.qty === 1) return prev.filter((c) => c.id !== id);
-    return prev.map((c) => c.id === id ? { ...c, qty: c.qty - 1 } : c);
-  });
-
-  const totalCoins = cart.reduce((sum, c) => sum + c.price * c.qty, 0);
-  const balance = buildCoins?.balance || 2450;
-  const afterOrder = balance - totalCoins;
-
-  const handlePlaceOrder = () => {
-    navigation.replace('OrderConfirmation', {
-      cart,
-      totalCoins,
-      balance,
-      afterOrder,
-    });
+    setPlacing(true);
+    try {
+      const orderItems = items.map((i) => ({
+        menuItemId:     i.id,
+        itemName:       i.name,
+        itemPriceCoins: i.priceCoins,
+        qty:            i.qty,
+      }));
+      const res = await placeOrder({ items: orderItems });
+      clearCart();
+      navigation.replace('OrderConfirmation', { order: res.data.data });
+    } catch (e) {
+      const msg = e?.response?.data?.message ?? 'Failed to place order. Please try again.';
+      Alert.alert('Order Failed', msg);
+    } finally {
+      setPlacing(false);
+    }
   };
 
   return (
@@ -48,60 +59,67 @@ export default function CartScreen({ navigation, route }) {
         </TouchableOpacity>
         <View style={{ alignItems: 'center' }}>
           <Text style={styles.headerTitle}>Your Cart</Text>
-          <Text style={styles.headerSub}>{cart.reduce((s, c) => s + c.qty, 0)} items</Text>
+          <Text style={styles.headerSub}>{totalQty} item{totalQty !== 1 ? 's' : ''}</Text>
         </View>
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
-        {/* Coins summary card */}
-        <View style={styles.coinsCard}>
-          <View style={styles.coinCol}>
-            <Text style={styles.coinColLabel}>Your Balance</Text>
-            <Text style={styles.coinColValue}>B {balance.toLocaleString()}</Text>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+
+        {/* Unavailable warning */}
+        {anyUnavailable && (
+          <View style={styles.warnBanner}>
+            <Ionicons name="warning-outline" size={18} color="#EAB308" />
+            <Text style={styles.warnText}>
+              Some items are no longer available. Remove them to place your order.
+            </Text>
           </View>
-          <View style={styles.coinDivider} />
-          <View style={styles.coinCol}>
-            <Text style={styles.coinColLabel}>Order Total</Text>
-            <Text style={[styles.coinColValue, { color: COLORS.secondary }]}>B {totalCoins}</Text>
-          </View>
-          <View style={styles.coinDivider} />
-          <View style={styles.coinCol}>
-            <Text style={styles.coinColLabel}>After Order</Text>
-            <Text style={[styles.coinColValue, { color: '#22C55E' }]}>B {afterOrder.toLocaleString()}</Text>
-          </View>
-        </View>
+        )}
 
         {/* Order items */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>ORDER ITEMS</Text>
-          {cart.length === 0 ? (
+          {items.length === 0 ? (
             <View style={styles.emptyCart}>
               <Ionicons name="cart-outline" size={48} color={COLORS.textMuted} />
               <Text style={styles.emptyText}>Your cart is empty</Text>
             </View>
           ) : (
-            cart.map((item) => (
-              <View key={item.id} style={styles.cartItem}>
-                <View style={styles.cartItemEmoji}>
-                  <Text style={{ fontSize: 32 }}>{ITEM_EMOJI[item.category] || '🥗'}</Text>
+            items.map((item) => (
+              <View key={item.id} style={[styles.cartItem, !item.isAvailable && styles.cartItemUnavailable]}>
+                {/* Image or letter */}
+                <View style={styles.cartItemImg}>
+                  {item.imageUrl ? (
+                    <Image source={{ uri: item.imageUrl }} style={styles.cartItemPhoto} />
+                  ) : (
+                    <Text style={styles.cartItemLetter}>{item.name.charAt(0).toUpperCase()}</Text>
+                  )}
                 </View>
+
                 <View style={styles.cartItemInfo}>
                   <Text style={styles.cartItemName}>{item.name}</Text>
                   <Text style={styles.cartItemPrice}>
-                    B {item.price} x {item.qty} = <Text style={{ color: COLORS.secondary }}>B {item.price * item.qty}</Text>
+                    {item.priceCoins} × {item.qty} ={' '}
+                    <Text style={{ color: COLORS.secondary }}>{item.priceCoins * item.qty} coins</Text>
                   </Text>
+                  {!item.isAvailable && (
+                    <View style={styles.unavailBadge}>
+                      <Text style={styles.unavailBadgeText}>UNAVAILABLE</Text>
+                    </View>
+                  )}
                 </View>
+
                 <View style={styles.qtyControls}>
-                  <TouchableOpacity style={styles.qtyBtn} onPress={() => removeQty(item.id)}>
+                  <TouchableOpacity style={styles.qtyBtn} onPress={() => removeItem(item.id)}>
                     <Ionicons name="remove" size={16} color={COLORS.secondary} />
                   </TouchableOpacity>
                   <Text style={styles.qtyNum}>{item.qty}</Text>
-                  <TouchableOpacity style={styles.qtyBtn} onPress={() => addQty(item.id)}>
-                    <Ionicons name="add" size={16} color={COLORS.secondary} />
+                  <TouchableOpacity
+                    style={[styles.qtyBtn, !item.isAvailable && styles.qtyBtnDisabled]}
+                    onPress={() => item.isAvailable && addItem(item)}
+                    disabled={!item.isAvailable}
+                  >
+                    <Ionicons name="add" size={16} color={item.isAvailable ? COLORS.secondary : COLORS.textMuted} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -113,7 +131,7 @@ export default function CartScreen({ navigation, route }) {
         <View style={styles.infoBanner}>
           <Ionicons name="information-circle-outline" size={20} color={COLORS.secondary} />
           <Text style={styles.infoText}>
-            Orders cannot be cancelled once placed. Collect your order at the cafe counter.
+            Orders cannot be cancelled once placed. Collect your order at the café counter.
           </Text>
         </View>
 
@@ -121,7 +139,7 @@ export default function CartScreen({ navigation, route }) {
       </ScrollView>
 
       {/* Footer */}
-      {cart.length > 0 && (
+      {items.length > 0 && (
         <View style={styles.footer}>
           <View style={styles.footerTotal}>
             <Text style={styles.footerTotalLabel}>Total:</Text>
@@ -131,13 +149,19 @@ export default function CartScreen({ navigation, route }) {
             </View>
           </View>
           <TouchableOpacity
-            style={[styles.placeOrderBtn, afterOrder < 0 && styles.placeOrderBtnDisabled]}
+            style={[styles.placeOrderBtn, (anyUnavailable || placing) && styles.placeOrderBtnDisabled]}
             onPress={handlePlaceOrder}
-            disabled={afterOrder < 0 || cart.length === 0}
+            disabled={anyUnavailable || placing}
             activeOpacity={0.85}
           >
-            <Text style={styles.placeOrderText}>PLACE ORDER</Text>
-            <Ionicons name="arrow-forward" size={20} color={COLORS.white} />
+            {placing ? (
+              <ActivityIndicator color={COLORS.white} />
+            ) : (
+              <>
+                <Text style={styles.placeOrderText}>PLACE ORDER</Text>
+                <Ionicons name="arrow-forward" size={20} color={COLORS.white} />
+              </>
+            )}
           </TouchableOpacity>
         </View>
       )}
@@ -160,19 +184,16 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center',
   },
   headerTitle: { fontSize: 18, fontWeight: '800', color: COLORS.white },
-  headerSub: { fontSize: 13, color: COLORS.textMuted, fontWeight: '400' },
+  headerSub: { fontSize: 13, color: COLORS.textMuted },
   scrollContent: { paddingHorizontal: 16, paddingTop: 12, gap: 16 },
 
-  // Coins card
-  coinsCard: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: COLORS.surface, borderRadius: 14, borderWidth: 1, borderColor: COLORS.border,
-    padding: 16,
+  // Warning banner
+  warnBanner: {
+    flexDirection: 'row', gap: 10, alignItems: 'flex-start',
+    backgroundColor: 'rgba(234,179,8,0.1)', borderWidth: 1, borderColor: 'rgba(234,179,8,0.3)',
+    borderRadius: 10, padding: 12,
   },
-  coinCol: { flex: 1, alignItems: 'center', gap: 4 },
-  coinColLabel: { fontSize: 9, fontWeight: '700', color: COLORS.secondary, letterSpacing: 1.5, textAlign: 'center' },
-  coinColValue: { fontSize: 18, fontWeight: '800', color: COLORS.white },
-  coinDivider: { width: 1, height: 40, backgroundColor: COLORS.border },
+  warnText: { flex: 1, fontSize: 12, color: '#EAB308', lineHeight: 18 },
 
   // Section
   section: { gap: 10 },
@@ -184,18 +205,30 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface, borderRadius: 14, borderWidth: 1, borderColor: COLORS.border,
     padding: 14,
   },
-  cartItemEmoji: {
-    width: 60, height: 60, borderRadius: 10, backgroundColor: COLORS.surface2,
-    alignItems: 'center', justifyContent: 'center',
+  cartItemUnavailable: { opacity: 0.65, borderColor: 'rgba(234,179,8,0.3)' },
+  cartItemImg: {
+    width: 56, height: 56, borderRadius: 10, backgroundColor: COLORS.surface2,
+    alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
   },
+  cartItemPhoto: { width: '100%', height: '100%', borderRadius: 10 },
+  cartItemLetter: { fontSize: 24, fontWeight: '900', color: COLORS.secondary },
   cartItemInfo: { flex: 1, gap: 4 },
-  cartItemName: { fontSize: 16, fontWeight: '700', color: COLORS.white },
+  cartItemName: { fontSize: 15, fontWeight: '700', color: COLORS.white },
   cartItemPrice: { fontSize: 13, color: COLORS.textMuted },
+  unavailBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(234,179,8,0.15)', borderRadius: 6,
+    paddingHorizontal: 8, paddingVertical: 2, borderWidth: 1, borderColor: 'rgba(234,179,8,0.4)',
+    marginTop: 2,
+  },
+  unavailBadgeText: { fontSize: 9, fontWeight: '900', color: '#EAB308', letterSpacing: 1 },
+
   qtyControls: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   qtyBtn: {
     width: 30, height: 30, borderRadius: 15,
     borderWidth: 1, borderColor: COLORS.secondaryBorder, alignItems: 'center', justifyContent: 'center',
   },
+  qtyBtnDisabled: { borderColor: COLORS.border, opacity: 0.5 },
   qtyNum: { fontSize: 16, fontWeight: '800', color: COLORS.white, minWidth: 16, textAlign: 'center' },
 
   // Info banner
@@ -215,7 +248,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16, paddingTop: 12, paddingBottom: 34,
     borderTopWidth: 1, borderTopColor: COLORS.border, backgroundColor: COLORS.background, gap: 12,
   },
-  footerTotal: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 4 },
+  footerTotal: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 4,
+  },
   footerTotalLabel: { fontSize: 14, fontWeight: '500', color: COLORS.textMuted },
   footerTotalValue: { fontSize: 18, fontWeight: '800', color: COLORS.white },
   placeOrderBtn: {

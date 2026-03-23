@@ -1,19 +1,15 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
-  StatusBar,
-  TextInput,
-  Dimensions,
-  Image,
+  View, Text, StyleSheet, FlatList, TouchableOpacity,
+  StatusBar, TextInput, Dimensions, Image, ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { io } from 'socket.io-client';
+import { BASE_API_URL } from '@env';
 import { COLORS } from '../../constants/colors';
-import { cafeCategories, cafeItems, buildCoins } from '../../constants/dummyData';
+import { fetchMenu } from '../../services/cafeService';
+import { useCartStore, cartQty, cartTotal } from '../../store/cartStore';
 
 const { width } = Dimensions.get('window');
 const HORIZONTAL_PAD = 14;
@@ -21,78 +17,120 @@ const COLUMN_GAP = 12;
 const CARD_WIDTH = (width - HORIZONTAL_PAD * 2 - COLUMN_GAP) / 2;
 
 const CATEGORY_ICONS = {
-  All: 'grid-outline',
-  Shakes: 'water-outline',
-  Meals: 'restaurant-outline',
-  Snacks: 'pizza-outline',
-  Supps: 'flask-outline',
+  All:           'grid-outline',
+  Shakes:        'water-outline',
+  Meals:         'restaurant-outline',
+  Snacks:        'pizza-outline',
+  Supplements:   'flask-outline',
+  'Hot Beverages': 'cafe-outline',
 };
 
-const ITEM_EMOJI = {
-  Shakes: '🥤',
-  Meals: '🍽️',
-  Snacks: '🍫',
-  Supps: '💊',
-};
+// Derive socket URL — strip /api suffix
+const SOCKET_URL = BASE_API_URL.replace(/\/api\/?$/, '');
 
 export default function CafeScreen({ navigation }) {
-  const [activeCategory, setActiveCategory] = useState('All');
-  const [search, setSearch] = useState('');
-  const [cart, setCart] = useState([]);
+  const [menuItems,       setMenuItems]       = useState([]);
+  const [categories,      setCategories]      = useState(['All']);
+  const [activeCategory,  setActiveCategory]  = useState('All');
+  const [search,          setSearch]          = useState('');
+  const [loading,         setLoading]         = useState(true);
 
-  const filteredItems = cafeItems.filter((item) => {
-    const matchCat = activeCategory === 'All' || item.category === activeCategory;
-    const matchSearch =
-      search.trim() === '' ||
-      item.name.toLowerCase().includes(search.toLowerCase());
+  // Use stable individual selectors — prevents socket effect from re-running on cart changes
+  const cartItems      = useCartStore(s => s.items);
+  const addItem        = useCartStore(s => s.addItem);
+  const removeItem     = useCartStore(s => s.removeItem);
+  const markUnavailable = useCartStore(s => s.markUnavailable);
+  const markAvailable   = useCartStore(s => s.markAvailable);
+  const socketRef = useRef(null);
+
+  // Keep latest cart-store callbacks in a ref so the socket handler never
+  // needs to be in the dependency array (avoids reconnect on every cart update)
+  const cartActionsRef = useRef({ markUnavailable, markAvailable });
+  useEffect(() => {
+    cartActionsRef.current = { markUnavailable, markAvailable };
+  });
+
+  // Fetch menu from API
+  const loadMenu = useCallback(async () => {
+    try {
+      const res = await fetchMenu();
+      const data = res.data.data;
+      setMenuItems(data);
+      const cats = ['All', ...new Set(data.map((i) => i.category))];
+      setCategories(cats);
+    } catch {
+      // keep existing on error
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadMenu();
+
+    // Single persistent socket — never re-created on cart changes
+    const socket = io(SOCKET_URL, { transports: ['websocket'] });
+    socketRef.current = socket;
+
+    socket.on('menu:item_updated', ({ id, isAvailable }) => {
+      // Update local menu list
+      setMenuItems((prev) =>
+        prev.map((item) => item.id === id ? { ...item, isAvailable } : item),
+      );
+      // Update cart item availability via stable ref — no dependency needed
+      if (!isAvailable) cartActionsRef.current.markUnavailable(id);
+      else              cartActionsRef.current.markAvailable(id);
+    });
+
+    return () => socket.disconnect();
+  }, [loadMenu]); // loadMenu is stable (useCallback with no deps)
+
+  const getQty = (itemId) => cartItems.find((c) => c.id === itemId)?.qty || 0;
+  const totalItems = cartQty(cartItems);
+  const totalCoins = cartTotal(cartItems);
+
+  const filteredItems = menuItems.filter((item) => {
+    const matchCat    = activeCategory === 'All' || item.category === activeCategory;
+    const matchSearch = search.trim() === '' || item.name.toLowerCase().includes(search.toLowerCase());
     return matchCat && matchSearch;
   });
 
-  const addToCart = useCallback((item) => {
-    setCart((prev) => {
-      const existing = prev.find((c) => c.id === item.id);
-      if (existing) return prev.map((c) => c.id === item.id ? { ...c, qty: c.qty + 1 } : c);
-      return [...prev, { ...item, qty: 1 }];
+  const handleAddToCart = useCallback((item) => {
+    addItem({
+      id:          item.id,
+      name:        item.name,
+      category:    item.category,
+      imageUrl:    item.imageUrl,
+      priceCoins:  item.priceCoins,
+      protein:     item.protein,
+      calories:    item.calories,
+      isAvailable: item.isAvailable,
     });
-  }, []);
+  }, [addItem]);
 
-  const removeFromCart = useCallback((itemId) => {
-    setCart((prev) => {
-      const existing = prev.find((c) => c.id === itemId);
-      if (existing?.qty === 1) return prev.filter((c) => c.id !== itemId);
-      return prev.map((c) => c.id === itemId ? { ...c, qty: c.qty - 1 } : c);
-    });
-  }, []);
-
-  const getQty = (itemId) => cart.find((c) => c.id === itemId)?.qty || 0;
-  const totalItems = cart.reduce((sum, c) => sum + c.qty, 0);
-  const totalCoins = cart.reduce((sum, c) => sum + c.price * c.qty, 0);
+  const handleRemoveFromCart = useCallback((itemId) => {
+    removeItem(itemId);
+  }, [removeItem]);
 
   const renderItem = ({ item }) => {
     const qty = getQty(item.id);
-    const emoji = ITEM_EMOJI[item.category] || '🥗';
 
     return (
       <TouchableOpacity
-        style={[styles.card, !item.available && styles.cardUnavailable]}
-        onPress={() => navigation.navigate('ItemDetail', { item, cart, onAddToCart: addToCart })}
+        style={[styles.card, !item.isAvailable && styles.cardUnavailable]}
+        onPress={() => navigation.navigate('ItemDetail', { item })}
         activeOpacity={0.88}
       >
         {/* Image area */}
         <LinearGradient colors={['#2A1200', '#160800']} style={styles.imgBox}>
-          {item.image ? (
-            <Image source={{ uri: item.image }} style={styles.itemImage} resizeMode="cover" />
+          {item.imageUrl ? (
+            <Image source={{ uri: item.imageUrl }} style={styles.itemImage} resizeMode="cover" />
           ) : (
-            <Text style={styles.emoji}>{emoji}</Text>
+            <Text style={styles.emoji}>{item.name.charAt(0).toUpperCase()}</Text>
           )}
-          {item.tag && (
-            <View style={styles.tagBadge}>
-              <Text style={styles.tagText}>{item.tag}</Text>
-            </View>
-          )}
-          {!item.available && (
+          {!item.isAvailable && (
             <View style={styles.unavailOverlay}>
-              <Text style={styles.unavailText}>N/A</Text>
+              <Text style={styles.unavailText}>Unavailable</Text>
             </View>
           )}
         </LinearGradient>
@@ -101,37 +139,36 @@ export default function CafeScreen({ navigation }) {
         <View style={styles.cardBody}>
           <Text style={styles.itemName} numberOfLines={2}>{item.name}</Text>
 
-          {/* Macros: protein + calories only */}
+          {/* Macros */}
           <View style={styles.macrosRow}>
-            <View style={styles.macroChip}>
-              <Text style={styles.macroVal}>{item.protein}</Text>
-              <Text style={styles.macroLbl}>P</Text>
-            </View>
-            <View style={[styles.macroChip, { backgroundColor: 'rgba(255,107,0,0.08)' }]}>
-              <Text style={[styles.macroVal, { color: COLORS.secondary }]}>{item.calories}</Text>
-              <Text style={styles.macroLbl}>cal</Text>
-            </View>
+            {item.protein != null && (
+              <View style={styles.macroChip}>
+                <Text style={styles.macroVal}>{item.protein}g</Text>
+                <Text style={styles.macroLbl}>P</Text>
+              </View>
+            )}
+            {item.calories != null && (
+              <View style={[styles.macroChip, { backgroundColor: 'rgba(255,107,0,0.08)' }]}>
+                <Text style={[styles.macroVal, { color: COLORS.secondary }]}>{item.calories}</Text>
+                <Text style={styles.macroLbl}>cal</Text>
+              </View>
+            )}
           </View>
 
           {/* Price */}
           <View style={styles.priceRow}>
             <MaterialCommunityIcons name="bitcoin" size={11} color={COLORS.secondary} />
-            <Text style={styles.priceText}>{item.price}</Text>
+            <Text style={styles.priceText}>{item.priceCoins}</Text>
           </View>
 
           {/* ADD button or qty stepper */}
-          {item.available ? (
+          {item.isAvailable ? (
             qty === 0 ? (
-              <TouchableOpacity
-                style={styles.addBtn}
-                onPress={() => addToCart(item)}
-                activeOpacity={0.85}
-              >
+              <TouchableOpacity style={styles.addBtn} onPress={() => handleAddToCart(item)} activeOpacity={0.85}>
                 <LinearGradient
                   colors={[COLORS.secondary, COLORS.secondaryDark]}
                   style={styles.addBtnGrad}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
+                  start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
                 >
                   <Ionicons name="add" size={15} color={COLORS.white} />
                   <Text style={styles.addBtnText}>ADD</Text>
@@ -139,11 +176,11 @@ export default function CafeScreen({ navigation }) {
               </TouchableOpacity>
             ) : (
               <View style={styles.qtyRow}>
-                <TouchableOpacity style={styles.qtyMinus} onPress={() => removeFromCart(item.id)}>
+                <TouchableOpacity style={styles.qtyMinus} onPress={() => handleRemoveFromCart(item.id)}>
                   <Ionicons name="remove" size={14} color={COLORS.secondary} />
                 </TouchableOpacity>
                 <Text style={styles.qtyNum}>{qty}</Text>
-                <TouchableOpacity style={styles.qtyPlus} onPress={() => addToCart(item)}>
+                <TouchableOpacity style={styles.qtyPlus} onPress={() => handleAddToCart(item)}>
                   <Ionicons name="add" size={14} color={COLORS.white} />
                 </TouchableOpacity>
               </View>
@@ -156,6 +193,15 @@ export default function CafeScreen({ navigation }) {
     );
   };
 
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.center]}>
+        <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+        <ActivityIndicator size="large" color={COLORS.secondary} />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
@@ -167,23 +213,17 @@ export default function CafeScreen({ navigation }) {
             <Text style={styles.headerTitle}>Build Café</Text>
             <Text style={styles.headerSub}>Order with Build Coins</Text>
           </View>
-          <View style={styles.headerRight}>
-            <View style={styles.coinsPill}>
-              <MaterialCommunityIcons name="bitcoin" size={13} color={COLORS.secondary} />
-              <Text style={styles.coinsPillText}>{buildCoins.balance.toLocaleString()}</Text>
-            </View>
-            <TouchableOpacity
-              style={styles.cartBtn}
-              onPress={() => navigation.navigate('Cart', { cart, totalCoins })}
-            >
-              <Ionicons name="bag-outline" size={22} color={COLORS.white} />
-              {totalItems > 0 && (
-                <View style={styles.cartBadge}>
-                  <Text style={styles.cartBadgeText}>{totalItems}</Text>
-                </View>
-              )}
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            style={styles.cartBtn}
+            onPress={() => navigation.navigate('Cart')}
+          >
+            <Ionicons name="bag-outline" size={22} color={COLORS.white} />
+            {totalItems > 0 && (
+              <View style={styles.cartBadge}>
+                <Text style={styles.cartBadgeText}>{totalItems}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
         </View>
 
         {/* Search */}
@@ -206,8 +246,9 @@ export default function CafeScreen({ navigation }) {
 
       {/* 2-column item grid */}
       <FlatList
+        style={{ flex: 1 }}
         data={filteredItems}
-        keyExtractor={(item) => item.id.toString()}
+        keyExtractor={(item) => item.id}
         numColumns={2}
         renderItem={renderItem}
         ListHeaderComponent={() => (
@@ -215,7 +256,7 @@ export default function CafeScreen({ navigation }) {
             {/* Category tabs */}
             <FlatList
               horizontal
-              data={cafeCategories}
+              data={categories}
               keyExtractor={(c) => c}
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.tabsScroll}
@@ -230,9 +271,7 @@ export default function CafeScreen({ navigation }) {
                     color={activeCategory === cat ? COLORS.secondary : COLORS.textMuted}
                     style={{ marginRight: 4 }}
                   />
-                  <Text style={[styles.tabText, activeCategory === cat && styles.tabTextActive]}>
-                    {cat}
-                  </Text>
+                  <Text style={[styles.tabText, activeCategory === cat && styles.tabTextActive]}>{cat}</Text>
                 </TouchableOpacity>
               )}
             />
@@ -247,18 +286,30 @@ export default function CafeScreen({ navigation }) {
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           <View style={styles.emptyState}>
-            <Ionicons name="search-outline" size={44} color={COLORS.textDim} />
+            <Ionicons name="search-outline" size={44} color={COLORS.textMuted} />
             <Text style={styles.emptyText}>No items found</Text>
           </View>
         }
-        ListFooterComponent={<View style={{ height: 110 }} />}
+        ListFooterComponent={<View style={{ height: totalItems > 0 ? 80 : 20 }} />}
       />
+
+      {/* Floating cart bar */}
+      {totalItems > 0 && (
+        <View style={styles.cartBar}>
+          <Text style={styles.cartBarQty}>{totalItems} item{totalItems !== 1 ? 's' : ''}</Text>
+          <TouchableOpacity style={styles.cartBarBtn} onPress={() => navigation.navigate('Cart')}>
+            <Text style={styles.cartBarBtnText}>VIEW CART · {totalCoins} coins</Text>
+            <Ionicons name="arrow-forward" size={16} color={COLORS.white} />
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
+  center: { justifyContent: 'center', alignItems: 'center' },
 
   // Header
   header: { paddingTop: 52, paddingHorizontal: 18, paddingBottom: 14 },
@@ -268,14 +319,6 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: 24, fontWeight: '900', color: COLORS.white },
   headerSub: { fontSize: 12, color: COLORS.textSecondary, marginTop: 2 },
-  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  coinsPill: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: COLORS.secondaryGlow, borderWidth: 1,
-    borderColor: COLORS.secondaryBorder, borderRadius: 20,
-    paddingHorizontal: 10, paddingVertical: 6,
-  },
-  coinsPillText: { fontSize: 13, fontWeight: '800', color: COLORS.secondary },
   cartBtn: {
     width: 42, height: 42, borderRadius: 12,
     backgroundColor: COLORS.surface, borderWidth: 1,
@@ -306,8 +349,6 @@ const styles = StyleSheet.create({
   tabActive: { backgroundColor: COLORS.secondaryGlow, borderColor: COLORS.secondary },
   tabText: { fontSize: 12, fontWeight: '600', color: COLORS.textMuted },
   tabTextActive: { color: COLORS.secondary, fontWeight: '800' },
-
-  // Result count
   resultCount: {
     paddingHorizontal: HORIZONTAL_PAD + 2,
     paddingTop: 8, paddingBottom: 6,
@@ -322,52 +363,30 @@ const styles = StyleSheet.create({
   card: {
     width: CARD_WIDTH,
     backgroundColor: COLORS.surface,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    overflow: 'hidden',
+    borderRadius: 14, borderWidth: 1, borderColor: COLORS.border, overflow: 'hidden',
   },
   cardUnavailable: { opacity: 0.55 },
-
-  // Image box
   imgBox: {
-    width: '100%',
-    height: CARD_WIDTH * 0.85,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
+    width: '100%', height: CARD_WIDTH * 0.85,
+    alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
   },
-  itemImage: {
-    width: '100%',
-    height: '100%',
-  },
-  emoji: { fontSize: 52 },
-  tagBadge: {
-    position: 'absolute', top: 7, left: 7,
-    backgroundColor: COLORS.secondary, borderRadius: 6,
-    paddingHorizontal: 7, paddingVertical: 3,
-  },
-  tagText: { fontSize: 10, fontWeight: '900', color: COLORS.white },
+  itemImage: { width: '100%', height: '100%' },
+  emoji: { fontSize: 48, color: COLORS.secondary, fontWeight: '900' },
   unavailOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center',
   },
   unavailText: { fontSize: 12, fontWeight: '700', color: COLORS.white },
 
   // Card body
   cardBody: { padding: 12, gap: 6 },
-  itemName: {
-    fontSize: 14, fontWeight: '800', color: COLORS.white,
-    lineHeight: 19, minHeight: 25,
-  },
+  itemName: { fontSize: 14, fontWeight: '800', color: COLORS.white, lineHeight: 19, minHeight: 25 },
 
   // Macros
   macrosRow: { flexDirection: 'row', gap: 6 },
   macroChip: {
     flexDirection: 'row', alignItems: 'center', gap: 3,
-    backgroundColor: COLORS.surface2, borderRadius: 6,
-    paddingHorizontal: 7, paddingVertical: 4,
+    backgroundColor: COLORS.surface2, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 4,
   },
   macroVal: { fontSize: 12, fontWeight: '700', color: COLORS.white },
   macroLbl: { fontSize: 10, color: COLORS.textMuted },
@@ -387,21 +406,32 @@ const styles = StyleSheet.create({
   // Qty stepper
   qtyRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: COLORS.surface2,
-    borderRadius: 10, borderWidth: 1, borderColor: COLORS.secondaryBorder,
-    marginTop: 2, overflow: 'hidden',
+    backgroundColor: COLORS.surface2, borderRadius: 10,
+    borderWidth: 1, borderColor: COLORS.secondaryBorder, marginTop: 2, overflow: 'hidden',
   },
   qtyMinus: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
   qtyNum: { fontSize: 14, fontWeight: '900', color: COLORS.white },
-  qtyPlus: {
-    width: 36, height: 36,
-    alignItems: 'center', justifyContent: 'center',
-    backgroundColor: COLORS.secondary,
-  },
+  qtyPlus: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.secondary },
 
   naText: { fontSize: 12, color: COLORS.textMuted, fontStyle: 'italic', marginTop: 2 },
 
   // Empty state
   emptyState: { alignItems: 'center', paddingVertical: 60, gap: 10 },
   emptyText: { fontSize: 15, color: COLORS.textMuted },
+
+  // Floating cart bar — sits just above the tab bar (screen area already excludes tab height)
+  cartBar: {
+    position: 'absolute', bottom: 10, left: 16, right: 16,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: COLORS.surface, borderRadius: 16, borderWidth: 1,
+    borderColor: COLORS.secondaryBorder, padding: 14,
+    shadowColor: COLORS.secondary, shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25, shadowRadius: 12, elevation: 8,
+  },
+  cartBarQty: { fontSize: 13, fontWeight: '700', color: COLORS.textSecondary },
+  cartBarBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: COLORS.secondary, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10,
+  },
+  cartBarBtnText: { fontSize: 13, fontWeight: '900', color: COLORS.white },
 });

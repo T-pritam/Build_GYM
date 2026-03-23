@@ -1,66 +1,90 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { io } from 'socket.io-client';
+import { BASE_API_URL } from '@env';
 import { COLORS } from '../../constants/colors';
-import { currentOrder } from '../../constants/dummyData';
 
-const STEPS = [
-  {
-    key: 'placed',
-    label: 'Order Placed',
-    sub: 'Completed at 12:05 PM',
-    status: 'done',   // done | active | pending
-  },
-  {
-    key: 'preparing',
-    label: 'Preparing',
-    sub: 'Estimated ~15 mins',
-    status: 'active',
-  },
-  {
-    key: 'pickup',
-    label: 'Ready for Pickup',
-    sub: 'Waiting for preparation',
-    status: 'pending',
-  },
-];
+// Derive socket URL — strip /api suffix
+const SOCKET_URL = BASE_API_URL.replace(/\/api\/?$/, '');
 
-export default function OrderTrackingScreen({ navigation, route }) {
-  const { orderId, cart = [], totalCoins = 0 } = route?.params || {};
-  const otp = currentOrder?.pickupOTP || '482715';
-  const orderNumber = orderId || currentOrder?.id || 1042;
+const STATUS_STEPS = ['received', 'preparing', 'ready', 'done'];
+const STEP_LABELS = {
+  received:  'Order Placed',
+  preparing: 'Preparing',
+  ready:     'Ready for Pickup',
+  done:      'Completed',
+};
 
-  const firstItem = cart[0] || { name: 'Whey Protein Shake', qty: 1, price: 120 };
-
-  const StepIcon = ({ status }) => {
-    if (status === 'done') {
-      return (
-        <View style={styles.stepIconDone}>
-          <Ionicons name="checkmark-circle" size={22} color="#22C55E" />
-        </View>
-      );
-    }
-    if (status === 'active') {
-      return (
-        <View style={styles.stepIconActive}>
-          <View style={styles.stepActiveDot} />
-        </View>
-      );
-    }
+function StepIcon({ stepStatus }) {
+  if (stepStatus === 'done') {
     return (
-      <View style={styles.stepIconPending}>
-        <View style={styles.stepPendingDot} />
+      <View style={styles.stepIconDone}>
+        <Ionicons name="checkmark-circle" size={22} color="#22C55E" />
       </View>
     );
-  };
+  }
+  if (stepStatus === 'active') {
+    return (
+      <View style={styles.stepIconActive}>
+        <View style={styles.stepActiveDot} />
+      </View>
+    );
+  }
+  return (
+    <View style={styles.stepIconPending}>
+      <View style={styles.stepPendingDot} />
+    </View>
+  );
+}
+
+export default function OrderTrackingScreen({ navigation, route }) {
+  const { orderId, order: initialOrder } = route?.params || {};
+  const [order, setOrder] = useState(initialOrder);
+  const socketRef = useRef(null);
+
+  useEffect(() => {
+    if (!orderId) return;
+
+    const socket = io(SOCKET_URL, { transports: ['websocket'] });
+    socketRef.current = socket;
+
+    socket.emit('join:order', orderId);
+
+    socket.on('order:status_updated', ({ orderId: id, status }) => {
+      if (id === orderId) {
+        setOrder((prev) => prev ? { ...prev, status } : prev);
+      }
+    });
+
+    return () => socket.disconnect();
+  }, [orderId]);
+
+  const currentStatusIdx = STATUS_STEPS.indexOf(order?.status ?? 'received');
+
+  // Build step states relative to current status
+  const steps = STATUS_STEPS.slice(0, 3).map((key, i) => {
+    let stepStatus;
+    if (i < currentStatusIdx)       stepStatus = 'done';
+    else if (i === currentStatusIdx) stepStatus = 'active';
+    else                             stepStatus = 'pending';
+    return { key, label: STEP_LABELS[key], stepStatus };
+  });
+
+  const otp = order?.pickupOtp ?? '------';
+
+  function timeStr(iso) {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
 
-      {/* Amber glow */}
+      {/* Ambient glow */}
       <View style={styles.ambientGlow} pointerEvents="none" />
 
       {/* Header */}
@@ -68,43 +92,29 @@ export default function OrderTrackingScreen({ navigation, route }) {
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={20} color={COLORS.white} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Order #{orderNumber}</Text>
+        <Text style={styles.headerTitle}>{order?.ref ?? 'Order'}</Text>
         <View style={{ width: 40 }} />
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+
         {/* Progress stepper */}
         <View style={styles.stepperContainer}>
-          {STEPS.map((step, index) => (
+          {steps.map((step, index) => (
             <View key={step.key} style={styles.stepRow}>
               <View style={styles.stepLeft}>
-                <StepIcon status={step.status} />
-                {index < STEPS.length - 1 && (
-                  <View
-                    style={[
-                      styles.stepLine,
-                      step.status === 'done' && styles.stepLineDone,
-                    ]}
-                  />
+                <StepIcon stepStatus={step.stepStatus} />
+                {index < steps.length - 1 && (
+                  <View style={[styles.stepLine, step.stepStatus === 'done' && styles.stepLineDone]} />
                 )}
               </View>
               <View style={styles.stepContent}>
-                <Text
-                  style={[
-                    styles.stepLabel,
-                    step.status === 'done' && styles.stepLabelDone,
-                    step.status === 'active' && styles.stepLabelActive,
-                  ]}
-                >
+                <Text style={[
+                  styles.stepLabel,
+                  step.stepStatus === 'done'   && styles.stepLabelDone,
+                  step.stepStatus === 'active' && styles.stepLabelActive,
+                ]}>
                   {step.label}
-                </Text>
-                <Text
-                  style={[
-                    styles.stepSub,
-                    step.status === 'active' && styles.stepSubActive,
-                  ]}
-                >
-                  {step.sub}
                 </Text>
               </View>
             </View>
@@ -125,30 +135,28 @@ export default function OrderTrackingScreen({ navigation, route }) {
         </View>
 
         {/* Order details */}
-        <View style={styles.detailsCard}>
-          <View style={styles.detailsRow}>
-            <Text style={styles.detailsItemName} numberOfLines={1}>
-              {firstItem.name} × {firstItem.qty || 1}
-            </Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-              <Ionicons name="logo-bitcoin" size={16} color={COLORS.secondary} />
-              <Text style={styles.detailsCoins}>{totalCoins || firstItem.price}</Text>
+        {order && (
+          <View style={styles.detailsCard}>
+            <View style={styles.detailsMeta}>
+              <View style={styles.detailsMetaRow}>
+                <Text style={styles.detailsMetaLabel}>Order time:</Text>
+                <Text style={styles.detailsMetaValue}>{timeStr(order.createdAt)}</Text>
+              </View>
+              <View style={styles.detailsMetaRow}>
+                <Text style={styles.detailsMetaLabel}>Total:</Text>
+                <Text style={[styles.detailsMetaValue, { color: COLORS.secondary }]}>
+                  {order.totalCoins} coins
+                </Text>
+              </View>
+              <View style={styles.detailsMetaRow}>
+                <Text style={styles.detailsMetaLabel}>Items:</Text>
+                <Text style={styles.detailsMetaValue}>
+                  {order.items?.map((i) => `${i.itemName} ×${i.qty}`).join(', ')}
+                </Text>
+              </View>
             </View>
           </View>
-
-          <View style={styles.detailsDivider} />
-
-          <View style={styles.detailsMeta}>
-            <View style={styles.detailsMetaRow}>
-              <Text style={styles.detailsMetaLabel}>Order time:</Text>
-              <Text style={styles.detailsMetaValue}>12:05 PM</Text>
-            </View>
-            <View style={styles.detailsMetaRow}>
-              <Text style={styles.detailsMetaLabel}>Estimated ready:</Text>
-              <Text style={styles.detailsMetaValue}>~12:20 PM</Text>
-            </View>
-          </View>
-        </View>
+        )}
 
         {/* Notification hint */}
         <View style={styles.notifHint}>
@@ -181,7 +189,6 @@ const styles = StyleSheet.create({
   stepperContainer: { paddingVertical: 8, gap: 0 },
   stepRow: { flexDirection: 'row', gap: 16 },
   stepLeft: { alignItems: 'center', width: 24 },
-
   stepIconDone: { width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },
   stepIconActive: {
     width: 24, height: 24, borderRadius: 12,
@@ -194,16 +201,12 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center',
   },
   stepPendingDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.textMuted },
-
   stepLine: { width: 2, height: 40, backgroundColor: COLORS.border, marginVertical: 2 },
   stepLineDone: { backgroundColor: '#22C55E' },
-
   stepContent: { paddingTop: 2, paddingBottom: 16, flex: 1 },
   stepLabel: { fontSize: 15, fontWeight: '600', color: COLORS.textMuted },
   stepLabelDone: { color: '#22C55E' },
   stepLabelActive: { color: COLORS.secondary },
-  stepSub: { fontSize: 11, color: COLORS.textMuted, marginTop: 2 },
-  stepSubActive: { color: COLORS.secondary + 'BB' },
 
   // OTP card
   otpCard: {
@@ -224,14 +227,10 @@ const styles = StyleSheet.create({
   detailsCard: {
     backgroundColor: COLORS.surface, borderRadius: 14, borderWidth: 1, borderColor: COLORS.border, padding: 20,
   },
-  detailsRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 },
-  detailsItemName: { flex: 1, fontSize: 15, fontWeight: '700', color: COLORS.white, marginRight: 8 },
-  detailsCoins: { fontSize: 15, fontWeight: '800', color: COLORS.white },
-  detailsDivider: { height: 1, backgroundColor: COLORS.border, marginBottom: 12 },
-  detailsMeta: { gap: 8 },
+  detailsMeta: { gap: 10 },
   detailsMetaRow: { flexDirection: 'row', justifyContent: 'space-between' },
   detailsMetaLabel: { fontSize: 13, color: COLORS.textMuted },
-  detailsMetaValue: { fontSize: 13, color: COLORS.textSecondary },
+  detailsMetaValue: { fontSize: 13, color: COLORS.textSecondary, flex: 1, textAlign: 'right', marginLeft: 8 },
 
   // Notification hint
   notifHint: {

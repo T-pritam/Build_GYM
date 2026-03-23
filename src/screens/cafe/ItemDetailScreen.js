@@ -1,10 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   StatusBar, Image, Share,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { io } from 'socket.io-client';
+import { BASE_API_URL } from '@env';
 import { COLORS } from '../../constants/colors';
+import { useCartStore } from '../../store/cartStore';
+
+const SOCKET_URL = BASE_API_URL.replace(/\/api\/?$/, '');
 
 const NUTRI_ICONS = [
   { label: 'Calories', key: 'calories', icon: 'flame-outline', color: '#F97316' },
@@ -14,8 +19,31 @@ const NUTRI_ICONS = [
 ];
 
 export default function ItemDetailScreen({ navigation, route }) {
-  const { item, onAddToCart } = route.params || {};
-  const [qty, setQty] = useState(1);
+  const { item } = route.params || {};
+  const [qty, setQty]               = useState(1);
+  // Live availability — starts from route param, updated by socket
+  const [isAvailable, setIsAvailable] = useState(item?.isAvailable ?? true);
+  const addItem        = useCartStore((s) => s.addItem);
+  const markUnavailable = useCartStore((s) => s.markUnavailable);
+  const markAvailable   = useCartStore((s) => s.markAvailable);
+  const socketRef = useRef(null);
+
+  useEffect(() => {
+    if (!item) return;
+
+    const socket = io(SOCKET_URL, { transports: ['websocket'] });
+    socketRef.current = socket;
+
+    socket.on('menu:item_updated', ({ id, isAvailable: avail }) => {
+      if (id !== item.id) return;
+      setIsAvailable(avail);
+      // Keep cart store in sync for this item too
+      if (!avail) markUnavailable(id);
+      else        markAvailable(id);
+    });
+
+    return () => socket.disconnect();
+  }, [item?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!item) return null;
 
@@ -23,14 +51,24 @@ export default function ItemDetailScreen({ navigation, route }) {
   const decQty = () => setQty((q) => Math.max(1, q - 1));
 
   const handleAddToCart = () => {
-    if (onAddToCart) {
-      for (let i = 0; i < qty; i++) onAddToCart(item);
+    if (!isAvailable) return; // guard — button is disabled, but double-check
+    for (let i = 0; i < qty; i++) {
+      addItem({
+        id:          item.id,
+        name:        item.name,
+        category:    item.category,
+        imageUrl:    item.imageUrl,
+        priceCoins:  item.priceCoins,
+        protein:     item.protein,
+        calories:    item.calories,
+        isAvailable: true, // available at time of adding
+      });
     }
     navigation.goBack();
   };
 
   const handleShare = () => {
-    Share.share({ message: `Check out ${item.name} at Build Cafe - only B${item.price}!` });
+    Share.share({ message: `Check out ${item.name} at Build Cafe — only ${item.priceCoins} Build Coins!` });
   };
 
   return (
@@ -55,11 +93,11 @@ export default function ItemDetailScreen({ navigation, route }) {
             <View style={styles.heroCategoryBadge}>
               <Text style={styles.heroCategoryText}>{item.category?.toUpperCase() || 'CAFE'}</Text>
             </View>
-            {item.image ? (
-              <Image source={{ uri: item.image }} style={styles.heroImg} resizeMode="cover" />
+            {item.imageUrl ? (
+              <Image source={{ uri: item.imageUrl }} style={styles.heroImg} resizeMode="cover" />
             ) : (
               <View style={styles.heroImgEmpty}>
-                <Text style={{ fontSize: 80 }}>{item.emoji || '🥗'}</Text>
+                <Text style={styles.heroLetter}>{item.name.charAt(0).toUpperCase()}</Text>
               </View>
             )}
           </View>
@@ -72,7 +110,7 @@ export default function ItemDetailScreen({ navigation, route }) {
           </View>
           <Text style={styles.itemName}>{item.name}</Text>
           <View style={styles.priceRow}>
-            <Text style={styles.priceCoins}>B {item.price}</Text>
+            <Text style={styles.priceCoins}>{item.priceCoins ?? item.price}</Text>
             <Text style={styles.priceSub}> Build Coins</Text>
           </View>
 
@@ -107,12 +145,17 @@ export default function ItemDetailScreen({ navigation, route }) {
             </View>
           </View>
 
-          {item.available ? (
+          {isAvailable ? (
             <View style={styles.availBanner}>
               <Ionicons name="checkmark-circle" size={18} color="#22C55E" />
               <Text style={styles.availText}>Available at the cafe counter</Text>
             </View>
-          ) : null}
+          ) : (
+            <View style={[styles.availBanner, { backgroundColor: '#2A1A0A' }]}>
+              <Ionicons name="close-circle" size={18} color="#EAB308" />
+              <Text style={[styles.availText, { color: '#EAB308' }]}>Currently unavailable</Text>
+            </View>
+          )}
         </View>
       </ScrollView>
 
@@ -129,13 +172,15 @@ export default function ItemDetailScreen({ navigation, route }) {
         </View>
 
         <TouchableOpacity
-          style={[styles.addCartBtn, !item.available && styles.addCartBtnDisabled]}
+          style={[styles.addCartBtn, !isAvailable && styles.addCartBtnDisabled]}
           onPress={handleAddToCart}
-          disabled={!item.available}
+          disabled={!isAvailable}
           activeOpacity={0.85}
         >
           <Ionicons name="cart-outline" size={20} color={COLORS.white} />
-          <Text style={styles.addCartText}>ADD TO CART  B {item.price * qty}</Text>
+          <Text style={styles.addCartText}>
+            ADD TO CART
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -177,6 +222,7 @@ const styles = StyleSheet.create({
     width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center',
     backgroundColor: COLORS.surface,
   },
+  heroLetter: { fontSize: 80, fontWeight: '900', color: COLORS.secondary },
   content: { paddingHorizontal: 20, paddingTop: 8, gap: 14 },
   categoryChip: {
     alignSelf: 'flex-start', backgroundColor: COLORS.secondaryGlow,

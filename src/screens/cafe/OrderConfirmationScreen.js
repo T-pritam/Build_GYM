@@ -6,9 +6,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 
 export default function OrderConfirmationScreen({ navigation, route }) {
-  const { cart = [], totalCoins = 0, balance = 2450, afterOrder = 2330 } = route?.params || {};
+  const order = route?.params?.order;
 
-  const scaleAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim   = useRef(new Animated.Value(0)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -18,8 +18,7 @@ export default function OrderConfirmationScreen({ navigation, route }) {
     ]).start();
   }, []);
 
-  const itemCount = cart.reduce((s, c) => s + c.qty, 0);
-  const orderId = Math.floor(1000 + Math.random() * 9000);
+  const itemCount = order?.items?.reduce((s, i) => s + i.qty, 0) ?? 0;
 
   return (
     <View style={styles.container}>
@@ -39,14 +38,10 @@ export default function OrderConfirmationScreen({ navigation, route }) {
       </View>
 
       {/* Main content */}
-      <Animated.View
-        style={[styles.mainContent, { opacity: opacityAnim, transform: [{ scale: scaleAnim }] }]}
-      >
-        {/* Checkmark icon */}
+      <Animated.View style={[styles.mainContent, { opacity: opacityAnim, transform: [{ scale: scaleAnim }] }]}>
         <View style={styles.checkIconWrap}>
           <Ionicons name="checkmark" size={56} color={COLORS.white} />
         </View>
-
         <Text style={styles.heading}>Order Placed! 🎉</Text>
         <Text style={styles.subheading}>
           Your order is being prepared.{'\n'}Pick it up at the café counter.
@@ -56,7 +51,7 @@ export default function OrderConfirmationScreen({ navigation, route }) {
       {/* Summary card */}
       <Animated.View style={[styles.summaryCard, { opacity: opacityAnim }]}>
         <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Order #{orderId}</Text>
+          <Text style={styles.summaryLabel}>{order?.ref ?? 'Order'}</Text>
           <View style={styles.activeBadge}>
             <Text style={styles.activeBadgeText}>CONFIRMED</Text>
           </View>
@@ -69,12 +64,9 @@ export default function OrderConfirmationScreen({ navigation, route }) {
         <View style={styles.divider} />
         <View style={styles.summaryRow}>
           <Text style={styles.summaryLabel}>Coins deducted</Text>
-          <Text style={[styles.summaryValue, { color: COLORS.secondary }]}>₿ {totalCoins}</Text>
-        </View>
-        <View style={styles.divider} />
-        <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Remaining balance</Text>
-          <Text style={styles.summaryValue}>₿ {afterOrder.toLocaleString()}</Text>
+          <Text style={[styles.summaryValue, { color: COLORS.secondary }]}>
+            {order?.totalCoins ?? 0} coins
+          </Text>
         </View>
       </Animated.View>
 
@@ -82,17 +74,13 @@ export default function OrderConfirmationScreen({ navigation, route }) {
       <View style={styles.footer}>
         <TouchableOpacity
           style={styles.trackBtn}
-          onPress={() => navigation.navigate('OrderTracking', { orderId, cart, totalCoins })}
+          onPress={() => navigation.navigate('OrderTracking', { orderId: order?.id, order })}
           activeOpacity={0.85}
         >
           <Ionicons name="location-outline" size={18} color={COLORS.secondary} />
           <Text style={styles.trackBtnText}>Track Order</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.homeBtn}
-          onPress={() => navigation.replace('MainTabs')}
-          activeOpacity={0.85}
-        >
+        <TouchableOpacity style={styles.homeBtn} onPress={() => navigation.replace('MainTabs')} activeOpacity={0.85}>
           <Text style={styles.homeBtnText}>BACK TO HOME</Text>
         </TouchableOpacity>
       </View>
