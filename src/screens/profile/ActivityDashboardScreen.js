@@ -34,7 +34,7 @@ export default function ActivityDashboardScreen({ navigation }) {
           <Ionicons name="arrow-back" size={20} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Activity Dashboard</Text>
-        <View style={styles.backBtn} />
+        <View style={{ width: 40 }} />
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, Alert,
   Image, Modal, Pressable, ActivityIndicator,
@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import { membership } from '../../constants/dummyData';
 import { useAuthStore } from '../../store/authStore';
+import { useWalletStore } from '../../store/walletStore';
 import { uploadProfilePhoto, removeProfilePhoto } from '../../services/profileService';
 
 const MENU = [
@@ -43,9 +44,18 @@ export default function ProfileScreen({ navigation }) {
   const updateProfilePhoto = useAuthStore((s) => s.updateProfilePhoto);
 
   const firstName = user?.firstName || user?.fullName?.split(' ')[0] || 'Athlete';
-  const balance = 0;
-  const earned  = 0;
-  const spent   = 0;
+
+  const { balance, transactions, fetchBalance, fetchTransactions } = useWalletStore();
+
+  useEffect(() => {
+    fetchBalance();
+    fetchTransactions();
+  }, []);
+
+  const earned = transactions.reduce((sum, t) =>
+    (t.transactionType === 'CREDIT' || t.transactionType === 'REFUND') ? sum + (t.coinAmount ?? 0) : sum, 0);
+  const spent = transactions.reduce((sum, t) =>
+    t.transactionType === 'DEBIT' ? sum + (t.coinAmount ?? 0) : sum, 0);
 
   // Use persisted photo URL from auth store; fall back to null (shows initials)
   const profilePhoto = user?.profilePhotoUrl ?? null;
@@ -127,7 +137,7 @@ export default function ProfileScreen({ navigation }) {
           <Ionicons name="arrow-back" size={20} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Profile</Text>
-        <View style={styles.backBtn} />
+        <View style={{ width: 40 }} />
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>

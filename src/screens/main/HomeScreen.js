@@ -7,10 +7,12 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
-import { membership, buildCoins, gymServices } from '../../constants/dummyData';
+import { membership, gymServices } from '../../constants/dummyData';
 import { useAuthStore } from '../../store/authStore';
+import { useWalletStore } from '../../store/walletStore';
 import { fetchAnnouncements } from '../../services/announcementService';
 import { fetchTrainers } from '../../services/trainerService';
+import { getSocket } from '../../services/socketService';
 
 const RECEPTION_PHONE = '+919876543210';
 
@@ -29,11 +31,31 @@ const SERVICE_ICONS = ['barbell-outline', 'people-outline', 'nutrition-outline',
 export default function HomeScreen({ navigation }) {
   const unreadCount = useAnnouncementStore((s) => s.unreadCount);
   const user = useAuthStore((s) => s.user);
+  const { balance, fetchBalance, setBalance, transactions, fetchTransactions, isTxnLoading } = useWalletStore();
 
   const [announcements, setAnnouncements] = useState([]);
   const [trainers, setTrainers] = useState([]);
   const [loadingAnnouncements, setLoadingAnnouncements] = useState(true);
   const [loadingTrainers, setLoadingTrainers] = useState(true);
+
+  useEffect(() => {
+    // Load wallet balance + recent transactions on mount
+    fetchBalance();
+    fetchTransactions();
+
+    // Subscribe to real-time wallet updates
+    if (user?.id) {
+      const socket = getSocket();
+      socket.emit('join:wallet', user.id);
+      socket.on('wallet:balance_updated', ({ balance: newBalance }) => {
+        setBalance(newBalance);
+        fetchTransactions(); // refresh recent list on any balance change
+      });
+      return () => {
+        socket.off('wallet:balance_updated');
+      };
+    }
+  }, [user?.id]);
 
   useEffect(() => {
     fetchAnnouncements({ limit: 3 })
@@ -159,32 +181,80 @@ export default function HomeScreen({ navigation }) {
           </View>
         </View>
 
-        {/* ── BUILD COINS BANNER ───────────────────── */}
+        {/* ── BUILD COINS CARD ─────────────────────── */}
         <View style={styles.section}>
-          <TouchableOpacity
-            style={styles.coinsStrip}
-            onPress={() => navigation.navigate('BuildCoinTransactions')}
-            activeOpacity={0.85}
-          >
-            <View style={styles.coinsLeft}>
-              <View style={styles.coinIconWrap}>
-                <Ionicons name="logo-bitcoin" size={20} color={COLORS.secondary} />
-              </View>
-              <View>
-                <Text style={styles.coinsLabel}>BUILD COINS BALANCE</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
-                  <Text style={styles.coinsValue}>{(buildCoins?.balance || 2450).toLocaleString()}</Text>
-                  <Text style={styles.coinsUnit}>coins</Text>
+          <View style={styles.coinsCard}>
+            {/* Header row */}
+            <TouchableOpacity
+              style={styles.coinsCardHeader}
+              onPress={() => navigation.navigate('BuildCoinTransactions')}
+              activeOpacity={0.85}
+            >
+              <View style={styles.coinsLeft}>
+                <View style={styles.coinIconWrap}>
+                  <Ionicons name="logo-bitcoin" size={20} color={COLORS.secondary} />
+                </View>
+                <View>
+                  <Text style={styles.coinsLabel}>BUILD COINS</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
+                    <Text style={styles.coinsValue}>{balance.toLocaleString()}</Text>
+                    <Text style={styles.coinsUnit}>coins</Text>
+                  </View>
                 </View>
               </View>
-            </View>
-            <View style={styles.coinsRight}>
-              <TouchableOpacity style={styles.coinsAddBtn}>
-                <Text style={styles.coinsAddText}>+ Add</Text>
-              </TouchableOpacity>
-              <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
-            </View>
-          </TouchableOpacity>
+              <View style={styles.coinsRight}>
+                <TouchableOpacity
+                  style={styles.coinsAddBtn}
+                  onPress={() => navigation.navigate('BuildCoinTransactions')}
+                >
+                  <Text style={styles.coinsAddText}>+ Add</Text>
+                </TouchableOpacity>
+                <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
+              </View>
+            </TouchableOpacity>
+
+            {/* Recent transactions */}
+            {isTxnLoading && transactions.length === 0 ? (
+              <View style={styles.coinsTxnLoading}>
+                <ActivityIndicator size="small" color={COLORS.secondary} />
+                <Text style={styles.coinsTxnLoadingText}>Loading transactions…</Text>
+              </View>
+            ) : transactions.length === 0 ? null : (
+              <>
+                <View style={styles.coinsDivider} />
+                <View style={styles.coinsTxnHeader}>
+                  <Text style={styles.coinsTxnTitle}>Recent Activity</Text>
+                  <TouchableOpacity onPress={() => navigation.navigate('BuildCoinTransactions')}>
+                    <Text style={styles.coinsTxnSeeAll}>See all →</Text>
+                  </TouchableOpacity>
+                </View>
+                {transactions.slice(0, 3).map((txn) => {
+                  const isCredit = txn.transactionType === 'CREDIT' || txn.transactionType === 'REFUND';
+                  const date = txn.createdAt
+                    ? new Date(txn.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })
+                    : '';
+                  return (
+                    <View key={txn.id} style={styles.coinsTxnRow}>
+                      <View style={[styles.coinsTxnIcon, { backgroundColor: isCredit ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.12)' }]}>
+                        <Ionicons
+                          name={isCredit ? 'add-circle-outline' : 'remove-circle-outline'}
+                          size={18}
+                          color={isCredit ? '#22C55E' : '#EF4444'}
+                        />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.coinsTxnName} numberOfLines={1}>{txn.itemName}</Text>
+                        <Text style={styles.coinsTxnDate}>{date}</Text>
+                      </View>
+                      <Text style={[styles.coinsTxnAmount, { color: isCredit ? '#22C55E' : '#EF4444' }]}>
+                        {isCredit ? '+' : '−'}{txn.coinAmount?.toLocaleString()} 🪙
+                      </Text>
+                    </View>
+                  );
+                })}
+              </>
+            )}
+          </View>
         </View>
 
         {/* ── STATS GRID ───────────────────────────── */}
@@ -505,11 +575,14 @@ const styles = StyleSheet.create({
   waBtn: { borderColor: 'rgba(37,211,102,0.35)', backgroundColor: 'rgba(37,211,102,0.06)' },
   contactBtnText: { fontSize: 13, fontWeight: '600', color: COLORS.white },
 
-  // Coins
-  coinsStrip: {
+  // Coins card
+  coinsCard: {
+    backgroundColor: COLORS.surface, borderRadius: 18, borderWidth: 1,
+    borderColor: COLORS.secondaryBorder, overflow: 'hidden',
+  },
+  coinsCardHeader: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: COLORS.surface, borderRadius: 16, borderWidth: 1,
-    borderColor: COLORS.secondaryBorder, paddingHorizontal: 16, paddingVertical: 14,
+    paddingHorizontal: 16, paddingVertical: 14,
   },
   coinsLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   coinIconWrap: {
@@ -525,6 +598,24 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: COLORS.secondary, backgroundColor: 'transparent',
   },
   coinsAddText: { fontSize: 13, fontWeight: '700', color: COLORS.secondary },
+  coinsDivider: { height: 1, backgroundColor: 'rgba(255,255,255,0.05)', marginHorizontal: 0 },
+  coinsTxnHeader: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingHorizontal: 16, paddingTop: 12, paddingBottom: 6,
+  },
+  coinsTxnTitle:  { fontSize: 11, fontWeight: '800', color: COLORS.textMuted, letterSpacing: 1, textTransform: 'uppercase' },
+  coinsTxnSeeAll: { fontSize: 12, fontWeight: '700', color: COLORS.secondary },
+  coinsTxnRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingHorizontal: 16, paddingVertical: 10,
+    borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.04)',
+  },
+  coinsTxnIcon: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  coinsTxnName: { fontSize: 13, fontWeight: '700', color: COLORS.white },
+  coinsTxnDate: { fontSize: 10, color: COLORS.textMuted, marginTop: 1 },
+  coinsTxnAmount: { fontSize: 13, fontWeight: '800' },
+  coinsTxnLoading: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 14, paddingTop: 0 },
+  coinsTxnLoadingText: { fontSize: 12, color: COLORS.textMuted },
 
   // Stats grid
   statsGrid: { flexDirection: 'row', gap: 12 },

@@ -54,7 +54,7 @@ export default function MyBookingsScreen({ navigation }) {
           <Ionicons name="arrow-back" size={20} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>My Bookings</Text>
-        <View style={styles.backBtn} />
+        <View style={{ width: 40 }} />
       </View>
 
       {/* Tabs */}

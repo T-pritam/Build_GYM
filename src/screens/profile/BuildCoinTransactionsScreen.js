@@ -1,28 +1,91 @@
-import React from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, Alert,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar,
+  ActivityIndicator, Alert, RefreshControl, Dimensions,
 } from 'react-native';
+
+const { width: W } = Dimensions.get('window');
+const PACK_W = Math.floor((W - 48 - 20) / 3); // 48 = scroll paddingH*2, 20 = 2 gaps
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
-import { buildCoins, coinTransactions } from '../../constants/dummyData';
-
-const TOP_UP_PACKS = [
-  { coins: 500, price: '₹50', popular: false },
-  { coins: 1000, price: '₹95', popular: true },
-  { coins: 2500, price: '₹225', popular: false },
-];
-
-const DUMMY_TXN = [
-  { type: 'credit', description: 'Elite Membership Renewal', date: '1 Jan 2026', amount: 500 },
-  { type: 'debit', description: 'Build Café - Shake', date: '15 Jan 2026', amount: 120 },
-  { type: 'credit', description: 'Admin Credit - Cashback', date: '16 Jan 2026', amount: 500 },
-  { type: 'debit', description: 'Yoga Class Booking', date: '18 Jan 2026', amount: 80 },
-  { type: 'debit', description: 'Build Café - Protein Bar', date: '20 Jan 2026', amount: 60 },
-];
+import { useWalletStore } from '../../store/walletStore';
+import { fetchPackages } from '../../services/walletService';
 
 export default function BuildCoinTransactionsScreen({ navigation }) {
-  const balance = buildCoins?.balance || 2450;
-  const txns    = coinTransactions || DUMMY_TXN;
+  const {
+    balance,
+    transactions,
+    hasMore,
+    isLoading,
+    isTxnLoading,
+    fetchBalance,
+    fetchTransactions,
+    fetchMoreTransactions,
+    purchasePackage,
+  } = useWalletStore();
+
+  const [packages, setPackages] = useState([]);
+  const [refreshing, setRefreshing] = useState(false);
+  const [lowBalance, setLowBalance] = useState(false);
+  const [purchasingId, setPurchasingId] = useState(null);
+
+  const LOW_BALANCE_THRESHOLD = 200;
+
+  useEffect(() => {
+    fetchBalance();
+    fetchTransactions();
+    fetchPackages()
+      .then(setPackages)
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    setLowBalance(balance < LOW_BALANCE_THRESHOLD);
+  }, [balance]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([fetchBalance(), fetchTransactions()]);
+    setRefreshing(false);
+  }, [fetchBalance, fetchTransactions]);
+
+  const handleBuyPackage = (pkg) => {
+    const totalCoins = (pkg.coins + (pkg.bonusCoins ?? 0)).toLocaleString('en-IN');
+    const price = parseFloat(pkg.priceInr).toLocaleString('en-IN');
+    Alert.alert(
+      'Confirm Purchase',
+      `Pay ₹${price} at the counter and receive ${totalCoins} coins.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Confirm',
+          onPress: async () => {
+            setPurchasingId(pkg.id);
+            try {
+              const result = await purchasePackage(pkg.id);
+              await fetchTransactions();
+              Alert.alert('Done!', `${result.coinsAdded.toLocaleString()} coins added to your wallet.`);
+            } catch (err) {
+              Alert.alert('Error', err?.response?.data?.message ?? 'Purchase failed. Try again.');
+            } finally {
+              setPurchasingId(null);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return '';
+    try {
+      return new Date(dateStr).toLocaleDateString('en-IN', {
+        day: 'numeric', month: 'short', year: 'numeric',
+      });
+    } catch {
+      return '';
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -35,78 +98,142 @@ export default function BuildCoinTransactionsScreen({ navigation }) {
           <Ionicons name="arrow-back" size={20} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Wallet</Text>
-        <View style={styles.backBtn} />
+        <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scroll}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.secondary} />}
+        onScroll={({ nativeEvent }) => {
+          const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
+          const isNearBottom = layoutMeasurement.height + contentOffset.y >= contentSize.height - 80;
+          if (isNearBottom) fetchMoreTransactions();
+        }}
+        scrollEventThrottle={400}
+      >
         {/* Balance hero */}
         <View style={styles.balanceSection}>
-          <View style={styles.balanceRow}>
-            <Ionicons name="logo-bitcoin" size={40} color={COLORS.secondary} />
-            <Text style={styles.balanceNum}>{balance.toLocaleString('en-IN')}</Text>
-          </View>
-          <Text style={styles.balanceSub}>Build Coins</Text>
-          <TouchableOpacity
+          {isLoading ? (
+            <ActivityIndicator color={COLORS.secondary} size="large" style={{ marginVertical: 20 }} />
+          ) : (
+            <>
+              <View style={styles.balanceRow}>
+                <Ionicons name="logo-bitcoin" size={40} color={COLORS.secondary} />
+                <Text style={styles.balanceNum}>{balance.toLocaleString('en-IN')}</Text>
+              </View>
+              <Text style={styles.balanceSub}>Build Coins</Text>
+            </>
+          )}
+          {/* <TouchableOpacity
             style={styles.buyBtn}
-            onPress={() => Alert.alert('Buy Coins', 'Top-up functionality coming soon!')}
+            onPress={() => packages.length > 0 && handleBuyPackage(packages[0])}
+            disabled={packages.length === 0}
           >
             <Text style={styles.buyBtnText}>BUY COINS</Text>
             <Ionicons name="arrow-forward" size={18} color="#fff" />
-          </TouchableOpacity>
+          </TouchableOpacity> */}
         </View>
 
-        {/* Top-Up section */}
-        <Text style={styles.sectionLabel}>TOP UP COINS</Text>
-        <View style={styles.packsRow}>
-          {TOP_UP_PACKS.map((p) => (
-            <TouchableOpacity
-              key={p.coins}
-              style={[styles.packCard, p.popular && styles.packCardPopular]}
-              activeOpacity={0.8}
-            >
-              {p.popular && (
-                <View style={styles.popularBanner}>
-                  <Text style={styles.popularText}>POPULAR</Text>
-                </View>
-              )}
-              <Ionicons name="logo-bitcoin" size={22} color={COLORS.secondary} style={p.popular && { marginTop: 8 }} />
-              <Text style={styles.packCoins}>{p.coins.toLocaleString()}</Text>
-              <Text style={styles.packPrice}>{p.price}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+        {/* Top-Up Packages */}
+        {packages.length > 0 && (
+          <>
+            <Text style={styles.sectionLabel}>TOP UP COINS</Text>
+            <View style={styles.packsGrid}>
+              {packages.map((p) => (
+                <TouchableOpacity
+                  key={p.id}
+                  style={[styles.packCard, p.popular && styles.packCardPopular]}
+                  activeOpacity={0.8}
+                  onPress={() => handleBuyPackage(p)}
+                  disabled={purchasingId !== null}
+                >
+                  {p.popular && (
+                    <View style={styles.popularBanner}>
+                      <Text style={styles.popularText}>★ POPULAR</Text>
+                    </View>
+                  )}
+                  <View style={[styles.packIconWrap, p.popular && { marginTop: 22 }]}>
+                    {purchasingId === p.id ? (
+                      <ActivityIndicator color={COLORS.secondary} size="small" />
+                    ) : (
+                      <Ionicons name="logo-bitcoin" size={20} color={COLORS.secondary} />
+                    )}
+                  </View>
+                  <Text style={styles.packCoins}>
+                    {(p.coins + (p.bonusCoins ?? 0)).toLocaleString()}
+                  </Text>
+                  <Text style={styles.packCoinsLabel}>coins</Text>
+                  {p.bonusCoins > 0 && (
+                    <View style={styles.packBonusBadge}>
+                      <Text style={styles.packBonus}>+{p.bonusCoins} bonus</Text>
+                    </View>
+                  )}
+                  <View style={styles.packPricePill}>
+                    <Text style={styles.packPrice}>₹{parseFloat(p.priceInr).toLocaleString('en-IN')}</Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </>
+        )}
 
         {/* Low balance banner */}
-        <View style={styles.lowBanner}>
-          <Ionicons name="information-circle-outline" size={20} color={COLORS.secondary} />
-          <Text style={styles.lowBannerText}>
-            Low balance! Top up to continue booking classes and meals.
-          </Text>
-        </View>
+        {lowBalance && (
+          <View style={styles.lowBanner}>
+            <Ionicons name="warning-outline" size={20} color={COLORS.secondary} />
+            <Text style={styles.lowBannerText}>
+              Low Balance. Top up to continue booking sessions without interruption.
+            </Text>
+          </View>
+        )}
 
         {/* Transactions */}
         <Text style={styles.sectionLabel}>RECENT TRANSACTIONS</Text>
-        {txns.map((t, i) => (
-          <View key={i} style={styles.txnRow}>
-            <View style={[
-              styles.txnIcon,
-              { backgroundColor: t.type === 'credit' ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)' },
-            ]}>
-              <Ionicons
-                name={t.type === 'credit' ? 'add' : 'remove'}
-                size={18}
-                color={t.type === 'credit' ? '#22C55E' : '#EF4444'}
-              />
-            </View>
-            <View style={styles.txnInfo}>
-              <Text style={styles.txnLabel}>{t.description}</Text>
-              <Text style={styles.txnDate}>{t.date}</Text>
-            </View>
-            <Text style={[styles.txnAmount, { color: t.type === 'credit' ? '#22C55E' : '#EF4444' }]}>
-              {t.type === 'credit' ? '+ ₿ ' : '- ₿ '}{t.amount}
-            </Text>
+
+        {isTxnLoading && transactions.length === 0 ? (
+          <ActivityIndicator color={COLORS.secondary} style={{ marginVertical: 20 }} />
+        ) : transactions.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Ionicons name="receipt-outline" size={40} color="#444" />
+            <Text style={styles.emptyText}>No transactions yet</Text>
           </View>
-        ))}
+        ) : (
+          <>
+            {transactions.map((t) => {
+              const isCredit = t.transactionType === 'CREDIT' || t.transactionType === 'REFUND';
+              return (
+                <View key={t.id} style={styles.txnRow}>
+                  <View style={[
+                    styles.txnIcon,
+                    { backgroundColor: isCredit ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)' },
+                  ]}>
+                    <Ionicons
+                      name={isCredit ? 'add' : 'remove'}
+                      size={18}
+                      color={isCredit ? '#22C55E' : '#EF4444'}
+                    />
+                  </View>
+                  <View style={styles.txnInfo}>
+                    <Text style={styles.txnLabel}>{t.itemName}</Text>
+                    <Text style={styles.txnDate}>{formatDate(t.createdAt)}</Text>
+                  </View>
+                  <Text style={[styles.txnAmount, { color: isCredit ? '#22C55E' : '#EF4444' }]}>
+                    {isCredit ? '+ ₿ ' : '- ₿ '}{t.coinAmount}
+                  </Text>
+                </View>
+              );
+            })}
+
+            {isTxnLoading && (
+              <ActivityIndicator color={COLORS.secondary} style={{ marginVertical: 16 }} />
+            )}
+
+            {!hasMore && transactions.length > 0 && (
+              <Text style={styles.endText}>— All transactions loaded —</Text>
+            )}
+          </>
+        )}
 
         <View style={{ height: 100 }} />
       </ScrollView>
@@ -147,20 +274,34 @@ const styles = StyleSheet.create({
     letterSpacing: 2.5, marginBottom: 12, marginTop: 8,
   },
 
-  // Packs
-  packsRow: { flexDirection: 'row', gap: 10, marginBottom: 20 },
+  // Packs grid — 3 per row
+  packsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 },
   packCard: {
-    flex: 1, backgroundColor: '#1C1C1E', borderRadius: 14, borderWidth: 1,
-    borderColor: '#333', padding: 14, alignItems: 'center', gap: 6, overflow: 'hidden',
+    width: PACK_W, backgroundColor: '#1C1C1E', borderRadius: 14, borderWidth: 1,
+    borderColor: '#2A2A2A', padding: 12, alignItems: 'center', gap: 3, overflow: 'hidden',
   },
-  packCardPopular: { borderColor: COLORS.secondary + '66' },
+  packCardPopular: { borderColor: COLORS.secondary + '80', backgroundColor: '#1F1800' },
   popularBanner: {
     position: 'absolute', top: 0, left: 0, right: 0, backgroundColor: COLORS.secondary,
-    paddingVertical: 2, alignItems: 'center',
+    paddingVertical: 3, alignItems: 'center',
   },
-  popularText: { fontSize: 8, fontWeight: '900', color: '#fff', letterSpacing: 1 },
-  packCoins: { fontSize: 18, fontWeight: '900', color: '#fff' },
-  packPrice: { fontSize: 11, color: '#777' },
+  popularText: { fontSize: 7, fontWeight: '900', color: '#fff', letterSpacing: 1 },
+  packIconWrap: {
+    width: 36, height: 36, borderRadius: 18, backgroundColor: COLORS.secondaryGlow,
+    alignItems: 'center', justifyContent: 'center', marginBottom: 2,
+  },
+  packCoins: { fontSize: 17, fontWeight: '900', color: '#fff', lineHeight: 20 },
+  packCoinsLabel: { fontSize: 9, color: '#555', fontWeight: '600', marginBottom: 2 },
+  packBonusBadge: {
+    backgroundColor: 'rgba(34,197,94,0.12)', borderRadius: 6,
+    paddingHorizontal: 6, paddingVertical: 2, marginBottom: 2,
+  },
+  packBonus: { fontSize: 9, color: '#22C55E', fontWeight: '800' },
+  packPricePill: {
+    backgroundColor: '#2A2A2A', borderRadius: 8,
+    paddingHorizontal: 10, paddingVertical: 4, marginTop: 2,
+  },
+  packPrice: { fontSize: 12, color: '#ccc', fontWeight: '700' },
 
   // Low balance
   lowBanner: {
@@ -180,4 +321,8 @@ const styles = StyleSheet.create({
   txnLabel: { fontSize: 13, fontWeight: '700', color: '#fff', marginBottom: 2 },
   txnDate: { fontSize: 10, color: '#666' },
   txnAmount: { fontSize: 14, fontWeight: '800' },
+
+  emptyState: { alignItems: 'center', paddingVertical: 40, gap: 12 },
+  emptyText: { fontSize: 14, color: '#555' },
+  endText: { textAlign: 'center', fontSize: 11, color: '#444', paddingVertical: 16 },
 });

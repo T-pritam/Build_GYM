@@ -36,7 +36,7 @@ export default function MembershipScreen({ navigation }) {
           <Ionicons name="arrow-back" size={20} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Membership</Text>
-        <View style={styles.backBtn} />
+        <View style={{ width: 40 }} />
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
@@ -123,7 +123,7 @@ export default function MembershipScreen({ navigation }) {
         </View>
 
         {/* Recent Transactions */}
-        <Text style={styles.sectionTitle}>Recent Transactions</Text>
+        {/* <Text style={styles.sectionTitle}>Recent Transactions</Text>
         {(coinTransactions || DUMMY_TXN).slice(0, 5).map((t, i) => (
           <View key={i} style={styles.txnRow}>
             <View style={[styles.txnIcon, { backgroundColor: t.type === 'credit' ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)' }]}>
@@ -141,7 +141,7 @@ export default function MembershipScreen({ navigation }) {
               {t.type === 'credit' ? '+' : '-'}₿ {t.amount}
             </Text>
           </View>
-        ))}
+        ))} */}
 
         <View style={{ height: 100 }} />
       </ScrollView>

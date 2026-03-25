@@ -75,9 +75,7 @@ export default function SplashScreen({ navigation }) {
   const initialize    = useAuthStore((s) => s.initialize);
 
   useEffect(() => {
-    // Kick off auth restore and animation in parallel
-    initialize();
-
+    // Run animation independently (fire-and-forget)
     Animated.sequence([
       Animated.parallel([
         Animated.timing(fadeAnim,  { toValue: 1, duration: 700, useNativeDriver: true }),
@@ -89,9 +87,16 @@ export default function SplashScreen({ navigation }) {
       ]),
     ]).start();
 
-    const t = setTimeout(() => {
+    // Wait for BOTH the minimum animation time AND auth restore to finish
+    // before deciding where to navigate. Previously initialize() was not
+    // awaited, so the 3.2s timer could fire before SecureStore I/O completed.
+    let cancelled = false;
+    Promise.all([
+      initialize(),
+      new Promise((resolve) => setTimeout(resolve, 3200)),
+    ]).then(() => {
+      if (cancelled) return;
       const { isAuthenticated, user } = useAuthStore.getState();
-
       if (isAuthenticated && user) {
         if (user.onboardingCompleted) {
           navigation.replace('MainTabs');
@@ -101,9 +106,9 @@ export default function SplashScreen({ navigation }) {
       } else {
         navigation.replace('Login');
       }
-    }, 3200);
+    });
 
-    return () => clearTimeout(t);
+    return () => { cancelled = true; };
   }, []);
 
   return (
