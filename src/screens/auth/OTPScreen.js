@@ -7,6 +7,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import { verifyOTP, resendOTP } from '../../services/authService';
 import { useAuthStore } from '../../store/authStore';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { saveFCMToken, FCM_TOKEN_KEY } from '../../services/notificationService';
 
 export default function OTPScreen({ navigation, route }) {
   const { phone } = route?.params || {};
@@ -82,6 +84,11 @@ export default function OTPScreen({ navigation, route }) {
 
       // Persist to store + SecureStore
       await setAuth(user, accessToken, refreshToken);
+
+      // Associate FCM token with this userId now that we know who logged in
+      AsyncStorage.getItem(FCM_TOKEN_KEY).then(token => {
+        if (token) saveFCMToken(token, null, user.id).catch(() => {});
+      }).catch(() => {});
 
       // Route based on onboarding status
       if (user.onboardingCompleted) {
