@@ -202,8 +202,15 @@ export default function BuildCoinTransactionsScreen({ navigation }) {
           <>
             {transactions.map((t) => {
               const isCredit = t.transactionType === 'CREDIT' || t.transactionType === 'REFUND';
+              const isCafe   = t.itemCategory === 'CAFE' && t.referenceId;
+              const RowEl    = isCafe ? TouchableOpacity : View;
               return (
-                <View key={t.id} style={styles.txnRow}>
+                <RowEl
+                  key={t.id}
+                  style={styles.txnRow}
+                  activeOpacity={0.7}
+                  onPress={isCafe ? () => navigation.navigate('OrderTracking', { orderId: t.referenceId }) : undefined}
+                >
                   <View style={[
                     styles.txnIcon,
                     { backgroundColor: isCredit ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)' },
@@ -221,7 +228,8 @@ export default function BuildCoinTransactionsScreen({ navigation }) {
                   <Text style={[styles.txnAmount, { color: isCredit ? '#22C55E' : '#EF4444' }]}>
                     {isCredit ? '+ ₿ ' : '- ₿ '}{t.coinAmount}
                   </Text>
-                </View>
+                  {isCafe && <Ionicons name="chevron-forward" size={14} color="#555" style={{ marginLeft: 4 }} />}
+                </RowEl>
               );
             })}
 

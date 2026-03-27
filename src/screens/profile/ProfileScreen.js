@@ -17,6 +17,10 @@ const MENU = [
     sub: 'ELITE · 128 days left', nav: 'Membership', color: COLORS.secondary, bg: COLORS.secondaryGlow,
   },
   {
+    id: 'orderHistory', label: 'Order History', icon: 'receipt-outline',
+    sub: 'View your café orders', nav: 'OrderHistory', color: '#E96316', bg: 'rgba(233,99,22,0.12)',
+  },
+  {
     id: 'activity', label: 'Activity Dashboard', icon: 'bar-chart-outline',
     sub: '18 visits this month · 5-day streak', nav: 'Activity', color: '#3B82F6', bg: 'rgba(59,130,246,0.12)',
   },

@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { io } from 'socket.io-client';
 import { BASE_API_URL } from '@env';
 import { COLORS } from '../../constants/colors';
+import { fetchOrderById } from '../../services/cafeService';
 
 // Derive socket URL — strip /api suffix
 const SOCKET_URL = BASE_API_URL.replace(/\/api\/?$/, '');
@@ -42,16 +43,28 @@ function StepIcon({ stepStatus }) {
 
 export default function OrderTrackingScreen({ navigation, route }) {
   const { orderId, order: initialOrder } = route?.params || {};
-  const [order, setOrder] = useState(initialOrder);
+  const [order, setOrder] = useState(initialOrder ?? null);
   const socketRef = useRef(null);
 
+  // Fetch order from API when navigating from history/transactions (no initialOrder)
+  useEffect(() => {
+    if (!initialOrder && orderId) {
+      fetchOrderById(orderId)
+        .then(res => setOrder(res.data.data))
+        .catch(() => {});
+    }
+  }, [orderId]);
+
+  // Socket: join order room after connection to avoid race condition
   useEffect(() => {
     if (!orderId) return;
 
     const socket = io(SOCKET_URL, { transports: ['websocket'] });
     socketRef.current = socket;
 
-    socket.emit('join:order', orderId);
+    socket.on('connect', () => {
+      socket.emit('join:order', orderId);
+    });
 
     socket.on('order:status_updated', ({ orderId: id, status }) => {
       if (id === orderId) {
@@ -61,6 +74,37 @@ export default function OrderTrackingScreen({ navigation, route }) {
 
     return () => socket.disconnect();
   }, [orderId]);
+
+  // Cancelled state — show dedicated banner
+  if (order?.status === 'cancelled') {
+    return (
+      <View style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
+        <View style={styles.ambientGlow} pointerEvents="none" />
+
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+            <Ionicons name="arrow-back" size={20} color={COLORS.white} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>{order?.ref ?? 'Order'}</Text>
+          <View style={{ width: 40 }} />
+        </View>
+
+        <View style={styles.cancelledContainer}>
+          <View style={styles.cancelledCard}>
+            <Ionicons name="close-circle" size={56} color="#EF4444" />
+            <Text style={styles.cancelledTitle}>Order Cancelled</Text>
+            <Text style={styles.cancelledSub}>
+              Your order {order.ref} was cancelled.
+            </Text>
+            <Text style={styles.cancelledRefund}>
+              {order.totalCoins} Build Coins have been refunded to your wallet.
+            </Text>
+          </View>
+        </View>
+      </View>
+    );
+  }
 
   const currentStatusIdx = STATUS_STEPS.indexOf(order?.status ?? 'received');
 
@@ -121,18 +165,20 @@ export default function OrderTrackingScreen({ navigation, route }) {
           ))}
         </View>
 
-        {/* OTP card */}
-        <View style={styles.otpCard}>
-          <Text style={styles.otpLabel}>YOUR PICKUP OTP</Text>
-          <View style={styles.otpDigits}>
-            {otp.split('').map((digit, i) => (
-              <View key={i} style={styles.otpDigitBox}>
-                <Text style={styles.otpDigitText}>{digit}</Text>
-              </View>
-            ))}
+        {/* OTP card — only show when order is not done */}
+        {order?.status !== 'done' && (
+          <View style={styles.otpCard}>
+            <Text style={styles.otpLabel}>YOUR PICKUP OTP</Text>
+            <View style={styles.otpDigits}>
+              {otp.split('').map((digit, i) => (
+                <View key={i} style={styles.otpDigitBox}>
+                  <Text style={styles.otpDigitText}>{digit}</Text>
+                </View>
+              ))}
+            </View>
+            <Text style={styles.otpHint}>Show this code to the café staff</Text>
           </View>
-          <Text style={styles.otpHint}>Show this code to the café staff</Text>
-        </View>
+        )}
 
         {/* Order details */}
         {order && (
@@ -184,6 +230,16 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: 18, fontWeight: '800', color: COLORS.white },
   scrollContent: { paddingHorizontal: 20, paddingBottom: 60, gap: 16 },
+
+  // Cancelled state
+  cancelledContainer: { flex: 1, justifyContent: 'center', paddingHorizontal: 24 },
+  cancelledCard: {
+    backgroundColor: COLORS.surface, borderRadius: 20, borderWidth: 1, borderColor: '#EF444433',
+    padding: 32, alignItems: 'center', gap: 12,
+  },
+  cancelledTitle: { fontSize: 22, fontWeight: '900', color: '#EF4444' },
+  cancelledSub: { fontSize: 14, color: COLORS.textSecondary, textAlign: 'center' },
+  cancelledRefund: { fontSize: 13, color: COLORS.textMuted, textAlign: 'center', marginTop: 4 },
 
   // Stepper
   stepperContainer: { paddingVertical: 8, gap: 0 },

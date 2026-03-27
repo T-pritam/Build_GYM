@@ -8,8 +8,9 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { io } from 'socket.io-client';
 import { BASE_API_URL } from '@env';
 import { COLORS } from '../../constants/colors';
-import { fetchMenu } from '../../services/cafeService';
+import { fetchMenu, fetchMyOrders } from '../../services/cafeService';
 import { useCartStore, cartQty, cartTotal } from '../../store/cartStore';
+import { useActiveOrderStore } from '../../store/activeOrderStore';
 
 const { width } = Dimensions.get('window');
 const HORIZONTAL_PAD = 14;
@@ -34,6 +35,8 @@ export default function CafeScreen({ navigation }) {
   const [activeCategory,  setActiveCategory]  = useState('All');
   const [search,          setSearch]          = useState('');
   const [loading,         setLoading]         = useState(true);
+
+  const setActiveOrder = useActiveOrderStore(s => s.setActiveOrder);
 
   // Use stable individual selectors — prevents socket effect from re-running on cart changes
   const cartItems      = useCartStore(s => s.items);
@@ -67,6 +70,16 @@ export default function CafeScreen({ navigation }) {
 
   useEffect(() => {
     loadMenu();
+
+    // Check for any active order to show the HOC bar
+    fetchMyOrders({ limit: 5 })
+      .then(res => {
+        const active = (res.data.data ?? []).find(o =>
+          ['received', 'preparing', 'ready'].includes(o.status)
+        );
+        if (active) setActiveOrder(active);
+      })
+      .catch(() => {});
 
     // Single persistent socket — never re-created on cart changes
     const socket = io(SOCKET_URL, { transports: ['websocket'] });

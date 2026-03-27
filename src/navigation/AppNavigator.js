@@ -22,6 +22,7 @@ import ItemDetailScreen from '../screens/cafe/ItemDetailScreen';
 import CartScreen from '../screens/cafe/CartScreen';
 import OrderConfirmationScreen from '../screens/cafe/OrderConfirmationScreen';
 import OrderTrackingScreen from '../screens/cafe/OrderTrackingScreen';
+import OrderHistoryScreen from '../screens/cafe/OrderHistoryScreen';
 
 // Profile screens
 import ProfileScreen from '../screens/profile/ProfileScreen';
@@ -130,6 +131,11 @@ export default function AppNavigator() {
         <Stack.Screen
           name="OrderTracking"
           component={OrderTrackingScreen}
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="OrderHistory"
+          component={OrderHistoryScreen}
           options={{ animation: 'slide_from_right' }}
         />
 

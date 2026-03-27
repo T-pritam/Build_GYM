@@ -7,10 +7,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import { useCartStore, cartTotal, hasUnavailableItems } from '../../store/cartStore';
 import { placeOrder } from '../../services/cafeService';
+import { useActiveOrderStore } from '../../store/activeOrderStore';
 
 export default function CartScreen({ navigation }) {
   const { items, addItem, removeItem, clearCart } = useCartStore();
   const [placing, setPlacing] = useState(false);
+  const setActiveOrder = useActiveOrderStore(s => s.setActiveOrder);
 
   const totalCoins = cartTotal(items);
   const anyUnavailable = hasUnavailableItems(items);
@@ -36,7 +38,9 @@ export default function CartScreen({ navigation }) {
       }));
       const res = await placeOrder({ items: orderItems });
       clearCart();
-      navigation.replace('OrderConfirmation', { order: res.data.data });
+      const newOrder = res.data.data;
+      setActiveOrder(newOrder);
+      navigation.replace('OrderConfirmation', { order: newOrder });
     } catch (e) {
       const msg = e?.response?.data?.message ?? 'Failed to place order. Please try again.';
       Alert.alert('Order Failed', msg);

@@ -9,6 +9,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS } from '../constants/colors';
+import ActiveOrderBar from './ActiveOrderBar';
 
 export default function CustomTabBar({ state, descriptors, navigation }) {
   const tabs = [
@@ -21,6 +22,7 @@ export default function CustomTabBar({ state, descriptors, navigation }) {
 
   return (
     <View style={styles.wrapper}>
+      <ActiveOrderBar navigation={navigation} />
       <View style={styles.bar}>
         {/* Home tab */}
         <TabItem
