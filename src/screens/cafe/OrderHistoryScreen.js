@@ -6,6 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import { fetchMyOrders } from '../../services/cafeService';
+import { useActiveOrderStore } from '../../store/activeOrderStore';
 
 const STATUS_COLORS = {
   received:  '#3B82F6',
@@ -23,15 +24,14 @@ const STATUS_LABELS = {
   cancelled: 'Cancelled',
 };
 
-function timeAgo(iso) {
-  if (!iso) return '';
-  const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60_000);
-  if (mins < 1)  return 'Just now';
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24)  return `${hrs}h ago`;
-  return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
-}
+function timeAgo(createdAt) {
+    const mins = Math.floor((Date.now() - new Date(createdAt).getTime()) / 60_000);
+    if (mins < 1)  return 'Just now';
+    if (mins < 60) return `${mins} min ago`;
+    return new Date(createdAt).toLocaleString('en-IN', {
+      day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true,
+    });
+  }
 
 function OrderRow({ order, onPress }) {
   const statusColor = STATUS_COLORS[order.status] ?? '#555';
@@ -53,12 +53,13 @@ function OrderRow({ order, onPress }) {
         </View>
         <Text style={styles.timeText}>{timeAgo(order.createdAt)}</Text>
       </View>
-      <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} style={styles.chevron} />
+      {/* <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} style={styles.chevron} /> */}
     </TouchableOpacity>
   );
 }
 
 export default function OrderHistoryScreen({ navigation }) {
+  const activeOrder = useActiveOrderStore(s => s.activeOrder);
   const [orders, setOrders]         = useState([]);
   const [loading, setLoading]       = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -96,7 +97,12 @@ export default function OrderHistoryScreen({ navigation }) {
   }, [hasMore, loadingMore, nextCursor, loadOrders]);
 
   const handlePress = (order) => {
-    navigation.navigate('OrderTracking', { orderId: order.id, order });
+    // If this is the current active order, use the store version which has the OTP
+    const enriched =
+      activeOrder?.id === order.id && activeOrder?.pickupOtp
+        ? { ...order, pickupOtp: activeOrder.pickupOtp }
+        : order;
+    navigation.navigate('OrderTracking', { orderId: order.id, order: enriched });
   };
 
   const renderFooter = () => {

@@ -1,12 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { io } from 'socket.io-client';
 import { BASE_API_URL } from '@env';
 import { COLORS } from '../../constants/colors';
 import { fetchOrderById } from '../../services/cafeService';
+import { useActiveOrderStore } from '../../store/activeOrderStore';
 
 // Derive socket URL — strip /api suffix
 const SOCKET_URL = BASE_API_URL.replace(/\/api\/?$/, '');
@@ -18,6 +19,13 @@ const STEP_LABELS = {
   ready:     'Ready for Pickup',
   done:      'Completed',
 };
+
+function fmtTs(iso) {
+  if (!iso) return null;
+  return new Date(iso).toLocaleString('en-IN', {
+    day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true,
+  });
+}
 
 function StepIcon({ stepStatus }) {
   if (stepStatus === 'done') {
@@ -45,6 +53,7 @@ export default function OrderTrackingScreen({ navigation, route }) {
   const { orderId, order: initialOrder } = route?.params || {};
   const [order, setOrder] = useState(initialOrder ?? null);
   const socketRef = useRef(null);
+  const storedActive = useActiveOrderStore(s => s.activeOrder);
 
   // Fetch order from API when navigating from history/transactions (no initialOrder)
   useEffect(() => {
@@ -66,9 +75,17 @@ export default function OrderTrackingScreen({ navigation, route }) {
       socket.emit('join:order', orderId);
     });
 
-    socket.on('order:status_updated', ({ orderId: id, status }) => {
+    socket.on('order:status_updated', ({ orderId: id, status, preparingAt, readyAt, completedAt, cancelledAt, cancelNote }) => {
       if (id === orderId) {
-        setOrder((prev) => prev ? { ...prev, status } : prev);
+        setOrder((prev) => prev ? {
+          ...prev,
+          status,
+          ...(preparingAt  ? { preparingAt }  : {}),
+          ...(readyAt      ? { readyAt }      : {}),
+          ...(completedAt  ? { completedAt }  : {}),
+          ...(cancelledAt  ? { cancelledAt }  : {}),
+          ...(cancelNote   ? { cancelNote }   : {}),
+        } : prev);
       }
     });
 
@@ -97,6 +114,15 @@ export default function OrderTrackingScreen({ navigation, route }) {
             <Text style={styles.cancelledSub}>
               Your order {order.ref} was cancelled.
             </Text>
+            {order.cancelledAt ? (
+              <Text style={styles.cancelledTime}>{fmtTs(order.cancelledAt)}</Text>
+            ) : null}
+            {order.cancelNote ? (
+              <View style={styles.cancelNoteBox}>
+                <Ionicons name="chatbubble-outline" size={14} color="#888" />
+                <Text style={styles.cancelNoteText}>"{order.cancelNote}"</Text>
+              </View>
+            ) : null}
             <Text style={styles.cancelledRefund}>
               {order.totalCoins} Build Coins have been refunded to your wallet.
             </Text>
@@ -108,21 +134,27 @@ export default function OrderTrackingScreen({ navigation, route }) {
 
   const currentStatusIdx = STATUS_STEPS.indexOf(order?.status ?? 'received');
 
+  // Per-status timestamps
+  const timestamps = {
+    received:  order?.createdAt,
+    preparing: order?.preparingAt,
+    ready:     order?.readyAt,
+    done:      order?.completedAt,
+  };
+
   // Build step states relative to current status
-  const steps = STATUS_STEPS.slice(0, 3).map((key, i) => {
+  const steps = STATUS_STEPS.slice(0, 4).map((key, i) => {
     let stepStatus;
     if (i < currentStatusIdx)       stepStatus = 'done';
     else if (i === currentStatusIdx) stepStatus = 'active';
     else                             stepStatus = 'pending';
-    return { key, label: STEP_LABELS[key], stepStatus };
+    return { key, label: STEP_LABELS[key], stepStatus, ts: timestamps[key] };
   });
 
-  const otp = order?.pickupOtp ?? '------';
-
-  function timeStr(iso) {
-    if (!iso) return '—';
-    return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  }
+  const otp =
+    order?.pickupOtp ??
+    (storedActive?.id === order?.id ? storedActive?.pickupOtp : null) ??
+    '------';
 
   return (
     <View style={styles.container}>
@@ -160,6 +192,11 @@ export default function OrderTrackingScreen({ navigation, route }) {
                 ]}>
                   {step.label}
                 </Text>
+                {step.ts ? (
+                  <Text style={styles.stepTs}>{fmtTs(step.ts)}</Text>
+                ) : step.stepStatus !== 'pending' ? null : (
+                  <Text style={styles.stepTsPending}>—</Text>
+                )}
               </View>
             </View>
           ))}
@@ -186,7 +223,7 @@ export default function OrderTrackingScreen({ navigation, route }) {
             <View style={styles.detailsMeta}>
               <View style={styles.detailsMetaRow}>
                 <Text style={styles.detailsMetaLabel}>Order time:</Text>
-                <Text style={styles.detailsMetaValue}>{timeStr(order.createdAt)}</Text>
+                <Text style={styles.detailsMetaValue}>{fmtTs(order.createdAt) ?? '—'}</Text>
               </View>
               <View style={styles.detailsMetaRow}>
                 <Text style={styles.detailsMetaLabel}>Total:</Text>
@@ -194,21 +231,39 @@ export default function OrderTrackingScreen({ navigation, route }) {
                   {order.totalCoins} coins
                 </Text>
               </View>
-              <View style={styles.detailsMetaRow}>
-                <Text style={styles.detailsMetaLabel}>Items:</Text>
-                <Text style={styles.detailsMetaValue}>
-                  {order.items?.map((i) => `${i.itemName} ×${i.qty}`).join(', ')}
-                </Text>
-              </View>
             </View>
+
+            {/* Items list with images */}
+            {order.items?.length > 0 && (
+              <View style={styles.itemsList}>
+                {order.items.map((item, i) => (
+                  <View key={item.id ?? i} style={[styles.itemRow, i < order.items.length - 1 && styles.itemRowBorder]}>
+                    {item.imageUrl ? (
+                      <Image source={{ uri: item.imageUrl }} style={styles.itemThumb} />
+                    ) : (
+                      <View style={[styles.itemThumb, styles.itemThumbPlaceholder]}>
+                        <Ionicons name="fast-food-outline" size={18} color="#555" />
+                      </View>
+                    )}
+                    <View style={styles.itemInfo}>
+                      <Text style={styles.itemName}>{item.itemName}</Text>
+                      <Text style={styles.itemQty}>×{item.qty}</Text>
+                    </View>
+                    <Text style={styles.itemPrice}>{item.itemPriceCoins * item.qty} coins</Text>
+                  </View>
+                ))}
+              </View>
+            )}
           </View>
         )}
 
         {/* Notification hint */}
-        <View style={styles.notifHint}>
-          <Ionicons name="notifications-outline" size={14} color={COLORS.textMuted} />
-          <Text style={styles.notifHintText}>You'll be notified when your order is ready.</Text>
-        </View>
+        {order?.status !== 'done' && (
+          <View style={styles.notifHint}>
+            <Ionicons name="notifications-outline" size={14} color={COLORS.textMuted} />
+            <Text style={styles.notifHintText}>You'll be notified when your order is ready.</Text>
+          </View>
+        )}
       </ScrollView>
     </View>
   );
@@ -235,10 +290,13 @@ const styles = StyleSheet.create({
   cancelledContainer: { flex: 1, justifyContent: 'center', paddingHorizontal: 24 },
   cancelledCard: {
     backgroundColor: COLORS.surface, borderRadius: 20, borderWidth: 1, borderColor: '#EF444433',
-    padding: 32, alignItems: 'center', gap: 12,
+    padding: 32, alignItems: 'center', gap: 10,
   },
   cancelledTitle: { fontSize: 22, fontWeight: '900', color: '#EF4444' },
   cancelledSub: { fontSize: 14, color: COLORS.textSecondary, textAlign: 'center' },
+  cancelledTime: { fontSize: 12, color: '#888' },
+  cancelNoteBox: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, paddingHorizontal: 8 },
+  cancelNoteText: { fontSize: 13, color: '#888', fontStyle: 'italic', flex: 1, textAlign: 'center' },
   cancelledRefund: { fontSize: 13, color: COLORS.textMuted, textAlign: 'center', marginTop: 4 },
 
   // Stepper
@@ -257,12 +315,14 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center',
   },
   stepPendingDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.textMuted },
-  stepLine: { width: 2, height: 40, backgroundColor: COLORS.border, marginVertical: 2 },
+  stepLine: { width: 2, height: 44, backgroundColor: COLORS.border, marginVertical: 2 },
   stepLineDone: { backgroundColor: '#22C55E' },
   stepContent: { paddingTop: 2, paddingBottom: 16, flex: 1 },
   stepLabel: { fontSize: 15, fontWeight: '600', color: COLORS.textMuted },
   stepLabelDone: { color: '#22C55E' },
   stepLabelActive: { color: COLORS.secondary },
+  stepTs: { fontSize: 11, color: COLORS.textMuted, marginTop: 2 },
+  stepTsPending: { fontSize: 11, color: '#333', marginTop: 2 },
 
   // OTP card
   otpCard: {
@@ -281,12 +341,26 @@ const styles = StyleSheet.create({
 
   // Details card
   detailsCard: {
-    backgroundColor: COLORS.surface, borderRadius: 14, borderWidth: 1, borderColor: COLORS.border, padding: 20,
+    backgroundColor: COLORS.surface, borderRadius: 14, borderWidth: 1, borderColor: COLORS.border, overflow: 'hidden',
   },
-  detailsMeta: { gap: 10 },
+  detailsMeta: { gap: 10, padding: 20, paddingBottom: 12 },
   detailsMetaRow: { flexDirection: 'row', justifyContent: 'space-between' },
   detailsMetaLabel: { fontSize: 13, color: COLORS.textMuted },
   detailsMetaValue: { fontSize: 13, color: COLORS.textSecondary, flex: 1, textAlign: 'right', marginLeft: 8 },
+
+  // Items list
+  itemsList: { borderTopWidth: 1, borderTopColor: COLORS.border },
+  itemRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 12 },
+  itemRowBorder: { borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  itemThumb: { width: 48, height: 48, borderRadius: 10 },
+  itemThumbPlaceholder: {
+    backgroundColor: '#1A1A1A', borderWidth: 1, borderColor: COLORS.border,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  itemInfo: { flex: 1 },
+  itemName: { fontSize: 14, fontWeight: '600', color: COLORS.white },
+  itemQty:  { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
+  itemPrice: { fontSize: 13, fontWeight: '700', color: COLORS.secondary },
 
   // Notification hint
   notifHint: {

@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useActiveOrderStore } from '../store/activeOrderStore';
 import { getSocket } from '../services/socketService';
+import { fetchMyOrders } from '../services/cafeService';
 import { COLORS } from '../constants/colors';
 
 const STATUS_LABELS = {
@@ -14,7 +15,34 @@ const STATUS_LABELS = {
 const ACTIVE_STATUSES = ['received', 'preparing', 'ready'];
 
 export default function ActiveOrderBar({ navigation }) {
-  const { activeOrder, setActiveOrder, clearActiveOrder } = useActiveOrderStore();
+  const { activeOrder, setActiveOrder, updateOrderStatus, clearActiveOrder } = useActiveOrderStore();
+
+  // Run once on mount — after store hydration — to populate bar immediately on any tab
+  useEffect(() => {
+    const checkApi = async () => {
+      try {
+        const res = await fetchMyOrders({ limit: 5 });
+        const active = (res.data.data ?? []).find(o =>
+          ['received', 'preparing', 'ready'].includes(o.status)
+        );
+        if (active) {
+          const stored = useActiveOrderStore.getState().activeOrder;
+          if (stored?.id === active.id) {
+            updateOrderStatus(active.status);
+          } else {
+            setActiveOrder(active);
+          }
+        }
+      } catch {}
+    };
+
+    if (useActiveOrderStore.persist.hasHydrated()) {
+      checkApi();
+    } else {
+      const unsub = useActiveOrderStore.persist.onFinishHydration(checkApi);
+      return () => unsub?.();
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Listen for real-time status updates on the active order
   useEffect(() => {
@@ -26,7 +54,7 @@ export default function ActiveOrderBar({ navigation }) {
       if (status === 'done' || status === 'cancelled') {
         clearActiveOrder();
       } else {
-        setActiveOrder({ ...activeOrder, status });
+        updateOrderStatus(status);
       }
     };
 
