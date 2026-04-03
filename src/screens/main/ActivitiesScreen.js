@@ -1,20 +1,57 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar,
+  ActivityIndicator, RefreshControl, Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
+import { fetchActivities } from '../../services/activityService';
 
-const ACTIVITIES = [
-  { id: 'yoga',    label: 'Yoga',       duration: '45 min', cost: 80,  emoji: '🧘', color: ['#7C3AED', '#4C1D95'], icon: 'person-outline' },
-  { id: 'boxing',  label: 'Boxing',     duration: '45 min', cost: 80,  emoji: '🥊', color: ['#DC2626', '#7F1D1D'], icon: 'fitness-outline' },
-  { id: 'pickle',  label: 'Pickleball', duration: '45 min', cost: 80,  emoji: '🏓', color: ['#16A34A', '#14532D'], icon: 'tennisball-outline' },
-  { id: 'hiit',    label: 'HIIT',       duration: '45 min', cost: 80,  emoji: '⚡', color: ['#D97706', '#78350F'], icon: 'flash-outline' },
-  { id: 'sauna',   label: 'Sauna & Steam', duration: '45 min', cost: 80, emoji: '♨️', color: ['#B45309', '#451A03'], icon: 'water-outline' },
-  { id: 'cycle',   label: 'Cycling',    duration: '30 min', cost: 60,  emoji: '🚴', color: ['#2563EB', '#1E3A8A'], icon: 'bicycle-outline' },
-];
+// Fallback colors/emojis for activities without cover images
+const FALLBACK_STYLE = {
+  'Yoga':           { emoji: '🧘', color: ['#7C3AED', '#4C1D95'] },
+  'Boxing':         { emoji: '🥊', color: ['#DC2626', '#7F1D1D'] },
+  'Pickleball':     { emoji: '🏓', color: ['#16A34A', '#14532D'] },
+  'HIIT':           { emoji: '⚡', color: ['#D97706', '#78350F'] },
+  'Sauna & Steam':  { emoji: '♨️', color: ['#B45309', '#451A03'] },
+  'Cycling':        { emoji: '🚴', color: ['#2563EB', '#1E3A8A'] },
+};
+const DEFAULT_STYLE = { emoji: '🏋️', color: ['#6B7280', '#374151'] };
 
 export default function ActivitiesScreen({ navigation }) {
+  const [activities, setActivities] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadActivities = useCallback(async () => {
+    try {
+      const res = await fetchActivities();
+      setActivities(res.data?.data || []);
+    } catch (err) {
+      console.warn('Failed to load activities:', err.message);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => { loadActivities(); }, [loadActivities]);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    loadActivities();
+  }, [loadActivities]);
+
+  const getStyle = (name) => FALLBACK_STYLE[name] || DEFAULT_STYLE;
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={COLORS.secondary} />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#000" />
@@ -34,38 +71,60 @@ export default function ActivitiesScreen({ navigation }) {
 
       <Text style={styles.subtitle}>Book sessions & amenities with Build Coins</Text>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
-        <View style={styles.grid}>
-          {ACTIVITIES.map((act) => (
-            <TouchableOpacity
-              key={act.id}
-              style={styles.card}
-              onPress={() => navigation.navigate('ActivityDetail', { activity: act })}
-              activeOpacity={0.85}
-            >
-              {/* Hero color block */}
-              <View style={[styles.heroBlock, { backgroundColor: act.color[1] }]}>
-                <View style={[styles.heroGradient, { backgroundColor: act.color[0] + '99' }]} />
-                <Text style={styles.heroEmoji}>{act.emoji}</Text>
-                <Text style={styles.heroLabel}>{act.label}</Text>
-              </View>
-
-              {/* Info footer */}
-              <View style={styles.cardFooter}>
-                <View style={styles.cardMeta}>
-                  <Text style={styles.cardDuration}>{act.duration}</Text>
-                  <Text style={styles.cardDot}>·</Text>
-                  <Text style={styles.cardCost}>₿ {act.cost}</Text>
-                </View>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scroll}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.secondary} />}
+      >
+        {activities.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Ionicons name="fitness-outline" size={48} color="#555" />
+            <Text style={styles.emptyText}>No activities available</Text>
+          </View>
+        ) : (
+          <View style={styles.grid}>
+            {activities.map((act) => {
+              const style = getStyle(act.name);
+              return (
                 <TouchableOpacity
-                  onPress={() => navigation.navigate('ActivityDetail', { activity: act })}
+                  key={act.id}
+                  style={styles.card}
+                  onPress={() => navigation.navigate('ActivityDetail', { activity: act, fallbackStyle: style })}
+                  activeOpacity={0.85}
                 >
-                  <Text style={styles.bookNow}>BOOK NOW →</Text>
+                  {/* Hero color block */}
+                  {act.coverImageUrl ? (
+                    <View style={styles.heroBlock}>
+                      <Image source={{ uri: act.coverImageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+                      <View style={[styles.heroGradient, { backgroundColor: 'rgba(0,0,0,0.4)' }]} />
+                      <Text style={styles.heroLabel}>{act.name}</Text>
+                    </View>
+                  ) : (
+                    <View style={[styles.heroBlock, { backgroundColor: style.color[1] }]}>
+                      <View style={[styles.heroGradient, { backgroundColor: style.color[0] + '99' }]} />
+                      <Text style={styles.heroEmoji}>{style.emoji}</Text>
+                      <Text style={styles.heroLabel}>{act.name}</Text>
+                    </View>
+                  )}
+
+                  {/* Info footer */}
+                  <View style={styles.cardFooter}>
+                    <View style={styles.cardMeta}>
+                      <Text style={styles.cardDuration}>{act.durationMinutes} min</Text>
+                      <Text style={styles.cardDot}>·</Text>
+                      <Text style={styles.cardCost}>₿ {act.coinPrice}</Text>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => navigation.navigate('ActivityDetail', { activity: act, fallbackStyle: style })}
+                    >
+                      <Text style={styles.bookNow}>BOOK NOW →</Text>
+                    </TouchableOpacity>
+                  </View>
                 </TouchableOpacity>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </View>
+              );
+            })}
+          </View>
+        )}
 
         <View style={{ height: 100 }} />
       </ScrollView>
@@ -115,4 +174,7 @@ const styles = StyleSheet.create({
   cardDot: { fontSize: 12, color: '#555' },
   cardCost: { fontSize: 12, color: COLORS.secondary, fontWeight: '700' },
   bookNow: { fontSize: 10, fontWeight: '900', color: COLORS.secondary, letterSpacing: 1.5 },
+
+  emptyState: { alignItems: 'center', paddingTop: 80, gap: 12 },
+  emptyText: { fontSize: 16, color: '#666', fontWeight: '600' },
 });

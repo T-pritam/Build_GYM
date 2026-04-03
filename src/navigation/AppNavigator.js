@@ -49,6 +49,8 @@ import LeaderboardScreen from '../screens/main/LeaderboardScreen';
 import ActivitiesScreen from '../screens/main/ActivitiesScreen';
 import ActivityDetailScreen from '../screens/main/ActivityDetailScreen';
 import MyBookingsScreen from '../screens/main/MyBookingsScreen';
+import BookingConfirmationScreen from '../screens/main/BookingConfirmationScreen';
+import BookingQRScreen from '../screens/main/BookingQRScreen';
 import TrainersScreen from '../screens/main/TrainersScreen';
 
 // Custom tab bar
@@ -76,17 +78,25 @@ function MainTabs() {
 
 export default function AppNavigator() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const isLoading       = useAuthStore((s) => s.isLoading);
+  const initialize      = useAuthStore((s) => s.initialize);
+
+  // Bootstrap: read SecureStore once on mount before any navigation decision.
+  useEffect(() => {
+    initialize();
+  }, []);
 
   /**
    * When the user is logged out from anywhere (token refresh failure, manual
    * logout, etc.) reset the stack back to the Login screen so they can't
    * navigate back into protected screens.
+   * Guard with isLoading so we don't fire before SecureStore is read on launch.
    */
   useEffect(() => {
-    if (!isAuthenticated && navigationRef.isReady()) {
+    if (!isLoading && !isAuthenticated && navigationRef.isReady()) {
       navigationRef.reset({ index: 0, routes: [{ name: 'Login' }] });
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, isLoading]);
 
   return (
     <NavigationContainer ref={navigationRef}>
@@ -172,6 +182,16 @@ export default function AppNavigator() {
           name="MyBookings"
           component={MyBookingsScreen}
           options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="BookingConfirmation"
+          component={BookingConfirmationScreen}
+          options={{ animation: 'fade', gestureEnabled: false }}
+        />
+        <Stack.Screen
+          name="BookingQR"
+          component={BookingQRScreen}
+          options={{ animation: 'slide_from_bottom' }}
         />
         <Stack.Screen name="Trainers" component={TrainersScreen} />
         <Stack.Screen

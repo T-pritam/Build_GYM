@@ -33,11 +33,8 @@ export default function App() {
     let appStateSubscription;
 
     const initializeApp = async () => {
-      // ── 1. Restore auth session ───────────────────────────────────────────
-      const { initialize } = useAuthStore.getState();
-      await initialize().catch(() => {});
-
-      // ── 2. Bootstrap unread count (only when authenticated) ───────────────
+      // ── 1. Bootstrap unread count (only when authenticated) ───────────────
+      // Note: initialize() is called in AppNavigator on mount — no need here.
       const { isAuthenticated } = useAuthStore.getState();
       if (isAuthenticated) {
         useAnnouncementStore.getState().refreshUnreadCount().catch(() => {});

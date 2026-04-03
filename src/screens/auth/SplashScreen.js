@@ -72,8 +72,6 @@ export default function SplashScreen({ navigation }) {
   const scaleAnim     = useRef(new Animated.Value(0.75)).current;
   const taglineAnim   = useRef(new Animated.Value(0)).current;
   const lineWidthAnim = useRef(new Animated.Value(0)).current;
-  const initialize    = useAuthStore((s) => s.initialize);
-
   useEffect(() => {
     // Run animation independently (fire-and-forget)
     Animated.sequence([
@@ -87,14 +85,10 @@ export default function SplashScreen({ navigation }) {
       ]),
     ]).start();
 
-    // Wait for BOTH the minimum animation time AND auth restore to finish
-    // before deciding where to navigate. Previously initialize() was not
-    // awaited, so the 3.2s timer could fire before SecureStore I/O completed.
+    // AppNavigator already called initialize() on mount — SecureStore is read
+    // before this screen ever mounts. Just wait for the animation minimum.
     let cancelled = false;
-    Promise.all([
-      initialize(),
-      new Promise((resolve) => setTimeout(resolve, 3200)),
-    ]).then(() => {
+    new Promise((resolve) => setTimeout(resolve, 3200)).then(() => {
       if (cancelled) return;
       const { isAuthenticated, user } = useAuthStore.getState();
       if (isAuthenticated && user) {
