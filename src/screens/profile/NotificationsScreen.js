@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import { fetchAnnouncements, markAnnouncementRead } from '../../services/announcementService';
 import { useAnnouncementStore } from '../../store/announcementStore';
+import SafeBottomBar from '../../components/SafeBottomBar';
 
 // ─── Type config ──────────────────────────────────────────────────────────────
 const TYPE_LABEL = {
@@ -132,7 +133,7 @@ export default function NotificationsScreen({ navigation }) {
   const nonPinned = items.filter((a) => !a.pinned);
 
   return (
-    <View style={s.root}>
+    <SafeBottomBar style={s.root}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
 
       {/* Header */}
@@ -218,7 +219,7 @@ export default function NotificationsScreen({ navigation }) {
         animationType="slide"
         onRequestClose={handleClose}
       >
-        <View style={s.modalBackdrop}>
+        <SafeBottomBar style={s.modalBackdrop}>
           <TouchableOpacity style={s.modalDismiss} activeOpacity={1} onPress={handleClose} />
           <View style={s.modalSheet}>
             {selected && (
@@ -245,9 +246,9 @@ export default function NotificationsScreen({ navigation }) {
               </>
             )}
           </View>
-        </View>
+        </SafeBottomBar>
       </Modal>
-    </View>
+    </SafeBottomBar>
   );
 }
 
