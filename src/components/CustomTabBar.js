@@ -8,10 +8,13 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS } from '../constants/colors';
 import ActiveOrderBar from './ActiveOrderBar';
 
 export default function CustomTabBar({ state, descriptors, navigation }) {
+  const insets = useSafeAreaInsets();
+
   const tabs = [
     { name: 'Home', icon: 'home-outline', activeIcon: 'home', label: 'Home' },
     { name: 'Cafe', icon: 'restaurant-outline', activeIcon: 'restaurant', label: 'Café' },
@@ -23,7 +26,7 @@ export default function CustomTabBar({ state, descriptors, navigation }) {
   return (
     <View style={styles.wrapper}>
       <ActiveOrderBar navigation={navigation} />
-      <View style={styles.bar}>
+      <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, 8) }]}>
         {/* Home tab */}
         <TabItem
           icon="home-outline"
@@ -115,7 +118,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface,
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
-    paddingBottom: Platform.OS === 'ios' ? 24 : 8,
     paddingTop: 10,
     paddingHorizontal: 8,
   },
@@ -136,14 +138,14 @@ const styles = StyleSheet.create({
     color: COLORS.secondary,
     fontWeight: '800',
   },
-  tabActiveBar: {
-    position: 'absolute',
-    bottom: -10,
-    width: 20,
-    height: 2,
-    borderRadius: 1,
-    backgroundColor: COLORS.secondary,
-  },
+  // tabActiveBar: {
+  //   position: 'absolute',
+  //   bottom: -10,
+  //   width: 20,
+  //   height: 2,
+  //   borderRadius: 1,
+  //   backgroundColor: COLORS.secondary,
+  // },
   centerSpacer: {
     width: 70,
   },

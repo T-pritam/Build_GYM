@@ -7,6 +7,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import { membership } from '../../constants/dummyData';
+import SafeBottomBar from '../../components/SafeBottomBar';
 import { useAuthStore } from '../../store/authStore';
 import { useWalletStore } from '../../store/walletStore';
 import { uploadProfilePhoto, removeProfilePhoto } from '../../services/profileService';
@@ -163,7 +164,7 @@ export default function ProfileScreen({ navigation }) {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeBottomBar style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#000" />
       <View style={styles.glowTop} />
 
@@ -356,7 +357,7 @@ export default function ProfileScreen({ navigation }) {
           </Pressable>
         </Pressable>
       </Modal>
-    </View>
+    </SafeBottomBar>
   );
 }
 

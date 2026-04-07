@@ -4,6 +4,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
+import SafeBottomBar from '../../components/SafeBottomBar';
 
 const WEEK_DAYS = [
   { label: 'M', done: true }, { label: 'T', done: true }, { label: 'W', done: true },
@@ -24,7 +25,7 @@ const RECENT_VISITS = [
 
 export default function ActivityDashboardScreen({ navigation }) {
   return (
-    <View style={styles.container}>
+    <SafeBottomBar style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#000" />
       <View style={styles.glowTop} />
 
@@ -115,7 +116,7 @@ export default function ActivityDashboardScreen({ navigation }) {
 
         <View style={{ height: 100 }} />
       </ScrollView>
-    </View>
+    </SafeBottomBar>
   );
 }
 

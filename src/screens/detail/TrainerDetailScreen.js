@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
+import SafeBottomBar from '../../components/SafeBottomBar';
 
 const RECEPTION_PHONE = '+919876543210';
 
@@ -209,11 +210,11 @@ export default function TrainerDetailScreen({ navigation, route }) {
           </Text>
         </View>
 
-        <View style={{ height: 100 }} />
+        <View style={{ height: 24 }} />
       </ScrollView>
 
       {/* ── Sticky footer ──────────────────────────────────────────── */}
-      <View style={s.footer}>
+      <SafeBottomBar style={s.footer} minPadding={16}>
         <TouchableOpacity
           style={s.callBtn}
           onPress={() => Linking.openURL(`tel:${RECEPTION_PHONE}`)}
@@ -230,7 +231,7 @@ export default function TrainerDetailScreen({ navigation, route }) {
           <Ionicons name="logo-whatsapp" size={18} color="#22C55E" />
           <Text style={s.waBtnText}>WhatsApp</Text>
         </TouchableOpacity>
-      </View>
+      </SafeBottomBar>
     </View>
   );
 }
@@ -335,8 +336,7 @@ const s = StyleSheet.create({
 
   // Sticky footer
   footer: {
-    position: 'absolute', bottom: 0, left: 0, right: 0,
-    flexDirection: 'row', gap: 12, padding: 16, paddingBottom: 28,
+    flexDirection: 'row', gap: 12, padding: 16,
     backgroundColor: 'rgba(0,0,0,0.92)', borderTopWidth: 1, borderTopColor: '#333',
   },
   callBtn: {

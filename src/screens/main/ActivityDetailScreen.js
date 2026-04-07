@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
+import SafeBottomBar from '../../components/SafeBottomBar';
 import { fetchActivityDetail, fetchSlots, createBooking } from '../../services/activityService';
 import { useWalletStore } from '../../store/walletStore';
 import { getSocket } from '../../services/socketService';
@@ -277,7 +278,7 @@ export default function ActivityDetailScreen({ navigation, route }) {
 
       {/* Sticky footer CTA */}
       {selectedSlotObj && (
-        <View style={styles.footer}>
+        <SafeBottomBar style={styles.footer}>
           <TouchableOpacity
             style={[styles.confirmBtn, (booking || afterBal < 0) && { opacity: 0.5 }]}
             onPress={handleBook}
@@ -294,7 +295,7 @@ export default function ActivityDetailScreen({ navigation, route }) {
               </>
             )}
           </TouchableOpacity>
-        </View>
+        </SafeBottomBar>
       )}
     </View>
   );
@@ -370,7 +371,7 @@ const styles = StyleSheet.create({
 
   footer: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
-    paddingHorizontal: 16, paddingBottom: 34, paddingTop: 16,
+    paddingHorizontal: 16, paddingTop: 16,
     backgroundColor: 'rgba(0,0,0,0.9)',
   },
   confirmBtn: {

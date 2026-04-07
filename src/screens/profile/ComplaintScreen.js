@@ -19,6 +19,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { COLORS } from '../../constants/colors';
 import { complaintCategories } from '../../constants/dummyData';
 import { submitComplaint, uploadComplaintImages } from '../../services/complaintService';
+import SafeBottomBar from '../../components/SafeBottomBar';
 
 export default function ComplaintScreen({ navigation }) {
   const [selectedCategory, setSelectedCategory] = useState('');
@@ -133,7 +134,7 @@ export default function ComplaintScreen({ navigation }) {
   }
 
   return (
-    <View style={styles.container}>
+    <SafeBottomBar style={styles.container}>
       <StatusBar barStyle="light-content" />
       <LinearGradient colors={['#1A0800', '#0D0D0D']} style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
@@ -271,7 +272,7 @@ export default function ComplaintScreen({ navigation }) {
           <View style={{ height: 40 }} />
         </ScrollView>
       </KeyboardAvoidingView>
-    </View>
+    </SafeBottomBar>
   );
 }
 

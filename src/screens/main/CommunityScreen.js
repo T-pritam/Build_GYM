@@ -8,6 +8,7 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
+import SafeBottomBar from '../../components/SafeBottomBar';
 import { communityArticles, faqs, reviews } from '../../constants/dummyData';
 import { fetchPublishedBlogs } from '../../services/blogService';
 
@@ -328,7 +329,7 @@ export default function CommunityScreen({ navigation }) {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeBottomBar style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
       <View style={styles.glowTop} pointerEvents="none" />
 
@@ -441,7 +442,7 @@ export default function CommunityScreen({ navigation }) {
           <View style={{ height: 20 }} />
         </ScrollView>
       )}
-    </View>
+    </SafeBottomBar>
   );
 }
 

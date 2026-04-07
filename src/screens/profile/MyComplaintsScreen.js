@@ -6,6 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import { getMyComplaints } from '../../services/complaintService';
+import SafeBottomBar from '../../components/SafeBottomBar';
 
 const PAGE_SIZE = 15;
 
@@ -152,7 +153,7 @@ export default function MyComplaintsScreen({ navigation }) {
   }
 
   return (
-    <View style={styles.container}>
+    <SafeBottomBar style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
 
       {/* Header */}
@@ -213,7 +214,7 @@ export default function MyComplaintsScreen({ navigation }) {
           </View>
         }
       />
-    </View>
+    </SafeBottomBar>
   );
 }
 

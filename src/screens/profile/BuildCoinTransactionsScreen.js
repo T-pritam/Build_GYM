@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import { useWalletStore } from '../../store/walletStore';
 import { fetchPackages } from '../../services/walletService';
+import SafeBottomBar from '../../components/SafeBottomBar';
 
 export default function BuildCoinTransactionsScreen({ navigation }) {
   const {
@@ -88,7 +89,7 @@ export default function BuildCoinTransactionsScreen({ navigation }) {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeBottomBar style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#000" />
       <View style={styles.glowTop} />
 
@@ -268,7 +269,7 @@ export default function BuildCoinTransactionsScreen({ navigation }) {
 
         <View style={{ height: 100 }} />
       </ScrollView>
-    </View>
+    </SafeBottomBar>
   );
 }
 

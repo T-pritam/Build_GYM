@@ -20,6 +20,7 @@ import DatePickerModal from '../../components/DatePickerModal';
 import { useAuthStore } from '../../store/authStore';
 import { isAtLeast16 } from '../../utils/ageValidator';
 import api from '../../services/apiService';
+import SafeBottomBar from '../../components/SafeBottomBar';
 import {
   FITNESS_LEVELS,
   HEALTH_CONDITIONS,
@@ -910,7 +911,7 @@ export default function OnboardingScreen({ route, navigation }) {
   const RENDERS = [renderStep1, renderStep2, renderStep3, renderStep4, renderStep5, renderStep6];
 
   return (
-    <View style={s.container}>
+    <SafeBottomBar style={s.container}>
       <StatusBar barStyle="light-content" backgroundColor="#000" />
 
       {/* ── Top Bar ── */}
@@ -975,7 +976,7 @@ export default function OnboardingScreen({ route, navigation }) {
           )}
         </TouchableOpacity>
       </View>
-    </View>
+    </SafeBottomBar>
   );
 }
 

@@ -422,11 +422,11 @@ const styles = StyleSheet.create({
 
   // Floating cart bar — sits just above the tab bar (screen area already excludes tab height)
   cartBar: {
-    position: 'absolute', bottom: 10, left: 16, right: 16,
+    position: 'absolute', bottom: 30, left: 16, right: 16,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     backgroundColor: COLORS.surface, borderRadius: 16, borderWidth: 1,
     borderColor: COLORS.secondaryBorder, padding: 14,
-    shadowColor: COLORS.secondary, shadowOffset: { width: 0, height: 4 },
+    // shadowColor: COLORS.secondary, shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25, shadowRadius: 12, elevation: 8,
   },
   cartBarQty: { fontSize: 13, fontWeight: '700', color: COLORS.textSecondary },

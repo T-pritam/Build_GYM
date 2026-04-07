@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
+import SafeBottomBar from '../../components/SafeBottomBar';
 import { useCartStore, cartTotal, hasUnavailableItems } from '../../store/cartStore';
 import { placeOrder } from '../../services/cafeService';
 import { useActiveOrderStore } from '../../store/activeOrderStore';
@@ -174,7 +175,7 @@ export default function CartScreen({ navigation }) {
 
       {/* Footer */}
       {items.length > 0 && (
-        <View style={styles.footer}>
+        <SafeBottomBar style={styles.footer}>
           <View style={styles.footerTotal}>
             <Text style={styles.footerTotalLabel}>Total:</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
@@ -197,7 +198,7 @@ export default function CartScreen({ navigation }) {
               </>
             )}
           </TouchableOpacity>
-        </View>
+        </SafeBottomBar>
       )}
     </View>
   );
@@ -290,7 +291,7 @@ const styles = StyleSheet.create({
 
   // Footer
   footer: {
-    paddingHorizontal: 16, paddingTop: 12, paddingBottom: 34,
+    paddingHorizontal: 16, paddingTop: 12,
     borderTopWidth: 1, borderTopColor: COLORS.border, backgroundColor: COLORS.background, gap: 12,
   },
   footerTotal: {

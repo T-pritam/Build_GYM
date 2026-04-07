@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, StatusBar, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
+import SafeBottomBar from '../../components/SafeBottomBar';
 
 const SECTIONS = [
   {
@@ -35,7 +36,7 @@ const SECTIONS = [
 
 export default function EditProfileScreen({ navigation }) {
   return (
-    <View style={s.container}>
+    <SafeBottomBar style={s.container}>
       <StatusBar barStyle="light-content" backgroundColor="#000" />
       <View style={s.glowTop} />
 
@@ -73,7 +74,7 @@ export default function EditProfileScreen({ navigation }) {
 
         <View style={{ height: 40 }} />
       </ScrollView>
-    </View>
+    </SafeBottomBar>
   );
 }
 

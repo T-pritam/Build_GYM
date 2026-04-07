@@ -15,6 +15,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import { fetchTrainers } from '../../services/trainerService';
+import SafeBottomBar from '../../components/SafeBottomBar';
 
 export default function TrainersScreen({ navigation }) {
   const [searchText, setSearchText] = useState('');
@@ -112,7 +113,7 @@ export default function TrainersScreen({ navigation }) {
   );
 
   return (
-    <View style={styles.container}>
+    <SafeBottomBar style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
       {/* Header */}
@@ -194,7 +195,7 @@ export default function TrainersScreen({ navigation }) {
 
         <View style={{ height: 60 }} />
       </ScrollView>
-    </View>
+    </SafeBottomBar>
   );
 }
 

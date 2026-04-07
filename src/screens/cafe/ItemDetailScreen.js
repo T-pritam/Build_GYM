@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { io } from 'socket.io-client';
 import { BASE_API_URL } from '@env';
 import { COLORS } from '../../constants/colors';
+import SafeBottomBar from '../../components/SafeBottomBar';
 import { useCartStore } from '../../store/cartStore';
 
 const SOCKET_URL = BASE_API_URL.replace(/\/api\/?$/, '');
@@ -160,7 +161,7 @@ export default function ItemDetailScreen({ navigation, route }) {
       </ScrollView>
 
       {/* Sticky bottom */}
-      <View style={styles.stickyBottom}>
+      <SafeBottomBar style={styles.stickyBottom}>
         <View style={styles.qtyPill}>
           <TouchableOpacity style={styles.qtyBtn} onPress={decQty}>
             <Ionicons name="remove" size={18} color={COLORS.secondary} />
@@ -182,7 +183,7 @@ export default function ItemDetailScreen({ navigation, route }) {
             ADD TO CART
           </Text>
         </TouchableOpacity>
-      </View>
+      </SafeBottomBar>
     </View>
   );
 }
@@ -261,7 +262,7 @@ const styles = StyleSheet.create({
   stickyBottom: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingHorizontal: 16, paddingTop: 12, paddingBottom: 34,
+    paddingHorizontal: 16, paddingTop: 12,
     backgroundColor: COLORS.background + 'EE',
     borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.06)',
   },

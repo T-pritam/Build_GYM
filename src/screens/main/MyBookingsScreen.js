@@ -6,6 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import { fetchMyBookings, cancelBooking } from '../../services/activityService';
+import SafeBottomBar from '../../components/SafeBottomBar';
 
 export default function MyBookingsScreen({ navigation }) {
   const [tab, setTab] = useState('upcoming');
@@ -110,7 +111,7 @@ export default function MyBookingsScreen({ navigation }) {
   }
 
   return (
-    <View style={styles.container}>
+    <SafeBottomBar style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#000" />
       <View style={styles.glowTop} />
 
@@ -293,7 +294,7 @@ export default function MyBookingsScreen({ navigation }) {
 
         <View style={{ height: 100 }} />
       </ScrollView>
-    </View>
+    </SafeBottomBar>
   );
 }
 

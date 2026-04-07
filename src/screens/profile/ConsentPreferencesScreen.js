@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
+import SafeBottomBar from '../../components/SafeBottomBar';
 import { fetchMyProfile, updateHealthEmergency } from '../../services/customerProfileService';
 
 function Row({ icon, color, label, sub, value, onChange, locked }) {
@@ -184,7 +185,7 @@ export default function ConsentPreferencesScreen({ navigation }) {
       </ScrollView>
 
       {isDirty && (
-        <View style={s.footer}>
+        <SafeBottomBar style={s.footer}>
           <TouchableOpacity
             style={[s.saveBtn, saving && { opacity: 0.6 }]}
             onPress={handleSave}
@@ -195,7 +196,7 @@ export default function ConsentPreferencesScreen({ navigation }) {
               ? <ActivityIndicator color="#000" />
               : <Text style={s.saveBtnText}>SAVE PREFERENCES</Text>}
           </TouchableOpacity>
-        </View>
+        </SafeBottomBar>
       )}
     </View>
   );
@@ -242,7 +243,7 @@ const s = StyleSheet.create({
 
   footer: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
-    paddingHorizontal: 16, paddingVertical: 16, paddingBottom: 32,
+    paddingHorizontal: 16, paddingVertical: 16,
     backgroundColor: 'rgba(0,0,0,0.97)', borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)',
   },
   saveBtn: {

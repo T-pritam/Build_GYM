@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import { fetchMyOrders } from '../../services/cafeService';
 import { useActiveOrderStore } from '../../store/activeOrderStore';
+import SafeBottomBar from '../../components/SafeBottomBar';
 
 const STATUS_COLORS = {
   received:  '#3B82F6',
@@ -112,7 +113,7 @@ export default function OrderHistoryScreen({ navigation }) {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeBottomBar style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
       <View style={styles.glow} pointerEvents="none" />
 
@@ -149,7 +150,7 @@ export default function OrderHistoryScreen({ navigation }) {
           }
         />
       )}
-    </View>
+    </SafeBottomBar>
   );
 }
 

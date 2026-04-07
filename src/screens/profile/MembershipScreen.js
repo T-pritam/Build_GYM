@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS } from '../../constants/colors';
 import { membership, coinTransactions } from '../../constants/dummyData';
+import SafeBottomBar from '../../components/SafeBottomBar';
 
 const PLAN_FEATURES = [
   'Unlimited gym access',
@@ -26,7 +27,7 @@ export default function MembershipScreen({ navigation }) {
   const progress  = Math.max(0.05, Math.min(1, daysLeft / totalDays));
 
   return (
-    <View style={styles.container}>
+    <SafeBottomBar style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#000" />
       <View style={styles.glowTop} />
 
@@ -145,7 +146,7 @@ export default function MembershipScreen({ navigation }) {
 
         <View style={{ height: 100 }} />
       </ScrollView>
-    </View>
+    </SafeBottomBar>
   );
 }
 

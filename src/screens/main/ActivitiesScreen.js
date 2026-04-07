@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
+import SafeBottomBar from '../../components/SafeBottomBar';
 import { fetchActivities } from '../../services/activityService';
 
 // Fallback colors/emojis for activities without cover images
@@ -53,7 +54,7 @@ export default function ActivitiesScreen({ navigation }) {
   }
 
   return (
-    <View style={styles.container}>
+    <SafeBottomBar style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#000" />
       <View style={styles.glowTop} />
 
@@ -128,7 +129,7 @@ export default function ActivitiesScreen({ navigation }) {
 
         <View style={{ height: 100 }} />
       </ScrollView>
-    </View>
+    </SafeBottomBar>
   );
 }
 

@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
+import SafeBottomBar from '../../components/SafeBottomBar';
 import { fetchMyProfile, updateHealthEmergency } from '../../services/customerProfileService';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -418,7 +419,7 @@ export default function HealthEmergencyScreen({ navigation }) {
 
       {/* Sticky save — shown only when dirty */}
       {isDirty && (
-        <View style={s.stickyFooter}>
+        <SafeBottomBar style={s.stickyFooter}>
           <TouchableOpacity
             style={[s.saveBtn, saving && { opacity: 0.6 }]}
             onPress={handleSave}
@@ -430,7 +431,7 @@ export default function HealthEmergencyScreen({ navigation }) {
               : <Text style={s.saveBtnText}>SAVE CHANGES</Text>
             }
           </TouchableOpacity>
-        </View>
+        </SafeBottomBar>
       )}
 
       {/* Relationship picker modal */}
@@ -563,7 +564,7 @@ const s = StyleSheet.create({
   // Sticky footer
   stickyFooter: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
-    paddingHorizontal: 20, paddingVertical: 16, paddingBottom: 32,
+    paddingHorizontal: 20, paddingVertical: 16,
     backgroundColor: 'rgba(0,0,0,0.97)', borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)',
   },
   saveBtn: {
