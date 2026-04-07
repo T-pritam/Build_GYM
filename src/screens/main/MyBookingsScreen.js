@@ -46,11 +46,23 @@ export default function MyBookingsScreen({ navigation }) {
     loadBookings();
   }, [loadBookings]);
 
+  // Returns true if the booking can still be cancelled (> 2 hours before slot start)
+  const canCancel = (row) => {
+    try {
+      const [h, m] = row.slotStartTime.split(':').map(Number);
+      const slotDate = new Date(row.slotDate);
+      slotDate.setHours(h, m, 0, 0);
+      return slotDate - Date.now() > 2 * 60 * 60 * 1000;
+    } catch {
+      return false;
+    }
+  };
+
   const handleCancel = (row) => {
     const bookingData = row.booking;
     Alert.alert(
       'Cancel Booking',
-      `Cancel your ${row.activityName} session on ${row.slotDate}? Your ${bookingData.coinsPaid} coins will be refunded.`,
+      `Cancel your ${row.activityName} session on ${row.slotDate} at ${row.slotStartTime}?\n\n₿ ${bookingData.coinsPaid} coins will be refunded to your wallet.\n\nCancellations must be made at least 2 hours before the session.`,
       [
         { text: 'Keep Booking', style: 'cancel' },
         {
@@ -60,7 +72,7 @@ export default function MyBookingsScreen({ navigation }) {
             setCancellingId(bookingData.id);
             try {
               await cancelBooking(bookingData.id);
-              Alert.alert('Cancelled', `${bookingData.coinsPaid} coins have been refunded.`);
+              Alert.alert('Cancelled', `${bookingData.coinsPaid} coins have been refunded to your wallet.`);
               loadBookings();
             } catch (err) {
               const msg = err.response?.data?.message || err.message;
@@ -170,17 +182,40 @@ export default function MyBookingsScreen({ navigation }) {
                       <Text style={styles.qrBtnText}>QR</Text>
                     </TouchableOpacity>
 
+                    <TouchableOpacity
+                      style={styles.receiptBtn}
+                      onPress={() => navigation.navigate('TransactionDetail', {
+                        transaction: {
+                          transactionType: b.status === 'cancelled' ? 'REFUND' : 'DEBIT',
+                          itemCategory: 'SESSION',
+                          itemName: row.activityName,
+                          activityName: row.activityName,
+                          coinAmount: b.coinsPaid,
+                          referenceId: b.id,
+                          createdAt: b.createdAt,
+                          slotDate: row.slotDate,
+                          slotStartTime: row.slotStartTime,
+                          slotEndTime: row.slotEndTime,
+                          bookingRef: b.ref,
+                          bookingStatus: b.status,
+                          qrCode: b.qrCode,
+                          trainers: row.trainers,
+                        },
+                      })}
+                    >
+                      <Ionicons name="receipt-outline" size={14} color="#888" />
+                    </TouchableOpacity>
+
                     {b.status === 'confirmed' && (
-                      <TouchableOpacity
-                        onPress={() => handleCancel(row)}
-                        disabled={cancellingId === b.id}
-                      >
-                        {cancellingId === b.id ? (
-                          <ActivityIndicator size="small" color="#EF4444" />
-                        ) : (
+                      cancellingId === b.id ? (
+                        <ActivityIndicator size="small" color="#EF4444" />
+                      ) : canCancel(row) ? (
+                        <TouchableOpacity onPress={() => handleCancel(row)}>
                           <Text style={styles.cancelText}>Cancel</Text>
-                        )}
-                      </TouchableOpacity>
+                        </TouchableOpacity>
+                      ) : (
+                        <Text style={styles.cancelDisabledText}>Cannot cancel{'\n'}within 2 hrs</Text>
+                      )
                     )}
                   </View>
                 </View>
@@ -207,18 +242,43 @@ export default function MyBookingsScreen({ navigation }) {
                 const b = row.booking;
                 const ss = getStatusStyle(b.status);
                 return (
-                  <View key={b.id} style={[styles.bookingCard, styles.bookingCardPast]}>
+                  <TouchableOpacity
+                    key={b.id}
+                    style={[styles.bookingCard, styles.bookingCardPast]}
+                    activeOpacity={0.75}
+                    onPress={() => navigation.navigate('TransactionDetail', {
+                      transaction: {
+                        transactionType: b.status === 'cancelled' ? 'REFUND' : 'DEBIT',
+                        itemCategory: 'SESSION',
+                        itemName: row.activityName,
+                        activityName: row.activityName,
+                        coinAmount: b.coinsPaid,
+                        referenceId: b.id,
+                        createdAt: b.createdAt,
+                        slotDate: row.slotDate,
+                        slotStartTime: row.slotStartTime,
+                        slotEndTime: row.slotEndTime,
+                        bookingRef: b.ref,
+                        bookingStatus: b.status,
+                        qrCode: b.qrCode,
+                        trainers: row.trainers,
+                      },
+                    })}
+                  >
                     <View style={styles.bookingContent}>
                       <View style={styles.bookingTopRow}>
                         <Text style={styles.bookingTitle}>{row.activityName}</Text>
-                        <Text style={[styles.pastStatusText, { color: ss.color }]}>
-                          {b.status.charAt(0).toUpperCase() + b.status.slice(1)}
-                        </Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                          <Text style={[styles.pastStatusText, { color: ss.color }]}>
+                            {b.status.charAt(0).toUpperCase() + b.status.slice(1)}
+                          </Text>
+                          <Ionicons name="chevron-forward" size={14} color="#555" />
+                        </View>
                       </View>
                       <Text style={styles.bookingDateTime}>{row.slotDate} · {row.slotStartTime}</Text>
                       <Text style={styles.bookingRef}>Ref: {b.ref} · ₿ {b.coinsPaid}</Text>
                     </View>
-                  </View>
+                  </TouchableOpacity>
                 );
               })}
             </>
@@ -288,6 +348,11 @@ const styles = StyleSheet.create({
   qrBtnText: { fontSize: 12, fontWeight: '700', color: COLORS.secondary },
 
   cancelText: { fontSize: 13, fontWeight: '700', color: '#EF4444' },
+  cancelDisabledText: { fontSize: 10, fontWeight: '600', color: '#555', textAlign: 'right', lineHeight: 14 },
+  receiptBtn: {
+    width: 30, height: 30, borderRadius: 8, backgroundColor: '#2A2A2A',
+    alignItems: 'center', justifyContent: 'center',
+  },
 
   pastSectionLabel: {
     fontSize: 11, fontWeight: '800', color: '#555', textTransform: 'uppercase',

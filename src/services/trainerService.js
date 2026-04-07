@@ -12,3 +12,12 @@ export const fetchTrainers = async () => {
   const { data } = await api.get('/customer/trainers');
   return data.data; // array of trainer objects
 };
+
+/**
+ * GET /api/customer/my-trainer
+ * Returns the logged-in member's currently assigned trainer, or null.
+ */
+export const fetchMyTrainer = async () => {
+  const { data } = await api.get('/customer/my-trainer');
+  return data.data; // trainer object or null
+};

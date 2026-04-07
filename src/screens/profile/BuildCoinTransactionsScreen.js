@@ -201,35 +201,58 @@ export default function BuildCoinTransactionsScreen({ navigation }) {
         ) : (
           <>
             {transactions.map((t) => {
-              const isCredit = t.transactionType === 'CREDIT' || t.transactionType === 'REFUND';
-              const isCafe   = t.itemCategory === 'CAFE' && t.referenceId;
-              const RowEl    = isCafe ? TouchableOpacity : View;
+              const isCredit  = t.transactionType === 'CREDIT' || t.transactionType === 'REFUND';
+              const isRefund  = t.transactionType === 'REFUND';
+              const isSession = t.itemCategory === 'SESSION';
+              const isCafe    = t.itemCategory === 'CAFE';
+
+              // Formatted label per category
+              let label = t.itemName;
+              let iconName = isCredit ? 'add' : 'remove';
+              let iconColor = isCredit ? '#22C55E' : '#EF4444';
+              let iconBg    = isCredit ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)';
+              let sublabel  = null;
+
+              if (isSession) {
+                label     = isRefund ? `Refund: ${t.itemName}` : `Activity: ${t.itemName}`;
+                sublabel  = isRefund ? 'Session refund' : 'Session booking';
+                iconName  = isRefund ? 'refresh-circle-outline' : 'fitness-outline';
+                iconColor = isRefund ? '#3B82F6' : COLORS.secondary;
+                iconBg    = isRefund ? 'rgba(59,130,246,0.1)' : COLORS.secondaryGlow;
+              } else if (isCafe) {
+                label     = isRefund ? `Refund: ${t.itemName}` : t.itemName;
+                sublabel  = isRefund ? 'Café refund' : 'Café order';
+                iconName  = isRefund ? 'refresh-circle-outline' : 'restaurant-outline';
+                iconColor = isRefund ? '#3B82F6' : '#22C55E';
+                iconBg    = isRefund ? 'rgba(59,130,246,0.1)' : 'rgba(34,197,94,0.12)';
+              } else if (t.itemCategory === 'PURCHASE' || t.transactionType === 'CREDIT') {
+                sublabel = 'Coins added';
+                iconName  = 'add-circle-outline';
+                iconColor = '#22C55E';
+                iconBg    = 'rgba(34,197,94,0.1)';
+              }
+
               return (
-                <RowEl
+                <TouchableOpacity
                   key={t.id}
                   style={styles.txnRow}
-                  activeOpacity={0.7}
-                  onPress={isCafe ? () => navigation.navigate('OrderTracking', { orderId: t.referenceId }) : undefined}
+                  activeOpacity={0.75}
+                  onPress={() => navigation.navigate('TransactionDetail', { transaction: t })}
                 >
-                  <View style={[
-                    styles.txnIcon,
-                    { backgroundColor: isCredit ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)' },
-                  ]}>
-                    <Ionicons
-                      name={isCredit ? 'add' : 'remove'}
-                      size={18}
-                      color={isCredit ? '#22C55E' : '#EF4444'}
-                    />
+                  <View style={[styles.txnIcon, { backgroundColor: iconBg }]}>
+                    <Ionicons name={iconName} size={18} color={iconColor} />
                   </View>
                   <View style={styles.txnInfo}>
-                    <Text style={styles.txnLabel}>{t.itemName}</Text>
-                    <Text style={styles.txnDate}>{formatDate(t.createdAt)}</Text>
+                    <Text style={styles.txnLabel}>{label}</Text>
+                    <Text style={styles.txnDate}>
+                      {sublabel ? `${sublabel} · ` : ''}{formatDate(t.createdAt)}
+                    </Text>
                   </View>
                   <Text style={[styles.txnAmount, { color: isCredit ? '#22C55E' : '#EF4444' }]}>
-                    {isCredit ? '+ ₿ ' : '- ₿ '}{t.coinAmount}
+                    {isCredit ? '+ ₿ ' : '− ₿ '}{t.coinAmount}
                   </Text>
-                  {isCafe && <Ionicons name="chevron-forward" size={14} color="#555" style={{ marginLeft: 4 }} />}
-                </RowEl>
+                  <Ionicons name="chevron-forward" size={14} color="#444" style={{ marginLeft: 4 }} />
+                </TouchableOpacity>
               );
             })}
 

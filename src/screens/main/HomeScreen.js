@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAnnouncementStore } from '../../store/announcementStore';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  StatusBar, Linking, ActivityIndicator, Image,
+  StatusBar, Linking, ActivityIndicator, Image, RefreshControl,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,7 +11,7 @@ import { membership, gymServices } from '../../constants/dummyData';
 import { useAuthStore } from '../../store/authStore';
 import { useWalletStore } from '../../store/walletStore';
 import { fetchAnnouncements } from '../../services/announcementService';
-import { fetchTrainers } from '../../services/trainerService';
+import { fetchTrainers, fetchMyTrainer } from '../../services/trainerService';
 import { getSocket } from '../../services/socketService';
 
 const RECEPTION_PHONE = '+919876543210';
@@ -35,8 +35,10 @@ export default function HomeScreen({ navigation }) {
 
   const [announcements, setAnnouncements] = useState([]);
   const [trainers, setTrainers] = useState([]);
+  const [myTrainer, setMyTrainer] = useState(null);
   const [loadingAnnouncements, setLoadingAnnouncements] = useState(true);
   const [loadingTrainers, setLoadingTrainers] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     // Load wallet balance + recent transactions on mount
@@ -57,17 +59,33 @@ export default function HomeScreen({ navigation }) {
     }
   }, [user?.id]);
 
-  useEffect(() => {
-    fetchAnnouncements({ limit: 3 })
-      .then((res) => setAnnouncements(res.data || []))
-      .catch(() => setAnnouncements([]))
-      .finally(() => setLoadingAnnouncements(false));
-
-    fetchTrainers()
-      .then((data) => setTrainers(data || []))
-      .catch(() => setTrainers([]))
-      .finally(() => setLoadingTrainers(false));
+  const loadContent = useCallback(async () => {
+    await Promise.all([
+      fetchAnnouncements({ limit: 3 })
+        .then((res) => setAnnouncements(res.data || []))
+        .catch(() => setAnnouncements([]))
+        .finally(() => setLoadingAnnouncements(false)),
+      fetchTrainers()
+        .then((data) => setTrainers(data || []))
+        .catch(() => setTrainers([]))
+        .finally(() => setLoadingTrainers(false)),
+      fetchMyTrainer()
+        .then((data) => setMyTrainer(data || null))
+        .catch(() => setMyTrainer(null)),
+    ]);
   }, []);
+
+  useEffect(() => { loadContent(); }, [loadContent]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([
+      fetchBalance(),
+      fetchTransactions(),
+      loadContent(),
+    ]);
+    setRefreshing(false);
+  }, [fetchBalance, fetchTransactions, loadContent]);
 
   const getGreeting = () => {
     const h = new Date().getHours();
@@ -88,6 +106,14 @@ export default function HomeScreen({ navigation }) {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={COLORS.secondary}
+            colors={[COLORS.secondary]}
+          />
+        }
       >
         {/* ── TOP BAR ──────────────────────────────── */}
         <View style={styles.topBar}>
@@ -256,6 +282,41 @@ export default function HomeScreen({ navigation }) {
             )}
           </View>
         </View>
+
+        {/* ── YOUR TRAINER ─────────────────────────── */}
+        {myTrainer && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Your Trainer</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.myTrainerCard}
+              onPress={() => navigation.navigate('TrainerDetail', { trainer: myTrainer })}
+              activeOpacity={0.85}
+            >
+              {/* Avatar */}
+              {myTrainer.profilePhotoUrl ? (
+                <Image
+                  source={{ uri: myTrainer.profilePhotoUrl }}
+                  style={styles.myTrainerAvatar}
+                />
+              ) : (
+                <View style={[styles.myTrainerAvatar, styles.myTrainerAvatarFallback]}>
+                  <Text style={styles.myTrainerAvatarLetter}>
+                    {(myTrainer.name || 'T').charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+              )}
+              {/* Info */}
+              <View style={{ flex: 1 }}>
+                <Text style={styles.trainerName}>{myTrainer.name}</Text>
+                <Text style={styles.trainerSpec}>{myTrainer.specialisation}</Text>
+                <Text style={styles.trainerRating}>★ {myTrainer.rating?.toFixed(1) ?? '4.8'}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* ── STATS GRID ───────────────────────────── */}
         <View style={styles.section}>
@@ -653,4 +714,16 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: COLORS.secondaryBorder,
   },
   trainerTagText: { fontSize: 8, fontWeight: '700', color: COLORS.secondary, letterSpacing: 0.5 },
+
+  // Assigned trainer (Your Trainer section)
+  myTrainerCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    backgroundColor: COLORS.surface, borderRadius: 18, borderWidth: 1,
+    borderColor: COLORS.secondaryBorder, padding: 16,
+  },
+  myTrainerAvatar: { width: 56, height: 56, borderRadius: 14 },
+  myTrainerAvatarFallback: {
+    backgroundColor: COLORS.secondary, alignItems: 'center', justifyContent: 'center',
+  },
+  myTrainerAvatarLetter: { fontSize: 24, fontWeight: '900', color: '#fff' },
 });

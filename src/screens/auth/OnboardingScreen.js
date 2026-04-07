@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import DatePickerModal from '../../components/DatePickerModal';
 import { useAuthStore } from '../../store/authStore';
+import { isAtLeast16 } from '../../utils/ageValidator';
 import api from '../../services/apiService';
 import {
   FITNESS_LEVELS,
@@ -231,7 +232,11 @@ export default function OnboardingScreen({ route, navigation }) {
   const scrollRef = useRef(null);
 
   const canNext = () => {
-    if (step === 0) return firstName.trim().length > 0;
+    if (step === 0) {
+      if (!firstName.trim()) return false;
+      if (dob && !isAtLeast16(dob)) return false;
+      return true;
+    }
     if (step === 5) return consentTerms && consentPrivacy && consentFit;
     return true;
   };
@@ -350,6 +355,11 @@ export default function OnboardingScreen({ route, navigation }) {
           onConfirm={(val) => { setDob(val); setShowDatePicker(false); }}
           onClose={() => setShowDatePicker(false)}
         />
+        {dob && !isAtLeast16(dob) && (
+          <Text style={{ fontSize: 11, color: '#EF4444', marginTop: 6 }}>
+            You must be at least 16 years old to register.
+          </Text>
+        )}
       </Field>
       <Field label="PHONE NUMBER">
         <View style={[s.input, { flexDirection: 'row', alignItems: 'center', opacity: 0.7 }]}>

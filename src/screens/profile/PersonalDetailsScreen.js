@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import { useAuthStore } from '../../store/authStore';
 import { fetchMyProfile, updatePersonalDetails } from '../../services/customerProfileService';
+import { isAtLeast16 } from '../../utils/ageValidator';
 
 // ─── Password strength helper ──────────────────────────────────────────────
 function passwordStrength(pw) {
@@ -52,6 +53,7 @@ export default function PersonalDetailsScreen({ navigation }) {
 
   // ── original snapshot (to detect dirty) ──────────────────────────────────
   const [original,     setOriginal]     = useState(null);
+  const [dobError,     setDobError]     = useState('');
   const [loading,      setLoading]      = useState(true);
   const [saving,       setSaving]       = useState(false);
 
@@ -96,6 +98,10 @@ export default function PersonalDetailsScreen({ navigation }) {
   const handleSave = useCallback(async () => {
     if (!firstName.trim() || !lastName.trim()) {
       Alert.alert('Required', 'First and last name cannot be empty.');
+      return;
+    }
+    if (dob.trim() && !isAtLeast16(dob.trim())) {
+      setDobError('You must be at least 16 years old to register.');
       return;
     }
     if (isPasswordDirty) {
@@ -218,15 +224,16 @@ export default function PersonalDetailsScreen({ navigation }) {
         <Field label="DATE OF BIRTH">
           <View style={s.inputWrap}>
             <TextInput
-              style={[s.input, s.inputWithIcon]}
+              style={[s.input, s.inputWithIcon, dobError ? { borderColor: '#EF4444' } : null]}
               value={dob}
-              onChangeText={setDob}
+              onChangeText={(v) => { setDob(v); setDobError(''); }}
               placeholder="YYYY-MM-DD"
               placeholderTextColor={COLORS.textMuted}
               returnKeyType="done"
             />
             <Ionicons name="calendar-outline" size={20} color={COLORS.textMuted} style={s.inputIcon} />
           </View>
+          {dobError ? <Text style={s.fieldError}>{dobError}</Text> : null}
         </Field>
 
         <Field label="PHONE NUMBER">
@@ -289,6 +296,7 @@ const s = StyleSheet.create({
   fieldWrap: { marginBottom: 20 },
   fieldLabel: { fontSize: 10, fontWeight: '800', color: COLORS.secondary, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 8 },
   req: { color: '#EF4444' },
+  fieldError: { fontSize: 11, color: '#EF4444', marginTop: 6 },
   input: {
     backgroundColor: '#1C1C1E', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
     borderRadius: 12, paddingHorizontal: 16, paddingVertical: 15,

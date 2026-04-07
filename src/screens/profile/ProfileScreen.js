@@ -10,6 +10,7 @@ import { membership } from '../../constants/dummyData';
 import { useAuthStore } from '../../store/authStore';
 import { useWalletStore } from '../../store/walletStore';
 import { uploadProfilePhoto, removeProfilePhoto } from '../../services/profileService';
+import { requestAccountDeletion } from '../../services/customerProfileService';
 
 const MENU = [
   {
@@ -25,8 +26,8 @@ const MENU = [
     sub: '18 visits this month · 5-day streak', nav: 'Activity', color: '#3B82F6', bg: 'rgba(59,130,246,0.12)',
   },
   {
-    id: 'personal', label: 'Personal Details', icon: 'person-outline',
-    sub: 'Name, email, date of birth', nav: 'PersonalDetails', color: '#A855F7', bg: 'rgba(168,85,247,0.12)',
+    id: 'personal', label: 'Edit Profile', icon: 'create-outline',
+    sub: 'Personal details, health info & preferences', nav: 'EditProfile', color: '#A855F7', bg: 'rgba(168,85,247,0.12)',
   },
   {
     id: 'complaint', label: 'Register Complaint', icon: 'alert-circle-outline',
@@ -35,10 +36,6 @@ const MENU = [
   {
     id: 'myComplaints', label: 'My Complaints', icon: 'list-circle-outline',
     sub: 'Track your tickets', nav: 'MyComplaints', color: '#EF4444', bg: 'rgba(239,68,68,0.08)',
-  },
-  {
-    id: 'health', label: 'Health & Emergency Info', icon: 'heart-outline',
-    sub: 'Medical & contact details', nav: 'HealthEmergency', color: '#22C55E', bg: 'rgba(34,197,94,0.12)',
   },
 ];
 
@@ -129,6 +126,41 @@ export default function ProfileScreen({ navigation }) {
         },
       },
     ]);
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Delete My Account',
+      'This will permanently delete your account and all associated data. This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Continue',
+          style: 'destructive',
+          onPress: () => {
+            Alert.alert(
+              'Are you absolutely sure?',
+              'Your data will be scheduled for permanent deletion.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Delete My Account',
+                  style: 'destructive',
+                  onPress: async () => {
+                    try {
+                      await requestAccountDeletion();
+                      await logout();
+                    } catch (err) {
+                      Alert.alert('Error', err?.response?.data?.message || 'Could not process your request. Please try again.');
+                    }
+                  },
+                },
+              ],
+            );
+          },
+        },
+      ],
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -243,6 +275,12 @@ export default function ProfileScreen({ navigation }) {
         <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
           <Ionicons name="log-out-outline" size={18} color="#EF4444" />
           <Text style={styles.logoutText}>Log Out</Text>
+        </TouchableOpacity>
+
+        {/* Delete Account */}
+        <TouchableOpacity style={styles.deleteBtn} onPress={handleDeleteAccount}>
+          <Ionicons name="trash-outline" size={16} color="#EF4444" />
+          <Text style={styles.deleteText}>Delete My Account</Text>
         </TouchableOpacity>
 
         <View style={{ height: 100 }} />
@@ -409,9 +447,14 @@ const styles = StyleSheet.create({
   logoutBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     borderWidth: 1, borderColor: '#EF444444', borderRadius: 14, padding: 14,
-    backgroundColor: 'rgba(239,68,68,0.07)',
+    backgroundColor: 'rgba(239,68,68,0.07)', marginBottom: 10,
   },
   logoutText: { fontSize: 14, fontWeight: '700', color: '#EF4444' },
+  deleteBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    paddingVertical: 12,
+  },
+  deleteText: { fontSize: 12, fontWeight: '600', color: '#EF4444', opacity: 0.7 },
 
   // Photo picker modal
   photoOverlay:  { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },

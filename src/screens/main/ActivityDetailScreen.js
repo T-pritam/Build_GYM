@@ -8,6 +8,7 @@ import { COLORS } from '../../constants/colors';
 import { fetchActivityDetail, fetchSlots, createBooking } from '../../services/activityService';
 import { useWalletStore } from '../../store/walletStore';
 import { getSocket } from '../../services/socketService';
+import { handleInsufficientCoins } from '../../utils/handleInsufficientCoins';
 
 function buildDates() {
   const today = new Date();
@@ -62,7 +63,18 @@ export default function ActivityDetailScreen({ navigation, route }) {
     setSlotsLoading(true);
     try {
       const res = await fetchSlots(activity.id, selectedDate);
-      const data = res.data?.data || [];
+      const raw = res.data?.data || [];
+
+      // For today, hide slots whose start time has already passed
+      const todayStr = new Date().toISOString().split('T')[0];
+      const now = new Date();
+      const nowMinutes = now.getHours() * 60 + now.getMinutes();
+      const data = raw.filter((s) => {
+        if (selectedDate !== todayStr) return true;
+        const [h, m] = s.startTime.split(':').map(Number);
+        return h * 60 + m > nowMinutes;
+      });
+
       setSlots(data);
       // Auto-select first available slot
       const firstAvailable = data.find(s => !s.isFull);
@@ -106,7 +118,7 @@ export default function ActivityDetailScreen({ navigation, route }) {
     if (!selectedSlot || booking) return;
 
     if (balance < cost) {
-      Alert.alert('Insufficient Coins', `You need ₿ ${cost} but only have ₿ ${balance}.`);
+      handleInsufficientCoins({ required: cost, balance, navigation });
       return;
     }
 
@@ -135,31 +147,45 @@ export default function ActivityDetailScreen({ navigation, route }) {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={color[1]} />
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
       {/* Hero */}
       {activity?.coverImageUrl ? (
         <View style={styles.hero}>
           <Image source={{ uri: activity.coverImageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
-          <View style={[styles.heroOverlay, { backgroundColor: 'rgba(0,0,0,0.5)' }]} />
+          {/* bottom-to-top dark gradient over image */}
+          <View style={styles.heroImageOverlay} />
+          {/* top amber glow */}
+          <View style={styles.heroTopGlow} pointerEvents="none" />
           <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={20} color="#fff" />
+            <Ionicons name="arrow-back" size={22} color="#fff" />
           </TouchableOpacity>
           <View style={styles.heroBottom}>
             <Text style={styles.heroTitle}>{name}</Text>
-            <Text style={styles.heroMeta}>{duration} min · ₿ {cost}  · {trainerLabel}</Text>
+            <View style={{ gap: 2, marginTop: 6 }}>
+              <Text style={styles.heroMeta}>{duration} min · ₿ {cost}</Text>
+              {trainerLabel !== 'TBD' && (
+                <Text style={styles.heroMeta}>Instructor: {trainerLabel}</Text>
+              )}
+            </View>
           </View>
         </View>
       ) : (
         <View style={[styles.hero, { backgroundColor: color[1] }]}>
-          <View style={[styles.heroOverlay, { backgroundColor: color[0] + '66' }]} />
+          <View style={[styles.heroColorOverlay, { backgroundColor: color[0] + '66' }]} />
+          <View style={styles.heroTopGlow} pointerEvents="none" />
           <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={20} color="#fff" />
+            <Ionicons name="arrow-back" size={22} color="#fff" />
           </TouchableOpacity>
           <View style={styles.heroBottom}>
             <Text style={styles.heroEmoji}>{emoji}</Text>
             <Text style={styles.heroTitle}>{name}</Text>
-            <Text style={styles.heroMeta}>{duration} min · ₿ {cost}  · {trainerLabel}</Text>
+            <View style={{ gap: 2, marginTop: 6 }}>
+              <Text style={styles.heroMeta}>{duration} min · ₿ {cost}</Text>
+              {trainerLabel !== 'TBD' && (
+                <Text style={styles.heroMeta}>Instructor: {trainerLabel}</Text>
+              )}
+            </View>
           </View>
         </View>
       )}
@@ -219,52 +245,57 @@ export default function ActivityDetailScreen({ navigation, route }) {
 
         {/* Booking Summary */}
         {selectedSlotObj && (
-          <>
-            <View style={styles.summaryCard}>
-              <Text style={styles.summaryLabel}>BOOKING SUMMARY</Text>
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryKey}>Activity</Text>
-                <Text style={styles.summaryVal}>{name}</Text>
-              </View>
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryKey}>Date</Text>
-                <Text style={styles.summaryVal}>{selectedDateLabel}</Text>
-              </View>
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryKey}>Time</Text>
-                <Text style={styles.summaryVal}>{selectedSlotObj.startTime} – {selectedSlotObj.endTime}</Text>
-              </View>
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryKey}>Cost</Text>
-                <Text style={styles.summaryVal}>₿ {cost}</Text>
-              </View>
-              <View style={[styles.summaryRow, styles.summaryFinalRow]}>
-                <Text style={styles.summaryKey}>Balance after</Text>
-                <Text style={[styles.summaryVal, { color: afterBal >= 0 ? COLORS.secondary : '#EF4444', fontWeight: '900' }]}>
-                  ₿ {afterBal.toLocaleString()}
-                </Text>
-              </View>
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryLabel}>BOOKING SUMMARY</Text>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryKey}>Activity</Text>
+              <Text style={styles.summaryVal}>{name}</Text>
             </View>
-
-            <TouchableOpacity
-              style={[styles.confirmBtn, (booking || afterBal < 0) && { opacity: 0.5 }]}
-              onPress={handleBook}
-              disabled={booking || afterBal < 0}
-            >
-              {booking ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <>
-                  <Text style={styles.confirmBtnText}>CONFIRM & PAY</Text>
-                  <Text style={styles.confirmBtnCost}>· ₿ {cost}</Text>
-                </>
-              )}
-            </TouchableOpacity>
-          </>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryKey}>Date</Text>
+              <Text style={styles.summaryVal}>{selectedDateLabel}</Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryKey}>Time</Text>
+              <Text style={styles.summaryVal}>{selectedSlotObj.startTime} – {selectedSlotObj.endTime}</Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryKey}>Cost</Text>
+              <Text style={styles.summaryVal}>₿ {cost}</Text>
+            </View>
+            <View style={[styles.summaryRow, styles.summaryFinalRow]}>
+              <Text style={styles.summaryKey}>Balance after</Text>
+              <Text style={[styles.summaryVal, { color: afterBal >= 0 ? COLORS.secondary : '#EF4444', fontWeight: '900' }]}>
+                ₿ {afterBal.toLocaleString()}
+              </Text>
+            </View>
+          </View>
         )}
 
-        <View style={{ height: 40 }} />
+        <View style={{ height: 120 }} />
       </ScrollView>
+
+      {/* Sticky footer CTA */}
+      {selectedSlotObj && (
+        <View style={styles.footer}>
+          <TouchableOpacity
+            style={[styles.confirmBtn, (booking || afterBal < 0) && { opacity: 0.5 }]}
+            onPress={handleBook}
+            disabled={booking || afterBal < 0}
+            activeOpacity={0.85}
+          >
+            {booking ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <>
+                <Text style={styles.confirmBtnText}>CONFIRM & PAY</Text>
+                <Ionicons name="arrow-forward" size={18} color="#fff" />
+                <Text style={styles.confirmBtnCost}>₿ {cost}</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 }
@@ -272,8 +303,16 @@ export default function ActivityDetailScreen({ navigation, route }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
 
-  hero: { height: 280, justifyContent: 'flex-end', padding: 20 },
-  heroOverlay: { position: 'absolute', inset: 0 },
+  hero: { height: 320, justifyContent: 'flex-end', padding: 20 },
+  heroImageOverlay: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+  },
+  heroColorOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
+  heroTopGlow: {
+    position: 'absolute', top: 0, left: 0, right: 0, height: 200,
+    backgroundColor: 'rgba(233,99,22,0.18)',
+  },
   backBtn: {
     position: 'absolute', top: 52, left: 16,
     width: 40, height: 40, borderRadius: 20,
@@ -329,10 +368,15 @@ const styles = StyleSheet.create({
   summaryKey: { fontSize: 13, color: '#888' },
   summaryVal: { fontSize: 13, fontWeight: '600', color: '#fff' },
 
+  footer: {
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    paddingHorizontal: 16, paddingBottom: 34, paddingTop: 16,
+    backgroundColor: 'rgba(0,0,0,0.9)',
+  },
   confirmBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    backgroundColor: COLORS.secondary, borderRadius: 16, height: 56, gap: 6,
+    backgroundColor: COLORS.secondary, borderRadius: 14, height: 58, gap: 8,
   },
   confirmBtnText: { fontSize: 14, fontWeight: '900', color: '#fff', letterSpacing: 1.5 },
-  confirmBtnCost: { fontSize: 13, color: 'rgba(255,255,255,0.75)', fontWeight: '700' },
+  confirmBtnCost: { fontSize: 13, color: 'rgba(255,255,255,0.85)', fontWeight: '700' },
 });

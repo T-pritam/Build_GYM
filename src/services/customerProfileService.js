@@ -21,3 +21,9 @@ export const updateHealthEmergency = async (payload) => {
   const { data } = await api.patch('/customer/profile/health', payload);
   return data;
 };
+
+/** POST /api/customer/request-deletion — GDPR account deletion request */
+export const requestAccountDeletion = async () => {
+  const { data } = await api.post('/customer/request-deletion');
+  return data;
+};

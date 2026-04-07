@@ -8,15 +8,19 @@ import { COLORS } from '../../constants/colors';
 import { useCartStore, cartTotal, hasUnavailableItems } from '../../store/cartStore';
 import { placeOrder } from '../../services/cafeService';
 import { useActiveOrderStore } from '../../store/activeOrderStore';
+import { useWalletStore } from '../../store/walletStore';
+import { handleInsufficientCoins } from '../../utils/handleInsufficientCoins';
 
 export default function CartScreen({ navigation }) {
   const { items, addItem, removeItem, clearCart } = useCartStore();
   const [placing, setPlacing] = useState(false);
   const setActiveOrder = useActiveOrderStore(s => s.setActiveOrder);
+  const balance = useWalletStore(s => s.balance);
 
   const totalCoins = cartTotal(items);
   const anyUnavailable = hasUnavailableItems(items);
   const totalQty = items.reduce((s, c) => s + c.qty, 0);
+  const afterOrder = balance - totalCoins;
 
   const handlePlaceOrder = async () => {
     if (anyUnavailable) {
@@ -42,8 +46,14 @@ export default function CartScreen({ navigation }) {
       setActiveOrder(newOrder);
       navigation.replace('OrderConfirmation', { order: newOrder });
     } catch (e) {
-      const msg = e?.response?.data?.message ?? 'Failed to place order. Please try again.';
-      Alert.alert('Order Failed', msg);
+      if (e?.response?.data?.code === 'INSUFFICIENT_FUNDS') {
+        const required = e.response.data.required;
+        const bal = e.response.data.balance;
+        handleInsufficientCoins({ required, balance: bal, navigation });
+      } else {
+        const msg = e?.response?.data?.message ?? 'Failed to place order. Please try again.';
+        Alert.alert('Order Failed', msg);
+      }
     } finally {
       setPlacing(false);
     }
@@ -66,6 +76,26 @@ export default function CartScreen({ navigation }) {
           <Text style={styles.headerSub}>{totalQty} item{totalQty !== 1 ? 's' : ''}</Text>
         </View>
         <View style={{ width: 40 }} />
+      </View>
+
+      {/* Balance Summary Card */}
+      <View style={styles.balanceCard}>
+        <View style={styles.balanceCol}>
+          <Text style={styles.balanceLabel}>Your Balance</Text>
+          <Text style={styles.balanceValue}>₿ {balance.toLocaleString()}</Text>
+        </View>
+        <View style={styles.balanceDivider} />
+        <View style={styles.balanceCol}>
+          <Text style={styles.balanceLabel}>Order Total</Text>
+          <Text style={[styles.balanceValue, { color: COLORS.secondary }]}>₿ {totalCoins}</Text>
+        </View>
+        <View style={styles.balanceDivider} />
+        <View style={styles.balanceCol}>
+          <Text style={styles.balanceLabel}>After Order</Text>
+          <Text style={[styles.balanceValue, { color: afterOrder >= 0 ? COLORS.success : COLORS.error }]}>
+            ₿ {afterOrder.toLocaleString()}
+          </Text>
+        </View>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
@@ -189,6 +219,17 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: 18, fontWeight: '800', color: COLORS.white },
   headerSub: { fontSize: 13, color: COLORS.textMuted },
+  balanceCard: {
+    flexDirection: 'row', alignItems: 'center',
+    marginHorizontal: 16, marginBottom: 8,
+    backgroundColor: COLORS.surface, borderRadius: 14, borderWidth: 1, borderColor: COLORS.border,
+    paddingVertical: 14, paddingHorizontal: 16,
+  },
+  balanceCol: { flex: 1, alignItems: 'center', gap: 4 },
+  balanceDivider: { width: 1, height: 36, backgroundColor: COLORS.border },
+  balanceLabel: { fontSize: 9, fontWeight: '800', color: COLORS.secondary, letterSpacing: 1.5, textTransform: 'uppercase' },
+  balanceValue: { fontSize: 17, fontWeight: '800', color: COLORS.white },
+
   scrollContent: { paddingHorizontal: 16, paddingTop: 12, gap: 16 },
 
   // Warning banner

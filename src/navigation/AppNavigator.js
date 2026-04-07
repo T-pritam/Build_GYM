@@ -28,6 +28,7 @@ import OrderHistoryScreen from '../screens/cafe/OrderHistoryScreen';
 import ProfileScreen from '../screens/profile/ProfileScreen';
 import MembershipScreen from '../screens/profile/MembershipScreen';
 import BuildCoinTransactionsScreen from '../screens/profile/BuildCoinTransactionsScreen';
+import TransactionDetailScreen from '../screens/profile/TransactionDetailScreen';
 import ActivityDashboardScreen from '../screens/profile/ActivityDashboardScreen';
 import ComplaintScreen from '../screens/profile/ComplaintScreen';
 import MyComplaintsScreen from '../screens/profile/MyComplaintsScreen';
@@ -35,6 +36,8 @@ import MyComplaintDetailScreen from '../screens/profile/MyComplaintDetailScreen'
 import NotificationsScreen from '../screens/profile/NotificationsScreen';
 import PersonalDetailsScreen from '../screens/profile/PersonalDetailsScreen';
 import HealthEmergencyScreen from '../screens/profile/HealthEmergencyScreen';
+import EditProfileScreen from '../screens/profile/EditProfileScreen';
+import ConsentPreferencesScreen from '../screens/profile/ConsentPreferencesScreen';
 
 // Detail screens
 import TrainerDetailScreen from '../screens/detail/TrainerDetailScreen';
@@ -153,6 +156,11 @@ export default function AppNavigator() {
         <Stack.Screen name="Profile" component={ProfileScreen} />
         <Stack.Screen name="Membership" component={MembershipScreen} />
         <Stack.Screen name="BuildCoinTransactions" component={BuildCoinTransactionsScreen} />
+        <Stack.Screen
+          name="TransactionDetail"
+          component={TransactionDetailScreen}
+          options={{ animation: 'slide_from_right' }}
+        />
         <Stack.Screen name="Activity" component={ActivityDashboardScreen} />
         <Stack.Screen name="Complaint" component={ComplaintScreen} />
         <Stack.Screen name="MyComplaints" component={MyComplaintsScreen} />
@@ -160,6 +168,8 @@ export default function AppNavigator() {
         <Stack.Screen name="Notifications" component={NotificationsScreen} />
         <Stack.Screen name="PersonalDetails" component={PersonalDetailsScreen} />
         <Stack.Screen name="HealthEmergency" component={HealthEmergencyScreen} />
+        <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+        <Stack.Screen name="ConsentPreferences" component={ConsentPreferencesScreen} />
 
         {/* Detail screens */}
         <Stack.Screen name="TrainerDetail" component={TrainerDetailScreen} />
