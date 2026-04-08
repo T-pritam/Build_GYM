@@ -3,6 +3,7 @@ import {
   View, Text, ScrollView, StyleSheet, StatusBar,
   TouchableOpacity, ActivityIndicator, RefreshControl, Modal,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
@@ -129,8 +130,8 @@ export default function NotificationsScreen({ navigation }) {
     clearUnread();
   };
 
-  const pinned    = items.filter((a) => a.pinned);
-  const nonPinned = items.filter((a) => !a.pinned);
+  const pinned    = items.filter((a) => a.pinned && (!a.expiresAt || new Date(a.expiresAt) > new Date()));
+  const nonPinned = items.filter((a) => !a.pinned && (!a.expiresAt || new Date(a.expiresAt) > new Date()));
 
   return (
     <SafeBottomBar style={s.root}>
@@ -223,8 +224,16 @@ export default function NotificationsScreen({ navigation }) {
           <TouchableOpacity style={s.modalDismiss} activeOpacity={1} onPress={handleClose} />
           <View style={s.modalSheet}>
             {selected && (
-              <>
+              <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
                 <View style={s.modalHandle} />
+
+                {selected.imageUrl && (
+                  <Image
+                    source={{ uri: selected.imageUrl }}
+                    style={s.modalImage}
+                    contentFit="cover"
+                  />
+                )}
 
                 <View style={s.modalTop}>
                   <TypeTag type={selected.type} />
@@ -243,7 +252,7 @@ export default function NotificationsScreen({ navigation }) {
                 <TouchableOpacity style={s.closeBtn} onPress={handleClose} activeOpacity={0.85}>
                   <Text style={s.closeBtnText}>CLOSE</Text>
                 </TouchableOpacity>
-              </>
+              </ScrollView>
             )}
           </View>
         </SafeBottomBar>
@@ -315,6 +324,12 @@ const s = StyleSheet.create({
     borderTopLeftRadius: 24, borderTopRightRadius: 24,
     padding: 24, paddingBottom: 40,
     borderTopWidth: 1, borderTopColor: COLORS.border,
+    maxHeight: '80%',
+  },
+  modalImage: {
+    width: '100%', height: 180,
+    borderRadius: 12, marginBottom: 16,
+    backgroundColor: COLORS.background,
   },
   modalHandle: {
     alignSelf: 'center', width: 40, height: 4,

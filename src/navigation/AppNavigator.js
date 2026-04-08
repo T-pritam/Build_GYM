@@ -176,7 +176,7 @@ export default function AppNavigator() {
         <Stack.Screen
           name="AnnouncementDetail"
           component={AnnouncementDetailScreen}
-          options={{ animation: 'slide_from_right' }}
+          options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
         />
 
         {/* Community & Leaderboard */}

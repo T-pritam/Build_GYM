@@ -8,6 +8,7 @@ import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   StatusBar, ActivityIndicator,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import { fetchAnnouncement, markAnnouncementRead } from '../../services/announcementService';
@@ -101,19 +102,23 @@ export default function AnnouncementDetailScreen({ route, navigation }) {
     <View style={s.root}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
 
-      {/* Header */}
-      <View style={s.header}>
-        <TouchableOpacity style={s.backBtn} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={18} color={COLORS.white} />
-        </TouchableOpacity>
-        <Text style={s.headerTitle}>Announcement</Text>
-        <View style={{ width: 36 }} />
-      </View>
-
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={s.body}
+        bounces={false}
       >
+        {/* Handle bar */}
+        <View style={s.handle} />
+
+        {/* Cover image */}
+        {item.imageUrl && (
+          <Image
+            source={{ uri: item.imageUrl }}
+            style={s.coverImage}
+            contentFit="cover"
+          />
+        )}
+
         {/* Type tags row */}
         <View style={s.topRow}>
           <TypeTag type={item.type} />
@@ -136,13 +141,18 @@ export default function AnnouncementDetailScreen({ route, navigation }) {
 
         {/* Body */}
         <Text style={s.body_text}>{item.message}</Text>
+
+        {/* Close / back */}
+        <TouchableOpacity style={s.closeBtn} onPress={() => navigation.goBack()} activeOpacity={0.85}>
+          <Text style={s.closeBtnText}>CLOSE</Text>
+        </TouchableOpacity>
       </ScrollView>
     </View>
   );
 }
 
 const s = StyleSheet.create({
-  root:    { flex: 1, backgroundColor: COLORS.background },
+  root: { flex: 1, backgroundColor: COLORS.surface },
   centered: {
     flex: 1, backgroundColor: COLORS.background,
     alignItems: 'center', justifyContent: 'center', gap: 16,
@@ -154,29 +164,33 @@ const s = StyleSheet.create({
   },
   retryText: { color: '#000', fontWeight: '700' },
 
-  header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingTop: 52, paddingBottom: 16,
-    borderBottomWidth: 1, borderBottomColor: COLORS.border,
+  body: { paddingBottom: 48 },
+  handle: {
+    alignSelf: 'center', width: 40, height: 4,
+    borderRadius: 2, backgroundColor: COLORS.border,
+    marginTop: 12, marginBottom: 16,
   },
-  backBtn: {
-    width: 36, height: 36, borderRadius: 10, backgroundColor: COLORS.surface,
-    borderWidth: 1, borderColor: COLORS.border,
-    justifyContent: 'center', alignItems: 'center',
+  coverImage: {
+    width: '100%', height: 200,
+    backgroundColor: COLORS.background,
+    marginBottom: 20,
   },
-  headerTitle: { color: COLORS.white, fontSize: 17, fontWeight: '800' },
 
-  body: { padding: 20, paddingBottom: 60 },
-
-  topRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
+  topRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16, paddingHorizontal: 20 },
   urgentPill: {
     borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4,
     backgroundColor: 'rgba(239,68,68,0.12)',
   },
   urgentText: { color: '#EF4444', fontSize: 10, fontWeight: '700' },
 
-  title:     { color: COLORS.white, fontSize: 22, fontWeight: '800', lineHeight: 30, marginBottom: 8 },
-  meta:      { color: COLORS.textMuted, fontSize: 12, marginBottom: 20 },
-  divider:   { height: 1, backgroundColor: COLORS.border, marginBottom: 20 },
-  body_text: { color: COLORS.textSecondary, fontSize: 15, lineHeight: 24 },
+  title:     { color: COLORS.white, fontSize: 22, fontWeight: '800', lineHeight: 30, marginBottom: 8, paddingHorizontal: 20 },
+  meta:      { color: COLORS.textMuted, fontSize: 12, marginBottom: 20, paddingHorizontal: 20 },
+  divider:   { height: 1, backgroundColor: COLORS.border, marginBottom: 20, marginHorizontal: 20 },
+  body_text: { color: COLORS.textSecondary, fontSize: 15, lineHeight: 24, paddingHorizontal: 20, marginBottom: 28 },
+
+  closeBtn: {
+    marginHorizontal: 20, backgroundColor: COLORS.secondary, borderRadius: 14,
+    paddingVertical: 14, alignItems: 'center',
+  },
+  closeBtnText: { color: '#000', fontWeight: '800', fontSize: 14, letterSpacing: 1 },
 });
