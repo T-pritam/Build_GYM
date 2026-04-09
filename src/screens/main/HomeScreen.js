@@ -11,7 +11,7 @@ import { membership, gymServices } from '../../constants/dummyData';
 import { useAuthStore } from '../../store/authStore';
 import { useWalletStore } from '../../store/walletStore';
 import { fetchAnnouncements } from '../../services/announcementService';
-import { fetchTrainers, fetchMyTrainer } from '../../services/trainerService';
+import { fetchTrainers, fetchMyTrainer, fetchTrialSession } from '../../services/trainerService';
 import { getSocket } from '../../services/socketService';
 
 const RECEPTION_PHONE = '+919876543210';
@@ -36,6 +36,7 @@ export default function HomeScreen({ navigation }) {
   const [announcements, setAnnouncements] = useState([]);
   const [trainers, setTrainers] = useState([]);
   const [myTrainer, setMyTrainer] = useState(null);
+  const [trialSession, setTrialSession] = useState(null);
   const [loadingAnnouncements, setLoadingAnnouncements] = useState(true);
   const [loadingTrainers, setLoadingTrainers] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -72,6 +73,9 @@ export default function HomeScreen({ navigation }) {
       fetchMyTrainer()
         .then((data) => setMyTrainer(data || null))
         .catch(() => setMyTrainer(null)),
+      fetchTrialSession()
+        .then((data) => setTrialSession(data || null))
+        .catch(() => setTrialSession(null)),
     ]);
   }, []);
 
@@ -139,9 +143,13 @@ export default function HomeScreen({ navigation }) {
               style={styles.avatarBtn}
               onPress={() => navigation.navigate('Profile')}
             >
-              <View style={styles.avatarBox}>
-                <Text style={styles.avatarText}>{firstName.charAt(0)}</Text>
-              </View>
+              {user.profilePhotoUrl ? (
+                <Image source={{ uri: user.profilePhotoUrl }} style={styles.avatarBox} />
+              ) : (
+                <View style={styles.avatarBox}>
+                  <Text style={styles.avatarText}>{firstName.charAt(0)}</Text>
+                </View>
+              )}
             </TouchableOpacity>
           </View>
         </View>
@@ -291,7 +299,7 @@ export default function HomeScreen({ navigation }) {
             </View>
             <TouchableOpacity
               style={styles.myTrainerCard}
-              onPress={() => navigation.navigate('TrainerDetail', { trainer: myTrainer })}
+              onPress={() => navigation.navigate('TrainerDetail', { trainer: myTrainer, isMyTrainer: true })}
               activeOpacity={0.85}
             >
               {/* Avatar */}
@@ -315,6 +323,45 @@ export default function HomeScreen({ navigation }) {
               </View>
               <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
             </TouchableOpacity>
+          </View>
+        )}
+
+        {/* ── UPCOMING TRIAL SESSION ───────────────── */}
+        {trialSession && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Upcoming Trial Session</Text>
+            </View>
+            <View style={styles.trialCard}>
+              <View style={styles.trialLeft}>
+                <Text style={styles.trialLabel}>TRAINER</Text>
+                <Text style={styles.trialTrainer}>{trialSession.trainerName}</Text>
+                {!!trialSession.trainerSpecialisation && (
+                  <Text style={styles.trialSpec}>{trialSession.trainerSpecialisation}</Text>
+                )}
+                {!!trialSession.acceptedByName && (
+                  <Text style={styles.trialBookedBy}>Booked by {trialSession.acceptedByName}</Text>
+                )}
+              </View>
+              <View style={styles.trialRight}>
+                <Text style={styles.trialLabel}>SCHEDULED</Text>
+                <Text style={styles.trialDate}>
+                  {new Date(trialSession.scheduledAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                </Text>
+                <Text style={styles.trialTime}>
+                  {new Date(trialSession.scheduledAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                </Text>
+                <View style={[styles.trialStatusBadge, {
+                  backgroundColor: trialSession.status === 'member_confirmed' ? 'rgba(34,197,94,0.12)' : 'rgba(234,179,8,0.12)',
+                }]}>
+                  <Text style={[styles.trialStatusText, {
+                    color: trialSession.status === 'member_confirmed' ? '#22C55E' : '#EAB308',
+                  }]}>
+                    {trialSession.status === 'member_confirmed' ? 'CONFIRMED' : 'PENDING'}
+                  </Text>
+                </View>
+              </View>
+            </View>
           </View>
         )}
 
@@ -726,4 +773,23 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.secondary, alignItems: 'center', justifyContent: 'center',
   },
   myTrainerAvatarLetter: { fontSize: 24, fontWeight: '900', color: '#fff' },
+
+  // Trial session card
+  trialCard: {
+    backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.secondaryBorder,
+    borderRadius: 16, padding: 16, flexDirection: 'row', gap: 12,
+  },
+  trialLeft: { flex: 1 },
+  trialRight: { alignItems: 'flex-end', gap: 4 },
+  trialLabel: {
+    color: COLORS.textMuted, fontSize: 9, fontWeight: '800',
+    textTransform: 'uppercase', letterSpacing: 1, marginBottom: 2,
+  },
+  trialTrainer: { color: COLORS.white, fontSize: 15, fontWeight: '800' },
+  trialSpec: { color: COLORS.textSecondary, fontSize: 12, marginTop: 2 },
+  trialBookedBy: { color: COLORS.textMuted, fontSize: 11, marginTop: 4 },
+  trialDate: { color: COLORS.secondary, fontSize: 15, fontWeight: '800' },
+  trialTime: { color: COLORS.textSecondary, fontSize: 12 },
+  trialStatusBadge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, marginTop: 4 },
+  trialStatusText: { fontSize: 9, fontWeight: '800', letterSpacing: 1 },
 });

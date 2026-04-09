@@ -44,6 +44,7 @@ export default function ProfileScreen({ navigation }) {
   const user               = useAuthStore((s) => s.user);
   const logout             = useAuthStore((s) => s.logout);
   const updateProfilePhoto = useAuthStore((s) => s.updateProfilePhoto);
+  const refreshUser        = useAuthStore((s) => s.refreshUser);
 
   const firstName = user?.firstName || user?.fullName?.split(' ')[0] || 'Athlete';
 
@@ -52,6 +53,7 @@ export default function ProfileScreen({ navigation }) {
   useEffect(() => {
     fetchBalance();
     fetchTransactions();
+    refreshUser(); // ensure latest profilePhotoUrl + name from server
   }, []);
 
   const earned = transactions.reduce((sum, t) =>
@@ -162,6 +164,8 @@ export default function ProfileScreen({ navigation }) {
       ],
     );
   };
+
+  console.log('[ProfileScreen] Render' , profilePhoto, { profilePhoto, balance, earned, spent, membership });
 
   return (
     <SafeBottomBar style={styles.container}>

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
+import api from '../services/apiService';
 
 const KEYS = {
   ACCESS_TOKEN: 'bg_access_token',
@@ -109,6 +110,35 @@ export const useAuthStore = create((set, get) => ({
       await SecureStore.setItemAsync(KEYS.USER_DATA, JSON.stringify(updatedUser));
     } catch (_) {}
     set({ user: updatedUser });
+  },
+
+  /**
+   * Fetch the latest user profile from the server and merge into store + SecureStore.
+   * Call this on ProfileScreen mount to ensure profilePhotoUrl and other fields are fresh.
+   */
+  refreshUser: async () => {
+    const { user } = get();
+    if (!user) return;
+    try {
+      const { data } = await api.get('/customer/me');
+      const fresh = data?.data;
+      if (!fresh) return;
+      const updatedUser = {
+        ...user,
+        firstName:       fresh.firstName       ?? user.firstName,
+        lastName:        fresh.lastName        ?? user.lastName,
+        fullName:        fresh.fullName        ?? user.fullName,
+        email:           fresh.email           ?? user.email,
+        profilePhotoUrl: fresh.profilePhotoUrl ?? user.profilePhotoUrl ?? null,
+      };
+      try {
+        await SecureStore.setItemAsync(KEYS.USER_DATA, JSON.stringify(updatedUser));
+      } catch (_) {}
+      set({ user: updatedUser });
+    } catch (err) {
+      // Non-fatal — silently ignore network errors so the screen still loads
+      console.warn('authStore.refreshUser error:', err?.message);
+    }
   },
 
   /**

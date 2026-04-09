@@ -1,11 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  StatusBar, Image, Linking,
+  StatusBar, Image, Linking, Alert, ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import SafeBottomBar from '../../components/SafeBottomBar';
+import { requestTrialSession } from '../../services/trainerService';
 
 const RECEPTION_PHONE = '+919876543210';
 
@@ -16,10 +17,26 @@ const WHAT_TO_EXPECT = [
 ];
 
 export default function TrainerDetailScreen({ navigation, route }) {
-  const { trainer } = route.params || {};
+  const { trainer, isMyTrainer = false } = route.params || {};
+  const [requesting, setRequesting] = useState(false);
+  const [requested, setRequested] = useState(false);
+
   if (!trainer) return null;
 
   const initials = (trainer.name || 'T').charAt(0).toUpperCase();
+
+  async function handleTrialRequest() {
+    setRequesting(true);
+    try {
+      await requestTrialSession(trainer.id);
+      setRequested(true);
+      Alert.alert('Request Sent', "Your trial session request has been submitted. You'll receive a notification once it's confirmed by the admin.");
+    } catch (err) {
+      Alert.alert('Error', err.response?.data?.message ?? 'Failed to send request.');
+    } finally {
+      setRequesting(false);
+    }
+  }
 
   const stats = [
     {
@@ -221,8 +238,22 @@ export default function TrainerDetailScreen({ navigation, route }) {
           activeOpacity={0.8}
         >
           <Ionicons name="call-outline" size={18} color="#fff" />
-          <Text style={s.callBtnText}>Call Reception</Text>
+          <Text style={s.callBtnText}>Call</Text>
         </TouchableOpacity>
+        {!isMyTrainer && (
+          <TouchableOpacity
+            style={[s.trialBtn, (requesting || requested) && { opacity: 0.6 }]}
+            onPress={handleTrialRequest}
+            disabled={requesting || requested}
+            activeOpacity={0.8}
+          >
+            {requesting ? (
+              <ActivityIndicator color="#000" size="small" />
+            ) : (
+              <Text style={s.trialBtnText}>{requested ? 'Request Sent ✓' : 'Request Trial'}</Text>
+            )}
+          </TouchableOpacity>
+        )}
         <TouchableOpacity
           style={s.waBtn}
           onPress={() => Linking.openURL(`whatsapp://send?phone=${RECEPTION_PHONE}`)}
@@ -345,6 +376,11 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: '#fff',
   },
   callBtnText: { fontSize: 13, fontWeight: '700', color: '#fff' },
+  trialBtn: {
+    flex: 1, height: 48, borderRadius: 10, backgroundColor: COLORS.secondary,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  trialBtnText: { fontSize: 12, fontWeight: '800', color: '#000' },
   waBtn: {
     flex: 1, height: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 8, borderRadius: 10, backgroundColor: '#1C1C1E',

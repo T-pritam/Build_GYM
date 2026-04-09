@@ -9,6 +9,7 @@ import { verifyOTP, resendOTP } from '../../services/authService';
 import { useAuthStore } from '../../store/authStore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { saveFCMToken, FCM_TOKEN_KEY } from '../../services/notificationService';
+import { CommonActions } from '@react-navigation/native';
 
 export default function OTPScreen({ navigation, route }) {
   const { phone } = route?.params || {};
@@ -87,14 +88,29 @@ export default function OTPScreen({ navigation, route }) {
 
       // Associate FCM token with this userId now that we know who logged in
       AsyncStorage.getItem(FCM_TOKEN_KEY).then(token => {
-        if (token) saveFCMToken(token, null, user.id).catch(() => {});
-      }).catch(() => {});
+        if (token) saveFCMToken(token, null, user.id).catch(() => { });
+      }).catch(() => { });
 
       // Route based on onboarding status
       if (user.onboardingCompleted) {
-        navigation.replace('MainTabs');
+        navigation.dispatch(
+          CommonActions.reset({
+            index: 0,
+            routes: [{ name: 'MainTabs' }],
+          })
+        );
       } else {
-        navigation.replace('Onboarding', { mobile: phone });
+        navigation.dispatch(
+          CommonActions.reset({
+            index: 0,
+            routes: [
+              {
+                name: 'Onboarding',
+                params: { mobile: phone },
+              },
+            ],
+          })
+        );
       }
     } catch (error) {
       const msg = error.response?.data?.message || 'Invalid or expired OTP.';

@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useRef } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, StatusBar,
-  TouchableOpacity, ActivityIndicator, RefreshControl, Modal,
+  TouchableOpacity, ActivityIndicator, RefreshControl, Modal, Alert,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { useFocusEffect } from '@react-navigation/native';
@@ -10,21 +10,24 @@ import { COLORS } from '../../constants/colors';
 import { fetchAnnouncements, markAnnouncementRead } from '../../services/announcementService';
 import { useAnnouncementStore } from '../../store/announcementStore';
 import SafeBottomBar from '../../components/SafeBottomBar';
+import api from '../../services/apiService';
 
 // ─── Type config ──────────────────────────────────────────────────────────────
 const TYPE_LABEL = {
-  general:     'General',
-  event:       'Event',
-  maintenance: 'Maintenance',
-  promotion:   'Promotion',
-  health:      'Health',
+  general:       'General',
+  event:         'Event',
+  maintenance:   'Maintenance',
+  promotion:     'Promotion',
+  health:        'Health',
+  trial_booking: 'Trial Session',
 };
 const TYPE_COLOR = {
-  event:       '#3B82F6',
-  maintenance: '#EF4444',
-  general:     '#64748B',
-  promotion:   '#EAB308',
-  health:      '#22C55E',
+  event:         '#3B82F6',
+  maintenance:   '#EF4444',
+  general:       '#64748B',
+  promotion:     '#EAB308',
+  health:        '#22C55E',
+  trial_booking: COLORS.secondary,
 };
 
 const formatDate = (iso) =>
@@ -70,12 +73,13 @@ function AnnouncementCard({ item, onPress, showPin }) {
 
 // ─── Screen ──────────────────────────────────────────────────────────────────
 export default function NotificationsScreen({ navigation }) {
-  const [items, setItems]           = useState([]);
-  const [loading, setLoading]       = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [selected, setSelected]     = useState(null);
-  const [error, setError]           = useState(null);
-  const [nextCursor, setNextCursor] = useState(null);
+  const [items, setItems]               = useState([]);
+  const [loading, setLoading]           = useState(true);
+  const [refreshing, setRefreshing]     = useState(false);
+  const [selected, setSelected]         = useState(null);
+  const [error, setError]               = useState(null);
+  const [nextCursor, setNextCursor]     = useState(null);
+  const [confirmingTrial, setConfirmingTrial] = useState(false);
 
   const { unreadCount, refreshUnreadCount, markOneRead, clearUnread } =
     useAnnouncementStore();
@@ -122,6 +126,21 @@ export default function NotificationsScreen({ navigation }) {
   };
 
   const handleClose = () => setSelected(null);
+
+  // ── Accept trial session ──────────────────────────────────────────────────
+  const handleAcceptTrial = async (announcement) => {
+    setConfirmingTrial(true);
+    try {
+      await api.post(`/member/trial-requests/${announcement.trialRequestId}/confirm`);
+      setItems((prev) => prev.map((a) => a.id === announcement.id ? { ...a, _confirmed: true } : a));
+      setSelected((s) => s ? { ...s, _confirmed: true } : null);
+      Alert.alert('Confirmed!', 'Your trial session has been confirmed.');
+    } catch {
+      Alert.alert('Error', 'Could not confirm. Please try again.');
+    } finally {
+      setConfirmingTrial(false);
+    }
+  };
 
   // ── Mark all read ─────────────────────────────────────────────────────────
   const handleMarkAllRead = () => {
@@ -249,6 +268,20 @@ export default function NotificationsScreen({ navigation }) {
                 <Text style={s.modalMeta}>{formatDate(selected.publishedAt)}</Text>
                 <Text style={s.modalBody}>{selected.message}</Text>
 
+                {selected.type === 'trial_booking' && selected.trialRequestId && !selected._confirmed && (
+                  <TouchableOpacity
+                    style={s.acceptTrialBtn}
+                    onPress={() => handleAcceptTrial(selected)}
+                    disabled={confirmingTrial}
+                    activeOpacity={0.85}
+                  >
+                    {confirmingTrial
+                      ? <ActivityIndicator color="#000" size="small" />
+                      : <Text style={s.acceptTrialBtnText}>Accept Trial Session</Text>
+                    }
+                  </TouchableOpacity>
+                )}
+
                 <TouchableOpacity style={s.closeBtn} onPress={handleClose} activeOpacity={0.85}>
                   <Text style={s.closeBtnText}>CLOSE</Text>
                 </TouchableOpacity>
@@ -344,6 +377,11 @@ const s = StyleSheet.create({
   modalTitle: { color: COLORS.white, fontSize: 20, fontWeight: '800', marginBottom: 6, lineHeight: 28 },
   modalMeta: { color: COLORS.textMuted, fontSize: 12, marginBottom: 14 },
   modalBody: { color: COLORS.textSecondary, fontSize: 14, lineHeight: 22, marginBottom: 20 },
+  acceptTrialBtn: {
+    backgroundColor: COLORS.secondary, borderRadius: 12,
+    paddingVertical: 13, alignItems: 'center', marginBottom: 10,
+  },
+  acceptTrialBtnText: { color: '#000', fontWeight: '800', fontSize: 14, letterSpacing: 0.5 },
   closeBtn: {
     backgroundColor: COLORS.secondary, borderRadius: 14,
     paddingVertical: 14, alignItems: 'center',

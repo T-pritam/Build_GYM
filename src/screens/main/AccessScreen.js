@@ -9,13 +9,14 @@ import {
   Easing,
   Image,
   Alert,
-  Platform,
+  ScrollView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { COLORS } from '../../constants/colors';
-import { membership, currentUser } from '../../constants/dummyData';
+import { membership } from '../../constants/dummyData';
+import { useAuthStore } from '../../store/authStore';
 
 const ACCESS_MODES = [
   {
@@ -37,6 +38,7 @@ const ACCESS_MODES = [
 ];
 
 export default function AccessScreen({ navigation }) {
+  const user = useAuthStore((s) => s.user);
   const [mode, setMode] = useState('gate');
   const [status, setStatus] = useState('idle'); // idle | scanning | success | denied
   const [memberPhoto, setMemberPhoto] = useState(null);
@@ -163,6 +165,11 @@ export default function AccessScreen({ navigation }) {
     ]);
   };
 
+  const displayName = user?.fullName || `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim() || 'Member';
+  const photoUrl = memberPhoto || user?.profilePhotoUrl || null;
+  const initials = displayName.charAt(0).toUpperCase();
+  const shortId = user?.id ? user.id.split('-')[0].toUpperCase() : '------';
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
@@ -186,129 +193,129 @@ export default function AccessScreen({ navigation }) {
 
       {/* Member photo card */}
       <View style={styles.memberCard}>
-        <TouchableOpacity
-          style={styles.photoWrap}
-          onPress={memberPhoto ? handleRemovePhoto : handlePickPhoto}
-          activeOpacity={0.85}
-        >
-          {memberPhoto ? (
-            <Image source={{ uri: memberPhoto }} style={styles.memberPhoto} />
+        <View style={styles.photoWrap}>
+          {photoUrl ? (
+            <Image source={{ uri: photoUrl }} style={styles.memberPhoto} />
           ) : (
             <LinearGradient
               colors={[COLORS.secondaryDark, '#2A1200']}
               style={styles.memberPhotoPlaceholder}
             >
-              <Text style={styles.memberPhotoInitial}>{currentUser.name.charAt(0)}</Text>
+              <Text style={styles.memberPhotoInitial}>{initials}</Text>
             </LinearGradient>
           )}
-          <View style={styles.photoEditBtn}>
-            <Ionicons name={memberPhoto ? 'close' : 'camera'} size={13} color={COLORS.white} />
-          </View>
-        </TouchableOpacity>
+
+        </View>
         <View style={styles.memberCardInfo}>
-          <Text style={styles.memberCardName}>{currentUser.name}</Text>
-          <Text style={styles.memberCardId}>ID: {currentUser.id.toUpperCase()}</Text>
+          <Text style={styles.memberCardName}>{displayName}</Text>
+          <Text style={styles.memberCardId}>ID: {shortId}</Text>
           <View style={styles.memberCardBadge}>
             <View style={[styles.memStatusDot, { backgroundColor: COLORS.success }]} />
             <Text style={styles.memberCardBadgeText}>{membership.type} MEMBER</Text>
           </View>
         </View>
-        {!memberPhoto && (
+        {/* {!memberPhoto && (
           <TouchableOpacity style={styles.addPhotoBtn} onPress={handlePickPhoto} activeOpacity={0.8}>
             <Ionicons name="camera-outline" size={15} color={COLORS.secondary} />
             <Text style={styles.addPhotoBtnText}>Add Photo</Text>
           </TouchableOpacity>
-        )}
+        )} */}
       </View>
 
-      {/* Mode selector */}
-      <View style={styles.modeRow}>
-        {ACCESS_MODES.map((m) => (
-          <TouchableOpacity
-            key={m.id}
-            style={[styles.modeBtn, mode === m.id && styles.modeBtnActive]}
-            onPress={() => { if (status === 'idle') setMode(m.id); }}
-          >
-            <Ionicons
-              name={m.ionIcon}
-              size={20}
-              color={mode === m.id ? COLORS.secondary : COLORS.textMuted}
-            />
-            <Text style={[styles.modeBtnText, mode === m.id && styles.modeBtnTextActive]}>
-              {m.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scroll}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* Mode selector */}
+        <View style={styles.modeRow}>
+          {ACCESS_MODES.map((m) => (
+            <TouchableOpacity
+              key={m.id}
+              style={[styles.modeBtn, mode === m.id && styles.modeBtnActive]}
+              onPress={() => { if (status === 'idle') setMode(m.id); }}
+            >
+              <Ionicons
+                name={m.ionIcon}
+                size={20}
+                color={mode === m.id ? COLORS.secondary : COLORS.textMuted}
+              />
+              <Text style={[styles.modeBtnText, mode === m.id && styles.modeBtnTextActive]}>
+                {m.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
 
-      {/* Description */}
-      <Text style={styles.modeDesc}>
-        {ACCESS_MODES.find((m) => m.id === mode)?.desc}
-      </Text>
-
-      {/* Big access button */}
-      <View style={styles.btnArea}>
-        {/* Pulse ring */}
-        <Animated.View
-          style={[
-            styles.pulseRing,
-            { transform: [{ scale: pulseAnim }], opacity: pulseOpacity },
-          ]}
-        />
-
-        <TouchableOpacity
-          onPress={handleAccess}
-          activeOpacity={0.85}
-          disabled={status !== 'idle'}
-          style={styles.accessBtnOuter}
-        >
-          <LinearGradient
-            colors={getButtonColors()}
-            style={styles.accessBtn}
-          >
-            {status === 'scanning' ? (
-              <MaterialCommunityIcons name="bluetooth-audio" size={52} color={COLORS.white} />
-            ) : status === 'success' ? (
-              <Ionicons name="checkmark-circle" size={56} color={COLORS.white} />
-            ) : status === 'denied' ? (
-              <Ionicons name="close-circle" size={56} color={COLORS.white} />
-            ) : mode === 'gate' ? (
-              <Ionicons name="enter-outline" size={52} color={COLORS.white} />
-            ) : (
-              <Ionicons name="lock-open-outline" size={52} color={COLORS.white} />
-            )}
-          </LinearGradient>
-        </TouchableOpacity>
-      </View>
-
-      {/* Status text */}
-      <Text style={[styles.statusMsg, { color: getStatusColor() }]}>
-        {getStatusMsg()}
-      </Text>
-
-      {/* Membership status */}
-      <View style={[
-        styles.memStatusBadge,
-        membership.status === 'ACTIVE' ? styles.memActive : styles.memInactive
-      ]}>
-        <View style={[styles.memStatusDot, { backgroundColor: membership.status === 'ACTIVE' ? COLORS.success : COLORS.error }]} />
-        <Text style={[styles.memStatusText, { color: membership.status === 'ACTIVE' ? COLORS.success : COLORS.error }]}>
-          Membership: {membership.status}
+        {/* Description */}
+        <Text style={styles.modeDesc}>
+          {ACCESS_MODES.find((m) => m.id === mode)?.desc}
         </Text>
-        <Text style={styles.memExpiry}>· Valid till {new Date(membership.validTill).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</Text>
-      </View>
 
-      {/* Recent access log */}
-      <View style={styles.logSection}>
-        <Text style={styles.logTitle}>Recent Access Log</Text>
-        {logs.map((log) => (
-          <View key={log.id} style={styles.logItem}>
-            <View style={[styles.logDot, { backgroundColor: log.type === 'success' ? COLORS.success : COLORS.error }]} />
-            <Text style={styles.logText}>{log.text}</Text>
-            <Text style={styles.logTime}>{log.time}</Text>
-          </View>
-        ))}
-      </View>
+        {/* Big access button */}
+        <View style={styles.btnArea}>
+          {/* Pulse ring */}
+          <Animated.View
+            style={[
+              styles.pulseRing,
+              { transform: [{ scale: pulseAnim }], opacity: pulseOpacity },
+            ]}
+          />
+
+          <TouchableOpacity
+            onPress={handleAccess}
+            activeOpacity={0.85}
+            disabled={status !== 'idle'}
+            style={styles.accessBtnOuter}
+          >
+            <LinearGradient
+              colors={getButtonColors()}
+              style={styles.accessBtn}
+            >
+              {status === 'scanning' ? (
+                <MaterialCommunityIcons name="bluetooth-audio" size={52} color={COLORS.white} />
+              ) : status === 'success' ? (
+                <Ionicons name="checkmark-circle" size={56} color={COLORS.white} />
+              ) : status === 'denied' ? (
+                <Ionicons name="close-circle" size={56} color={COLORS.white} />
+              ) : mode === 'gate' ? (
+                <Ionicons name="enter-outline" size={52} color={COLORS.white} />
+              ) : (
+                <Ionicons name="lock-open-outline" size={52} color={COLORS.white} />
+              )}
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+
+        {/* Status text */}
+        <Text style={[styles.statusMsg, { color: getStatusColor() }]}>
+          {getStatusMsg()}
+        </Text>
+
+        {/* Membership status */}
+        <View style={[
+          styles.memStatusBadge,
+          membership.status === 'ACTIVE' ? styles.memActive : styles.memInactive
+        ]}>
+          <View style={[styles.memStatusDot, { backgroundColor: membership.status === 'ACTIVE' ? COLORS.success : COLORS.error }]} />
+          <Text style={[styles.memStatusText, { color: membership.status === 'ACTIVE' ? COLORS.success : COLORS.error }]}>
+            Membership: {membership.status}
+          </Text>
+          <Text style={styles.memExpiry}>· Valid till {new Date(membership.validTill).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</Text>
+        </View>
+
+        {/* Recent access log */}
+        <View style={styles.logSection}>
+          <Text style={styles.logTitle}>Recent Access Log</Text>
+          {logs.map((log) => (
+            <View key={log.id} style={styles.logItem}>
+              <View style={[styles.logDot, { backgroundColor: log.type === 'success' ? COLORS.success : COLORS.error }]} />
+              <Text style={styles.logText}>{log.text}</Text>
+              <Text style={styles.logTime}>{log.time}</Text>
+            </View>
+          ))}
+        </View>
+      </ScrollView>
     </View>
   );
 }
@@ -370,6 +377,8 @@ const styles = StyleSheet.create({
   },
   bleDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#2196F3' },
   bleText: { fontSize: 11, fontWeight: '700', color: '#2196F3' },
+
+  scroll: { paddingBottom: 40 },
 
   // Mode selector
   modeRow: { flexDirection: 'row', paddingHorizontal: 24, gap: 12, marginTop: 20, marginBottom: 10 },
