@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   StatusBar, Image, Linking, Alert, ActivityIndicator,
@@ -6,7 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import SafeBottomBar from '../../components/SafeBottomBar';
-import { requestTrialSession } from '../../services/trainerService';
+import { requestTrialSession, checkTrainerTrialStatus } from '../../services/trainerService';
 
 const RECEPTION_PHONE = '+919876543210';
 
@@ -19,7 +19,15 @@ const WHAT_TO_EXPECT = [
 export default function TrainerDetailScreen({ navigation, route }) {
   const { trainer, isMyTrainer = false } = route.params || {};
   const [requesting, setRequesting] = useState(false);
-  const [requested, setRequested] = useState(false);
+  // null = no active trial | 'pending' | 'accepted' | 'member_confirmed'
+  const [trialStatus, setTrialStatus] = useState(null);
+
+  useEffect(() => {
+    if (!trainer?.id) return;
+    checkTrainerTrialStatus(trainer.id)
+      .then(d => setTrialStatus(d.hasActive ? d.status : null))
+      .catch(() => { });
+  }, [trainer?.id]);
 
   if (!trainer) return null;
 
@@ -29,7 +37,7 @@ export default function TrainerDetailScreen({ navigation, route }) {
     setRequesting(true);
     try {
       await requestTrialSession(trainer.id);
-      setRequested(true);
+      setTrialStatus('pending');
       Alert.alert('Request Sent', "Your trial session request has been submitted. You'll receive a notification once it's confirmed by the admin.");
     } catch (err) {
       Alert.alert('Error', err.response?.data?.message ?? 'Failed to send request.');
@@ -37,6 +45,12 @@ export default function TrainerDetailScreen({ navigation, route }) {
       setRequesting(false);
     }
   }
+
+  const trialBtnLabel =
+    trialStatus === 'pending' ? 'Request Sent ✓' :
+      trialStatus === 'accepted' ? 'Session Scheduled' :
+        trialStatus === 'member_confirmed' ? 'Session Confirmed ✓' :
+          'Request Trial';
 
   const stats = [
     {
@@ -240,20 +254,20 @@ export default function TrainerDetailScreen({ navigation, route }) {
           <Ionicons name="call-outline" size={18} color="#fff" />
           <Text style={s.callBtnText}>Call</Text>
         </TouchableOpacity>
-        {!isMyTrainer && (
+        {/* {!isMyTrainer && (
           <TouchableOpacity
-            style={[s.trialBtn, (requesting || requested) && { opacity: 0.6 }]}
+            style={[s.trialBtn, (requesting || trialStatus !== null) && { opacity: 0.6 }]}
             onPress={handleTrialRequest}
-            disabled={requesting || requested}
+            disabled={requesting || trialStatus !== null}
             activeOpacity={0.8}
           >
             {requesting ? (
               <ActivityIndicator color="#000" size="small" />
             ) : (
-              <Text style={s.trialBtnText}>{requested ? 'Request Sent ✓' : 'Request Trial'}</Text>
+              <Text style={s.trialBtnText}>{trialBtnLabel}</Text>
             )}
           </TouchableOpacity>
-        )}
+        )} */}
         <TouchableOpacity
           style={s.waBtn}
           onPress={() => Linking.openURL(`whatsapp://send?phone=${RECEPTION_PHONE}`)}

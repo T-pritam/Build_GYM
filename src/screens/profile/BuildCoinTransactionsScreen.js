@@ -9,6 +9,7 @@ const PACK_W = Math.floor((W - 48 - 20) / 3); // 48 = scroll paddingH*2, 20 = 2 
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import { useWalletStore } from '../../store/walletStore';
+import { useAuthStore } from '../../store/authStore';
 import { fetchPackages } from '../../services/walletService';
 import SafeBottomBar from '../../components/SafeBottomBar';
 
@@ -23,7 +24,10 @@ export default function BuildCoinTransactionsScreen({ navigation }) {
     fetchTransactions,
     fetchMoreTransactions,
     purchasePackage,
+    purchaseWithRazorpay,
   } = useWalletStore();
+
+  const { user } = useAuthStore();
 
   const [packages, setPackages] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -50,31 +54,28 @@ export default function BuildCoinTransactionsScreen({ navigation }) {
     setRefreshing(false);
   }, [fetchBalance, fetchTransactions]);
 
-  const handleBuyPackage = (pkg) => {
-    const totalCoins = (pkg.coins + (pkg.bonusCoins ?? 0)).toLocaleString('en-IN');
-    const price = parseFloat(pkg.priceInr).toLocaleString('en-IN');
-    Alert.alert(
-      'Confirm Purchase',
-      `Pay ₹${price} at the counter and receive ${totalCoins} coins.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Confirm',
-          onPress: async () => {
-            setPurchasingId(pkg.id);
-            try {
-              const result = await purchasePackage(pkg.id);
-              await fetchTransactions();
-              Alert.alert('Done!', `${result.coinsAdded.toLocaleString()} coins added to your wallet.`);
-            } catch (err) {
-              Alert.alert('Error', err?.response?.data?.message ?? 'Purchase failed. Try again.');
-            } finally {
-              setPurchasingId(null);
-            }
-          },
-        },
-      ]
-    );
+  const handleBuyPackage = async (pkg) => {
+    if (purchasingId !== null) return;
+    setPurchasingId(pkg.id);
+    try {
+      const result = await purchaseWithRazorpay(pkg.id, {
+        phone: user?.phone ?? '',
+        name:  user?.firstName ?? user?.fullName ?? user?.name ?? '',
+      });
+      await fetchTransactions();
+      Alert.alert(
+        'Payment Successful!',
+        `${result.coinsAdded.toLocaleString()} Build Coins have been added to your wallet.`,
+      );
+    } catch (err) {
+      if (err?.code === 'PAYMENT_CANCELLED') return; // user dismissed checkout — no alert
+      Alert.alert(
+        'Payment Failed',
+        err?.response?.data?.message ?? err?.description ?? 'Something went wrong. Please try again.',
+      );
+    } finally {
+      setPurchasingId(null);
+    }
   };
 
   const formatDate = (dateStr) => {

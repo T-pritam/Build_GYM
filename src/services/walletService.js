@@ -45,3 +45,27 @@ export const purchasePackage = async (packageId) => {
   const { data } = await api.post('/wallet/purchase', { packageId });
   return data.data; // { balance, coinsAdded, package }
 };
+
+/**
+ * POST /api/payments/razorpay/create-order
+ * Creates a Razorpay order for the given package.
+ * Returns { razorpayOrderId, amountPaise, currency, keyId }.
+ */
+export const createRazorpayOrder = async (packageId) => {
+  const { data } = await api.post('/payments/razorpay/create-order', { packageId });
+  return data.data;
+};
+
+/**
+ * POST /api/payments/razorpay/verify
+ * Verifies a completed Razorpay payment server-side and credits coins.
+ * Returns { newBalance, coinsAdded }.
+ */
+export const verifyRazorpayPayment = async ({ razorpayOrderId, razorpayPaymentId, razorpaySignature }) => {
+  const { data } = await api.post('/payments/razorpay/verify', {
+    razorpayOrderId,
+    razorpayPaymentId,
+    razorpaySignature,
+  });
+  return data.data;
+};

@@ -3,14 +3,10 @@ import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { io } from 'socket.io-client';
-import { BASE_API_URL } from '@env';
 import { COLORS } from '../../constants/colors';
 import { fetchOrderById } from '../../services/cafeService';
 import { useActiveOrderStore } from '../../store/activeOrderStore';
-
-// Derive socket URL — strip /api suffix
-const SOCKET_URL = BASE_API_URL.replace(/\/api\/?$/, '');
+import { getSocket } from '../../services/socketService';
 
 const STATUS_STEPS = ['received', 'preparing', 'ready', 'done'];
 const STEP_LABELS = {
@@ -52,8 +48,8 @@ function StepIcon({ stepStatus }) {
 export default function OrderTrackingScreen({ navigation, route }) {
   const { orderId, order: initialOrder } = route?.params || {};
   const [order, setOrder] = useState(initialOrder ?? null);
-  const socketRef = useRef(null);
   const storedActive = useActiveOrderStore(s => s.activeOrder);
+  const { updateOrderStatus, clearActiveOrder } = useActiveOrderStore();
 
   // Fetch order from API when navigating from history/transactions (no initialOrder)
   useEffect(() => {
@@ -64,32 +60,39 @@ export default function OrderTrackingScreen({ navigation, route }) {
     }
   }, [orderId]);
 
-  // Socket: join order room after connection to avoid race condition
+  // Socket: use the singleton so we're guaranteed to be in the room before
+  // any status update fires (no race with a fresh socket connecting late).
   useEffect(() => {
     if (!orderId) return;
 
-    const socket = io(SOCKET_URL, { transports: ['websocket'] });
-    socketRef.current = socket;
+    const socket = getSocket();
 
-    socket.on('connect', () => {
-      socket.emit('join:order', orderId);
-    });
+    const joinRoom = () => socket.emit('join:order', orderId);
 
-    socket.on('order:status_updated', ({ orderId: id, status, preparingAt, readyAt, completedAt, cancelledAt, cancelNote }) => {
-      if (id === orderId) {
-        setOrder((prev) => prev ? {
-          ...prev,
-          status,
-          ...(preparingAt  ? { preparingAt }  : {}),
-          ...(readyAt      ? { readyAt }      : {}),
-          ...(completedAt  ? { completedAt }  : {}),
-          ...(cancelledAt  ? { cancelledAt }  : {}),
-          ...(cancelNote   ? { cancelNote }   : {}),
-        } : prev);
+    // Join immediately if already connected, else wait for connect event
+    if (socket.connected) {
+      joinRoom();
+    }
+    socket.on('connect', joinRoom);
+
+    const handleStatusUpdate = ({ orderId: id, status }) => {
+      if (id !== orderId) return;
+      setOrder((prev) => prev ? { ...prev, status } : prev);
+      // Keep store in sync so HOC reflects the latest status
+      if (status === 'done' || status === 'cancelled') {
+        clearActiveOrder();
+      } else {
+        updateOrderStatus(status);
       }
-    });
+    };
 
-    return () => socket.disconnect();
+    socket.on('order:status_updated', handleStatusUpdate);
+
+    return () => {
+      socket.off('connect', joinRoom);
+      socket.off('order:status_updated', handleStatusUpdate);
+      // Do NOT disconnect — singleton is shared across the app
+    };
   }, [orderId]);
 
   // Cancelled state — show dedicated banner

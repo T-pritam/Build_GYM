@@ -17,7 +17,9 @@ const ACTIVE_STATUSES = ['received', 'preparing', 'ready'];
 export default function ActiveOrderBar({ navigation }) {
   const { activeOrder, setActiveOrder, updateOrderStatus, clearActiveOrder } = useActiveOrderStore();
 
-  // Run once on mount — after store hydration — to populate bar immediately on any tab
+  // On mount (after store hydration): fetch latest orders from API.
+  // - If an active order exists → sync status.
+  // - If nothing active → clear any stale persisted order (e.g. from a previous day).
   useEffect(() => {
     const checkApi = async () => {
       try {
@@ -32,6 +34,9 @@ export default function ActiveOrderBar({ navigation }) {
           } else {
             setActiveOrder(active);
           }
+        } else {
+          // No active order on server — clear any stale persisted order
+          clearActiveOrder();
         }
       } catch {}
     };
@@ -44,10 +49,16 @@ export default function ActiveOrderBar({ navigation }) {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Listen for real-time status updates on the active order
+  // Join the order room on the singleton socket whenever activeOrder changes.
+  // Re-join on reconnect so we never miss events after a network drop.
   useEffect(() => {
-    if (!activeOrder) return;
+    if (!activeOrder?.id) return;
     const socket = getSocket();
+
+    const joinRoom = () => socket.emit('join:order', activeOrder.id);
+
+    if (socket.connected) joinRoom();
+    socket.on('connect', joinRoom);
 
     const handler = ({ orderId, status }) => {
       if (orderId !== activeOrder.id) return;
@@ -59,10 +70,19 @@ export default function ActiveOrderBar({ navigation }) {
     };
 
     socket.on('order:status_updated', handler);
-    return () => socket.off('order:status_updated', handler);
-  }, [activeOrder?.id, activeOrder?.status]);
+    return () => {
+      socket.off('connect', joinRoom);
+      socket.off('order:status_updated', handler);
+    };
+  }, [activeOrder?.id]);
 
+  // Hide bar if no active order, terminal status, or order was placed before today
   if (!activeOrder || !ACTIVE_STATUSES.includes(activeOrder.status)) return null;
+  const today = new Date().toDateString();
+  if (activeOrder.createdAt && new Date(activeOrder.createdAt).toDateString() !== today) {
+    clearActiveOrder();
+    return null;
+  }
 
   const isReady = activeOrder.status === 'ready';
 

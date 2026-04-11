@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAnnouncementStore } from '../../store/announcementStore';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  StatusBar, Linking, ActivityIndicator, Image, RefreshControl,
+  StatusBar, Linking, ActivityIndicator, Image, RefreshControl, Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,7 +11,7 @@ import { membership, gymServices } from '../../constants/dummyData';
 import { useAuthStore } from '../../store/authStore';
 import { useWalletStore } from '../../store/walletStore';
 import { fetchAnnouncements } from '../../services/announcementService';
-import { fetchTrainers, fetchMyTrainer, fetchTrialSession } from '../../services/trainerService';
+import { fetchTrainers, fetchMyTrainer, fetchTrialSessions, confirmTrialSession, rejectTrialSession } from '../../services/trainerService';
 import { getSocket } from '../../services/socketService';
 
 const RECEPTION_PHONE = '+919876543210';
@@ -36,7 +36,8 @@ export default function HomeScreen({ navigation }) {
   const [announcements, setAnnouncements] = useState([]);
   const [trainers, setTrainers] = useState([]);
   const [myTrainer, setMyTrainer] = useState(null);
-  const [trialSession, setTrialSession] = useState(null);
+  const [trialSessions, setTrialSessions] = useState([]);
+  const [trialActionId, setTrialActionId] = useState(null);
   const [loadingAnnouncements, setLoadingAnnouncements] = useState(true);
   const [loadingTrainers, setLoadingTrainers] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -73,9 +74,9 @@ export default function HomeScreen({ navigation }) {
       fetchMyTrainer()
         .then((data) => setMyTrainer(data || null))
         .catch(() => setMyTrainer(null)),
-      fetchTrialSession()
-        .then((data) => setTrialSession(data || null))
-        .catch(() => setTrialSession(null)),
+      fetchTrialSessions()
+        .then((data) => setTrialSessions(data || []))
+        .catch(() => setTrialSessions([])),
     ]);
   }, []);
 
@@ -143,7 +144,7 @@ export default function HomeScreen({ navigation }) {
               style={styles.avatarBtn}
               onPress={() => navigation.navigate('Profile')}
             >
-              {user.profilePhotoUrl ? (
+              {user?.profilePhotoUrl ? (
                 <Image source={{ uri: user.profilePhotoUrl }} style={styles.avatarBox} />
               ) : (
                 <View style={styles.avatarBox}>
@@ -327,41 +328,88 @@ export default function HomeScreen({ navigation }) {
         )}
 
         {/* ── UPCOMING TRIAL SESSION ───────────────── */}
-        {trialSession && (
+        {trialSessions.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Upcoming Trial Session</Text>
+              <Text style={styles.sectionTitle}>Trial Session</Text>
             </View>
-            <View style={styles.trialCard}>
-              <View style={styles.trialLeft}>
-                <Text style={styles.trialLabel}>TRAINER</Text>
-                <Text style={styles.trialTrainer}>{trialSession.trainerName}</Text>
-                {!!trialSession.trainerSpecialisation && (
-                  <Text style={styles.trialSpec}>{trialSession.trainerSpecialisation}</Text>
-                )}
-                {!!trialSession.acceptedByName && (
-                  <Text style={styles.trialBookedBy}>Booked by {trialSession.acceptedByName}</Text>
-                )}
-              </View>
-              <View style={styles.trialRight}>
-                <Text style={styles.trialLabel}>SCHEDULED</Text>
-                <Text style={styles.trialDate}>
-                  {new Date(trialSession.scheduledAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                </Text>
-                <Text style={styles.trialTime}>
-                  {new Date(trialSession.scheduledAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
-                </Text>
-                <View style={[styles.trialStatusBadge, {
-                  backgroundColor: trialSession.status === 'member_confirmed' ? 'rgba(34,197,94,0.12)' : 'rgba(234,179,8,0.12)',
-                }]}>
-                  <Text style={[styles.trialStatusText, {
-                    color: trialSession.status === 'member_confirmed' ? '#22C55E' : '#EAB308',
-                  }]}>
-                    {trialSession.status === 'member_confirmed' ? 'CONFIRMED' : 'PENDING'}
-                  </Text>
+            {trialSessions.map((session) => {
+              const isAccepted  = session.status === 'accepted';
+              const isConfirmed = session.status === 'member_confirmed';
+              const isActioning = trialActionId === session.id;
+              return (
+                <View key={session.id} style={[styles.trialCard, { marginBottom: 10 }]}>
+                  <View style={styles.trialCardInner}>
+                    <View style={styles.trialLeft}>
+                      <Text style={styles.trialLabel}>TRAINER</Text>
+                      <Text style={styles.trialTrainer}>{session.trainerName}</Text>
+                      {!!session.trainerSpecialisation && (
+                        <Text style={styles.trialSpec}>{session.trainerSpecialisation}</Text>
+                      )}
+                      {!!session.acceptedByName && (
+                        <Text style={styles.trialBookedBy}>Booked by {session.acceptedByName}</Text>
+                      )}
+                    </View>
+                    <View style={styles.trialRight}>
+                      <Text style={styles.trialLabel}>SCHEDULED</Text>
+                      <Text style={styles.trialDate}>
+                        {new Date(session.scheduledAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                      </Text>
+                      <Text style={styles.trialTime}>
+                        {new Date(session.scheduledAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                      </Text>
+                      {isAccepted && (
+                        <View style={[styles.trialStatusBadge, { backgroundColor: 'rgba(234,179,8,0.12)' }]}>
+                          <Text style={[styles.trialStatusText, { color: '#EAB308' }]}>PENDING</Text>
+                        </View>
+                      )}
+                      {isConfirmed && (
+                        <View style={[styles.trialStatusBadge, { backgroundColor: 'rgba(34,197,94,0.12)' }]}>
+                          <Text style={[styles.trialStatusText, { color: '#22C55E' }]}>CONFIRMED</Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+                  {isAccepted && (
+                    <View style={styles.trialActions}>
+                      <TouchableOpacity
+                        style={[styles.trialConfirmBtn, isActioning && { opacity: 0.6 }]}
+                        disabled={isActioning}
+                        onPress={async () => {
+                          setTrialActionId(session.id);
+                          try {
+                            await confirmTrialSession(session.id);
+                            const updated = await fetchTrialSessions();
+                            setTrialSessions(updated);
+                          } catch (err) {
+                            Alert.alert('Error', err?.response?.data?.message ?? 'Failed to confirm.');
+                          } finally { setTrialActionId(null); }
+                        }}
+                      >
+                        {isActioning
+                          ? <ActivityIndicator color="#000" size="small" />
+                          : <Text style={styles.trialConfirmBtnText}>Confirm</Text>}
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.trialRejectBtn, isActioning && { opacity: 0.6 }]}
+                        disabled={isActioning}
+                        onPress={async () => {
+                          setTrialActionId(session.id);
+                          try {
+                            await rejectTrialSession(session.id);
+                            setTrialSessions(prev => prev.filter(s => s.id !== session.id));
+                          } catch (err) {
+                            Alert.alert('Error', err?.response?.data?.message ?? 'Failed to reject.');
+                          } finally { setTrialActionId(null); }
+                        }}
+                      >
+                        <Text style={styles.trialRejectBtnText}>Reject</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
                 </View>
-              </View>
-            </View>
+              );
+            })}
           </View>
         )}
 
@@ -393,34 +441,32 @@ export default function HomeScreen({ navigation }) {
           </View>
         </View>
 
-        {/* ── ANNOUNCEMENTS ─────────────────────────── */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Announcements</Text>
-            {announcements.length > 0 && (
+        {/* ── ANNOUNCEMENTS — hidden when empty ─────── */}
+        {(loadingAnnouncements || announcements.length > 0) && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Announcements</Text>
               <View style={styles.announceBadge}>
                 <Text style={styles.announceBadgeText}>{announcements.length}</Text>
               </View>
+            </View>
+            {loadingAnnouncements ? (
+              <ActivityIndicator color={COLORS.secondary} style={{ marginVertical: 20 }} />
+            ) : (
+              announcements.map((a, i) => (
+                <View key={a.id || i} style={styles.announceCard}>
+                  <View style={[styles.announceBorder, { backgroundColor: ANNOUNCEMENT_COLORS[i % ANNOUNCEMENT_COLORS.length] }]} />
+                  <View style={styles.announceContent}>
+                    <Text style={styles.announceDate}>{a.date || (a.createdAt ? new Date(a.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '')}</Text>
+                    <Text style={styles.announceTitle}>{a.title}</Text>
+                    <Text style={styles.announceBody} numberOfLines={2}>{a.subtitle || a.body}</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
+                </View>
+              ))
             )}
           </View>
-          {loadingAnnouncements ? (
-            <ActivityIndicator color={COLORS.secondary} style={{ marginVertical: 20 }} />
-          ) : announcements.length === 0 ? (
-            <Text style={{ color: COLORS.textMuted, fontSize: 13, textAlign: 'center', paddingVertical: 16 }}>No announcements yet.</Text>
-          ) : (
-            announcements.map((a, i) => (
-              <View key={a.id || i} style={styles.announceCard}>
-                <View style={[styles.announceBorder, { backgroundColor: ANNOUNCEMENT_COLORS[i % ANNOUNCEMENT_COLORS.length] }]} />
-                <View style={styles.announceContent}>
-                  <Text style={styles.announceDate}>{a.date || (a.createdAt ? new Date(a.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '')}</Text>
-                  <Text style={styles.announceTitle}>{a.title}</Text>
-                  <Text style={styles.announceBody} numberOfLines={2}>{a.subtitle || a.body}</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
-              </View>
-            ))
-          )}
-        </View>
+        )}
 
         {/* ── THIS WEEK ────────────────────────────── */}
         <View style={styles.section}>
@@ -777,8 +823,9 @@ const styles = StyleSheet.create({
   // Trial session card
   trialCard: {
     backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.secondaryBorder,
-    borderRadius: 16, padding: 16, flexDirection: 'row', gap: 12,
+    borderRadius: 16, overflow: 'hidden',
   },
+  trialCardInner: { flexDirection: 'row', gap: 12, padding: 16 },
   trialLeft: { flex: 1 },
   trialRight: { alignItems: 'flex-end', gap: 4 },
   trialLabel: {
@@ -792,4 +839,20 @@ const styles = StyleSheet.create({
   trialTime: { color: COLORS.textSecondary, fontSize: 12 },
   trialStatusBadge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, marginTop: 4 },
   trialStatusText: { fontSize: 9, fontWeight: '800', letterSpacing: 1 },
+  trialActions: {
+    flexDirection: 'row', gap: 10,
+    borderTopWidth: 1, borderTopColor: COLORS.border,
+    paddingHorizontal: 16, paddingVertical: 12,
+  },
+  trialConfirmBtn: {
+    flex: 1, height: 38, borderRadius: 8, backgroundColor: COLORS.secondary,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  trialConfirmBtnText: { fontSize: 12, fontWeight: '800', color: '#000' },
+  trialRejectBtn: {
+    flex: 1, height: 38, borderRadius: 8,
+    borderWidth: 1, borderColor: COLORS.border,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  trialRejectBtnText: { fontSize: 12, fontWeight: '700', color: COLORS.textMuted },
 });

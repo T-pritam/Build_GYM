@@ -5,6 +5,10 @@ echo ""
 
 # Clean Android
 echo "1. Cleaning Android build..."
+# Delete app/build first — a stale Android-autolinking.cmake inside it references
+# codegen JNI dirs that may not exist yet, which causes 'gradlew clean' itself to
+# fail at CMake configuration time.
+rm -rf android/app/build
 cd android
 ./gradlew clean
 cd ..

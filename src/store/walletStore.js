@@ -21,10 +21,13 @@
  */
 
 import { create } from 'zustand';
+import RazorpayCheckout from 'react-native-razorpay';
 import {
   fetchBalance as apiFetchBalance,
   fetchTransactions as apiFetchTransactions,
   purchasePackage as apiPurchasePackage,
+  createRazorpayOrder,
+  verifyRazorpayPayment,
 } from '../services/walletService';
 
 export const useWalletStore = create((set, get) => ({
@@ -107,6 +110,49 @@ export const useWalletStore = create((set, get) => ({
   purchasePackage: async (packageId) => {
     const result = await apiPurchasePackage(packageId);
     set({ balance: result.balance, transactions: [], nextCursor: null, hasMore: false });
+    return result;
+  },
+
+  /**
+   * Buy a coin package via Razorpay online payment.
+   * Orchestrates the full flow:
+   *   1. Backend creates a Razorpay order
+   *   2. Native Razorpay checkout sheet opens
+   *   3. Backend verifies the HMAC signature and credits coins
+   *
+   * @param {string} packageId
+   * @param {{ phone?: string, name?: string }} userInfo - pre-fills Razorpay checkout
+   * @returns {{ newBalance: number, coinsAdded: number }}
+   * @throws Razorpay SDK throws { code: 'PAYMENT_CANCELLED' } on dismiss
+   */
+  purchaseWithRazorpay: async (packageId, userInfo = {}) => {
+    // 1. Create order on backend
+    const orderData = await createRazorpayOrder(packageId);
+
+    // 2. Open Razorpay checkout (native UI)
+    const paymentData = await RazorpayCheckout.open({
+      description: 'Build Coins Purchase',
+      currency:    orderData.currency,
+      key:         orderData.keyId,
+      amount:      String(orderData.amountPaise),
+      order_id:    orderData.razorpayOrderId,
+      name:        'BuildGym',
+      prefill: {
+        contact: userInfo.phone ?? '',
+        name:    userInfo.name  ?? '',
+      },
+      theme: { color: '#E96316' },
+    });
+    // paymentData = { razorpay_payment_id, razorpay_order_id, razorpay_signature }
+
+    // 3. Verify on backend — coins credited here
+    const result = await verifyRazorpayPayment({
+      razorpayOrderId:   paymentData.razorpay_order_id,
+      razorpayPaymentId: paymentData.razorpay_payment_id,
+      razorpaySignature: paymentData.razorpay_signature,
+    });
+
+    set({ balance: result.newBalance, transactions: [], nextCursor: null, hasMore: false });
     return result;
   },
 

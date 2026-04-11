@@ -134,9 +134,24 @@ export default function NotificationsScreen({ navigation }) {
       await api.post(`/member/trial-requests/${announcement.trialRequestId}/confirm`);
       setItems((prev) => prev.map((a) => a.id === announcement.id ? { ...a, _confirmed: true } : a));
       setSelected((s) => s ? { ...s, _confirmed: true } : null);
-      Alert.alert('Confirmed!', 'Your trial session has been confirmed.');
+      Alert.alert('Confirmed!', 'Your trial session has been confirmed. Your trainer has been notified.');
     } catch {
       Alert.alert('Error', 'Could not confirm. Please try again.');
+    } finally {
+      setConfirmingTrial(false);
+    }
+  };
+
+  // ── Decline trial session ─────────────────────────────────────────────────
+  const handleRejectTrial = async (announcement) => {
+    setConfirmingTrial(true);
+    try {
+      await api.post(`/member/trial-requests/${announcement.trialRequestId}/reject`);
+      setItems((prev) => prev.map((a) => a.id === announcement.id ? { ...a, _rejected: true } : a));
+      setSelected((s) => s ? { ...s, _rejected: true } : null);
+      Alert.alert('Declined', 'You have declined this trial session.');
+    } catch {
+      Alert.alert('Error', 'Could not decline. Please try again.');
     } finally {
       setConfirmingTrial(false);
     }
@@ -268,18 +283,35 @@ export default function NotificationsScreen({ navigation }) {
                 <Text style={s.modalMeta}>{formatDate(selected.publishedAt)}</Text>
                 <Text style={s.modalBody}>{selected.message}</Text>
 
-                {selected.type === 'trial_booking' && selected.trialRequestId && !selected._confirmed && (
-                  <TouchableOpacity
-                    style={s.acceptTrialBtn}
-                    onPress={() => handleAcceptTrial(selected)}
-                    disabled={confirmingTrial}
-                    activeOpacity={0.85}
-                  >
-                    {confirmingTrial
-                      ? <ActivityIndicator color="#000" size="small" />
-                      : <Text style={s.acceptTrialBtnText}>Accept Trial Session</Text>
-                    }
-                  </TouchableOpacity>
+                {selected.type === 'trial_booking' && selected.trialRequestId
+                  && !selected._confirmed && !selected._rejected && (
+                  <View style={s.trialActionRow}>
+                    <TouchableOpacity
+                      style={[s.declineTrialBtn, confirmingTrial && { opacity: 0.5 }]}
+                      onPress={() => handleRejectTrial(selected)}
+                      disabled={confirmingTrial}
+                      activeOpacity={0.85}
+                    >
+                      <Text style={s.declineTrialBtnText}>Decline</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[s.acceptTrialBtn, confirmingTrial && { opacity: 0.5 }]}
+                      onPress={() => handleAcceptTrial(selected)}
+                      disabled={confirmingTrial}
+                      activeOpacity={0.85}
+                    >
+                      {confirmingTrial
+                        ? <ActivityIndicator color="#000" size="small" />
+                        : <Text style={s.acceptTrialBtnText}>Accept Session</Text>
+                      }
+                    </TouchableOpacity>
+                  </View>
+                )}
+                {selected.type === 'trial_booking' && selected._confirmed && (
+                  <Text style={s.trialResponseText}>✓ Session confirmed</Text>
+                )}
+                {selected.type === 'trial_booking' && selected._rejected && (
+                  <Text style={[s.trialResponseText, { color: '#EF4444' }]}>✗ Session declined</Text>
                 )}
 
                 <TouchableOpacity style={s.closeBtn} onPress={handleClose} activeOpacity={0.85}>
@@ -377,11 +409,22 @@ const s = StyleSheet.create({
   modalTitle: { color: COLORS.white, fontSize: 20, fontWeight: '800', marginBottom: 6, lineHeight: 28 },
   modalMeta: { color: COLORS.textMuted, fontSize: 12, marginBottom: 14 },
   modalBody: { color: COLORS.textSecondary, fontSize: 14, lineHeight: 22, marginBottom: 20 },
+  trialActionRow: { flexDirection: 'row', gap: 10, marginBottom: 10 },
+  declineTrialBtn: {
+    flex: 0.4, borderRadius: 12, paddingVertical: 13, alignItems: 'center',
+    borderWidth: 1, borderColor: 'rgba(239,68,68,0.4)',
+    backgroundColor: 'rgba(239,68,68,0.1)',
+  },
+  declineTrialBtnText: { color: '#EF4444', fontWeight: '800', fontSize: 14 },
   acceptTrialBtn: {
-    backgroundColor: COLORS.secondary, borderRadius: 12,
-    paddingVertical: 13, alignItems: 'center', marginBottom: 10,
+    flex: 0.6, backgroundColor: COLORS.secondary, borderRadius: 12,
+    paddingVertical: 13, alignItems: 'center',
   },
   acceptTrialBtnText: { color: '#000', fontWeight: '800', fontSize: 14, letterSpacing: 0.5 },
+  trialResponseText: {
+    color: '#22C55E', fontWeight: '700', fontSize: 13,
+    textAlign: 'center', marginBottom: 10,
+  },
   closeBtn: {
     backgroundColor: COLORS.secondary, borderRadius: 14,
     paddingVertical: 14, alignItems: 'center',
