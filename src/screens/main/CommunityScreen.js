@@ -364,6 +364,22 @@ export default function CommunityScreen({ navigation }) {
       {/* Tab content */}
       {activeTab === 'community' && (
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.tabScrollContent}>
+          {/* Community Feed CTA */}
+          <TouchableOpacity
+            style={styles.communityFeedCta}
+            activeOpacity={0.85}
+            onPress={() => navigation.navigate('CommunityFeed')}
+          >
+            <View style={styles.communityFeedCtaLeft}>
+              <Ionicons name="chatbubbles" size={24} color={COLORS.secondary} />
+              <View style={{ marginLeft: 12, flex: 1 }}>
+                <Text style={styles.communityFeedCtaTitle}>Community Feed</Text>
+                <Text style={styles.communityFeedCtaSub}>Share progress, ask questions, vote & more</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
+          </TouchableOpacity>
+
           {/* Category filter pills */}
           <ScrollView
             horizontal showsHorizontalScrollIndicator={false}
@@ -448,6 +464,14 @@ export default function CommunityScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
+  communityFeedCta: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: COLORS.surface, borderRadius: 14,
+    padding: 14, marginBottom: 16, borderWidth: 1, borderColor: COLORS.secondary + '33',
+  },
+  communityFeedCtaLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+  communityFeedCtaTitle: { fontSize: 15, fontWeight: '700', color: COLORS.white },
+  communityFeedCtaSub: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
   glowTop: {
     position: 'absolute', top: 0, left: 0, right: 0, height: 260,
     backgroundColor: 'rgba(233,99,22,0.08)',
