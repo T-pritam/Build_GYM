@@ -40,6 +40,21 @@ import HealthEmergencyScreen from '../screens/profile/HealthEmergencyScreen';
 import EditProfileScreen from '../screens/profile/EditProfileScreen';
 import ConsentPreferencesScreen from '../screens/profile/ConsentPreferencesScreen';
 
+// Workout screens
+import {
+  WorkoutHomeScreen,
+  WorkoutSessionScreen,
+  WorkoutSummaryScreen,
+  MuscleGroupPickerScreen,
+  ExercisePickerScreen,
+  WorkoutStatsScreen,
+  WorkoutHistoryScreen,
+  WorkoutDetailScreen,
+  PersonalRecordsScreen,
+  MuscleDistributionScreen,
+  StreakDetailScreen,
+} from '../screens/workout';
+
 // Detail screens
 import TrainerDetailScreen from '../screens/detail/TrainerDetailScreen';
 import ArticleReaderScreen from '../screens/community/ArticleReaderScreen';
@@ -209,6 +224,19 @@ export default function AppNavigator() {
           options={{ animation: 'slide_from_bottom' }}
         />
         <Stack.Screen name="Trainers" component={TrainersScreen} />
+
+        {/* Workout screens */}
+        <Stack.Screen name="WorkoutHome" component={WorkoutHomeScreen} />
+        <Stack.Screen name="WorkoutSession" component={WorkoutSessionScreen} options={{ gestureEnabled: false }} />
+        <Stack.Screen name="WorkoutSummary" component={WorkoutSummaryScreen} options={{ gestureEnabled: false }} />
+        <Stack.Screen name="MuscleGroupPicker" component={MuscleGroupPickerScreen} />
+        <Stack.Screen name="ExercisePicker" component={ExercisePickerScreen} />
+        <Stack.Screen name="WorkoutStats" component={WorkoutStatsScreen} />
+        <Stack.Screen name="WorkoutHistory" component={WorkoutHistoryScreen} />
+        <Stack.Screen name="WorkoutDetail" component={WorkoutDetailScreen} />
+        <Stack.Screen name="PersonalRecords" component={PersonalRecordsScreen} />
+        <Stack.Screen name="MuscleDistribution" component={MuscleDistributionScreen} />
+        <Stack.Screen name="StreakDetail" component={StreakDetailScreen} />
         <Stack.Screen
           name="ArticleReader"
           component={ArticleReaderScreen}

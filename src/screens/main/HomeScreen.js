@@ -617,6 +617,22 @@ export default function HomeScreen({ navigation }) {
           ))}
         </View>
 
+        {/* ── WORKOUT QUICK ACCESS ────────────────── */}
+        <TouchableOpacity
+          style={styles.workoutQuickCard}
+          onPress={() => navigation.navigate('WorkoutHome')}
+          activeOpacity={0.8}
+        >
+          <View style={styles.workoutQuickLeft}>
+            <Ionicons name="barbell" size={24} color={COLORS.secondary} />
+            <View style={{ marginLeft: 12 }}>
+              <Text style={styles.workoutQuickTitle}>Workouts</Text>
+              <Text style={styles.workoutQuickSub}>Plans, logs, stats & PRs</Text>
+            </View>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
+        </TouchableOpacity>
+
         {/* ── GYM SERVICES ─────────────────────────── */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -897,4 +913,15 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   trialRejectBtnText: { fontSize: 12, fontWeight: '700', color: COLORS.textMuted },
+
+  // Workout quick access
+  workoutQuickCard: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: COLORS.surface, borderRadius: 14, padding: 16,
+    marginHorizontal: 16, marginBottom: 16,
+    borderWidth: 1, borderColor: 'rgba(233,99,22,0.3)',
+  },
+  workoutQuickLeft: { flexDirection: 'row', alignItems: 'center' },
+  workoutQuickTitle: { color: COLORS.white, fontSize: 16, fontWeight: '700' },
+  workoutQuickSub: { color: COLORS.textMuted, fontSize: 12, marginTop: 2 },
 });
