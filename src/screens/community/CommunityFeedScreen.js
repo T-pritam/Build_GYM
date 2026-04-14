@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   ActivityIndicator, RefreshControl, StatusBar,
@@ -48,6 +48,9 @@ export default function CommunityFeedScreen({ navigation }) {
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState(null);
+  // Tracks whether the initial load has completed so the focus listener
+  // doesn't trigger a second fetch on first mount.
+  const initialLoadDone = useRef(false);
 
   const loadPosts = useCallback(async (pageNum = 1, isRefresh = false) => {
     try {
@@ -68,8 +71,17 @@ export default function CommunityFeedScreen({ navigation }) {
 
   useEffect(() => {
     setLoading(true);
-    loadPosts(1).finally(() => setLoading(false));
+    loadPosts(1).finally(() => { setLoading(false); initialLoadDone.current = true; });
   }, [loadPosts]);
+
+  // Reload when returning from CreatePost so new posts appear immediately.
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      if (!initialLoadDone.current) return;
+      loadPosts(1, true);
+    });
+    return unsubscribe;
+  }, [navigation, loadPosts]);
 
   const handleRefresh = async () => {
     setRefreshing(true);

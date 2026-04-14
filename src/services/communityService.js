@@ -33,9 +33,13 @@ export const createCommunityPost = async ({ body, category, image, isPoll, optio
     }
     formData.append('image', {
       uri: image.uri,
-      type: image.type || 'image/jpeg',
-      name: image.fileName || 'photo.jpg',
+      // expo-image-picker returns `mimeType` (e.g. 'image/jpeg').
+      // `image.type` is just the asset category ('image'), not a MIME type.
+      type: image.mimeType || 'image/jpeg',
+      name: image.fileName || image.uri.split('/').pop() || 'photo.jpg',
     });
+    // Explicit 'multipart/form-data' overrides the Axios instance default
+    // ('application/json'). React Native's XHR appends the boundary automatically.
     const { data } = await api.post('/community/posts', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });

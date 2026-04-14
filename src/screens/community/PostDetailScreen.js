@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity,
   ActivityIndicator, Alert, StatusBar, KeyboardAvoidingView, Platform,
+  Modal, RefreshControl,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
@@ -32,14 +33,27 @@ const REPORT_REASONS = [
 
 function timeAgo(dateStr) {
   if (!dateStr) return '';
-  const diff = Date.now() - new Date(dateStr).getTime();
+
+  const safeDateStr = dateStr
+    .replace(' ', 'T')
+    .replace(/(\.\d{3})\d+/, '$1')
+    .replace('+00', 'Z');
+
+  const time = new Date(safeDateStr).getTime();
+  if (isNaN(time)) return 'Invalid date';
+
+  const diff = Date.now() - time;
   const mins = Math.floor(diff / 60000);
+
   if (mins < 1) return 'Just now';
   if (mins < 60) return `${mins}m ago`;
+
   const hours = Math.floor(mins / 60);
   if (hours < 24) return `${hours}h ago`;
+
   const days = Math.floor(hours / 24);
   if (days < 30) return `${days}d ago`;
+
   return `${Math.floor(days / 30)}mo ago`;
 }
 
@@ -52,8 +66,11 @@ export default function PostDetailScreen({ navigation, route }) {
   const [comments, setComments] = useState([]);
   const [commentText, setCommentText] = useState('');
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [reportVisible, setReportVisible] = useState(false);
 
   const loadPost = useCallback(async () => {
     if (!postId) return;
@@ -81,13 +98,18 @@ export default function PostDetailScreen({ navigation, route }) {
     Promise.all([loadPost(), loadComments()]).finally(() => setLoading(false));
   }, [loadPost, loadComments]);
 
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([loadPost(), loadComments()]);
+    setRefreshing(false);
+  }, [loadPost, loadComments]);
+
   // ── Voting ─────────────────────────────────────────────────────────────────
 
   const handleVote = async (type) => {
     if (!post) return;
     const prev = { upvotes: post.upvotes, downvotes: post.downvotes, user_vote: post.user_vote };
 
-    // Optimistic
     if (post.user_vote === type) {
       setPost((p) => ({
         ...p,
@@ -129,7 +151,13 @@ export default function PostDetailScreen({ navigation, route }) {
     setSubmitting(true);
     try {
       const newComment = await addComment(postId, commentText.trim());
-      setComments((prev) => [newComment, ...prev]);
+      // Inject the current user's display data so the comment renders correctly
+      // without needing a reload (the raw DB row doesn't include the JOIN fields).
+      setComments((prev) => [{
+        ...newComment,
+        author_name: user?.fullName || 'You',
+        author_avatar: user?.profilePhotoUrl || null,
+      }, ...prev]);
       setCommentText('');
       setPost((p) => p ? { ...p, comment_count: (p.comment_count || 0) + 1 } : p);
     } catch (err) {
@@ -176,31 +204,55 @@ export default function PostDetailScreen({ navigation, route }) {
     ]);
   };
 
-  const handleReport = () => {
-    Alert.alert('Report Post', 'Select a reason:', [
-      ...REPORT_REASONS.map((r) => ({
-        text: r.label,
-        onPress: async () => {
-          try {
-            await reportPost(postId, r.key);
-            Alert.alert('Reported', 'Thank you for your report.');
-          } catch (err) {
-            Alert.alert('Error', err?.response?.data?.message || 'Failed to report');
-          }
-        },
-      })),
-      { text: 'Cancel', style: 'cancel' },
-    ]);
+  const handleReport = async (reason) => {
+    try {
+      await reportPost(postId, reason);
+      Alert.alert('Reported', 'Thank you for your report.');
+    } catch (err) {
+      Alert.alert('Error', err?.response?.data?.message || 'Failed to report');
+    }
   };
 
   // ── Poll Voting ────────────────────────────────────────────────────────────
 
   const handlePollVote = async (optionId) => {
-    if (!post?.poll || post.poll.userVote || post.poll.isClosed) return;
+    if (!post?.poll || post.poll.isClosed) return;
+    // Tapping the already-selected option is a no-op
+    if (post.poll.userVote === optionId) return;
+
+    const prevPoll = post.poll;
+    const oldOptionId = post.poll.userVote;
+
+    // Optimistic update: transfer count from old → new option
+    setPost((p) => {
+      if (!p?.poll) return p;
+      const updatedOptions = p.poll.options.map((o) => {
+        if (o.id === optionId) return { ...o, vote_count: (o.vote_count || 0) + 1 };
+        if (o.id === oldOptionId) return { ...o, vote_count: Math.max((o.vote_count || 0) - 1, 0) };
+        return o;
+      });
+      const totalVotes = updatedOptions.reduce((sum, o) => sum + (o.vote_count || 0), 0);
+      return {
+        ...p,
+        poll: {
+          ...p.poll,
+          userVote: optionId,
+          totalVotes,
+          options: updatedOptions.map((o) => ({
+            ...o,
+            percentage: totalVotes > 0 ? Math.round((o.vote_count / totalVotes) * 100) : 0,
+          })),
+        },
+      };
+    });
+
     try {
       const result = await votePoll(postId, optionId);
+      // Sync with server's authoritative counts
       setPost((p) => ({ ...p, poll: { ...p.poll, ...result } }));
     } catch (err) {
+      // Revert optimistic update on failure
+      setPost((p) => ({ ...p, poll: prevPoll }));
       Alert.alert('Error', err?.response?.data?.message || 'Failed to vote');
     }
   };
@@ -245,20 +297,25 @@ export default function PostDetailScreen({ navigation, route }) {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Post</Text>
         <TouchableOpacity
-          onPress={() => {
-            const options = [];
-            if (isAuthor) options.push({ text: 'Delete Post', onPress: handleDeletePost, style: 'destructive' });
-            if (!isAuthor) options.push({ text: 'Report', onPress: handleReport });
-            options.push({ text: 'Cancel', style: 'cancel' });
-            Alert.alert('Options', undefined, options);
-          }}
+          onPress={() => setMenuVisible(true)}
+          style={styles.menuBtn}
           hitSlop={8}
         >
           <Ionicons name="ellipsis-horizontal" size={22} color={COLORS.textMuted} />
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={COLORS.secondary}
+            colors={[COLORS.secondary]}
+          />
+        }
+      >
         {/* Author */}
         <View style={styles.authorRow}>
           {post.author_avatar ? (
@@ -294,13 +351,17 @@ export default function PostDetailScreen({ navigation, route }) {
               const voted = post.poll.userVote;
               const isSelected = voted === opt.id;
               const showResults = !!voted || post.poll.isClosed;
+              // Lock only the currently selected option and closed polls;
+              // other options stay tappable so the user can switch their vote.
+              const isDisabled = post.poll.isClosed || isSelected;
 
               return (
                 <TouchableOpacity
                   key={opt.id}
                   style={[styles.pollOption, isSelected && styles.pollOptionSelected]}
                   onPress={() => handlePollVote(opt.id)}
-                  disabled={!!voted || post.poll.isClosed}
+                  disabled={isDisabled}
+                  activeOpacity={0.7}
                 >
                   <Text style={[styles.pollOptionText, isSelected && styles.pollOptionTextSelected]}>
                     {opt.option_text}
@@ -425,6 +486,95 @@ export default function PostDetailScreen({ navigation, route }) {
           )}
         </TouchableOpacity>
       </View>
+
+      {/* ── Action Menu Modal ─────────────────────────────────────────────── */}
+      <Modal
+        visible={menuVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMenuVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setMenuVisible(false)}
+        >
+          <View style={styles.menuSheet}>
+            {isAuthor ? (
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => { setMenuVisible(false); handleDeletePost(); }}
+              >
+                <View style={[styles.menuIconWrap, { backgroundColor: '#FF444420' }]}>
+                  <Ionicons name="trash-outline" size={20} color="#FF4444" />
+                </View>
+                <Text style={[styles.menuItemText, { color: '#FF4444' }]}>Delete Post</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => { setMenuVisible(false); setReportVisible(true); }}
+              >
+                <View style={[styles.menuIconWrap, { backgroundColor: COLORS.secondary + '20' }]}>
+                  <Ionicons name="flag-outline" size={20} color={COLORS.secondary} />
+                </View>
+                <Text style={styles.menuItemText}>Report Post</Text>
+              </TouchableOpacity>
+            )}
+            <View style={styles.menuDivider} />
+            <TouchableOpacity
+              style={styles.menuCancelItem}
+              onPress={() => setMenuVisible(false)}
+            >
+              <Text style={styles.menuCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* ── Report Reason Modal ───────────────────────────────────────────── */}
+      <Modal
+        visible={reportVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setReportVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setReportVisible(false)}
+        >
+          <View style={styles.menuSheet}>
+            <View style={styles.reportHeader}>
+              <Ionicons name="flag" size={18} color={COLORS.secondary} />
+              <Text style={styles.reportTitle}>Report Post</Text>
+            </View>
+            <Text style={styles.reportSubtitle}>Select a reason</Text>
+
+            {REPORT_REASONS.map((r, i) => (
+              <TouchableOpacity
+                key={r.key}
+                style={[
+                  styles.menuItem,
+                  i < REPORT_REASONS.length - 1 && styles.menuItemBorder,
+                ]}
+                onPress={() => { setReportVisible(false); handleReport(r.key); }}
+              >
+                <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
+                <Text style={styles.menuItemText}>{r.label}</Text>
+              </TouchableOpacity>
+            ))}
+
+            <View style={styles.menuDivider} />
+            <TouchableOpacity
+              style={styles.menuCancelItem}
+              onPress={() => setReportVisible(false)}
+            >
+              <Text style={styles.menuCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -437,6 +587,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16, paddingTop: 54, paddingBottom: 12,
   },
   backBtn: { padding: 4 },
+  menuBtn: { padding: 4 },
   headerTitle: { fontSize: 18, fontWeight: '700', color: COLORS.white },
   content: { padding: 16, paddingBottom: 100 },
   authorRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 },
@@ -512,4 +663,38 @@ const styles = StyleSheet.create({
   errorText: { fontSize: 14, color: COLORS.error, textAlign: 'center', marginBottom: 12 },
   retryBtn: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8, backgroundColor: COLORS.surface },
   retryText: { fontSize: 14, fontWeight: '600', color: COLORS.secondary },
+  // Modal / Menu
+  modalOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'flex-end',
+  },
+  menuSheet: {
+    backgroundColor: COLORS.surface,
+    borderTopLeftRadius: 20, borderTopRightRadius: 20,
+    paddingTop: 8, paddingBottom: 34,
+    paddingHorizontal: 16,
+  },
+  menuItem: {
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    paddingVertical: 16,
+  },
+  menuItemBorder: {
+    borderBottomWidth: 1, borderBottomColor: COLORS.border,
+  },
+  menuIconWrap: {
+    width: 36, height: 36, borderRadius: 10,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  menuItemText: { fontSize: 16, fontWeight: '500', color: COLORS.white },
+  menuDivider: { height: 1, backgroundColor: COLORS.border, marginVertical: 4 },
+  menuCancelItem: {
+    alignItems: 'center', paddingVertical: 14,
+  },
+  menuCancelText: { fontSize: 16, fontWeight: '600', color: COLORS.textMuted },
+  reportHeader: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingTop: 8, paddingBottom: 4,
+  },
+  reportTitle: { fontSize: 17, fontWeight: '700', color: COLORS.white },
+  reportSubtitle: { fontSize: 13, color: COLORS.textMuted, marginBottom: 8 },
 });

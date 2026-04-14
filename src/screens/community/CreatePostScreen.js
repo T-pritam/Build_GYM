@@ -103,21 +103,25 @@ export default function CreatePostScreen({ navigation }) {
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={8}>
-          <Ionicons name="close" size={24} color={COLORS.white} />
-        </TouchableOpacity>
+        <View style={styles.headerSide}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={8}>
+            <Ionicons name="close" size={24} color={COLORS.white} />
+          </TouchableOpacity>
+        </View>
         <Text style={styles.headerTitle}>New Post</Text>
-        <TouchableOpacity
-          onPress={handleSubmit}
-          disabled={!canSubmit() || submitting}
-          style={[styles.postBtn, (!canSubmit() || submitting) && styles.postBtnDisabled]}
-        >
-          {submitting ? (
-            <ActivityIndicator size="small" color={COLORS.white} />
-          ) : (
-            <Text style={styles.postBtnText}>Post</Text>
-          )}
-        </TouchableOpacity>
+        <View style={[styles.headerSide, styles.headerSideRight]}>
+          <TouchableOpacity
+            onPress={handleSubmit}
+            disabled={!canSubmit() || submitting}
+            style={[styles.postBtn, (!canSubmit() || submitting) && styles.postBtnDisabled]}
+          >
+            {submitting ? (
+              <ActivityIndicator size="small" color={COLORS.white} />
+            ) : (
+              <Text style={styles.postBtnText}>Post</Text>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
@@ -233,8 +237,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 16, paddingTop: 54, paddingBottom: 12,
   },
+  headerSide: {
+    width: 84,
+    justifyContent: 'center',
+  },
+  headerSideRight: {
+    alignItems: 'flex-end',
+  },
   backBtn: { padding: 4 },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: COLORS.white },
+  headerTitle: { fontSize: 18, fontWeight: '700', color: COLORS.white, textAlign: 'center' },
   postBtn: {
     backgroundColor: COLORS.secondary, paddingHorizontal: 20, paddingVertical: 8,
     borderRadius: 20, minWidth: 70, alignItems: 'center',

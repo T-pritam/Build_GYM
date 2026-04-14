@@ -9,8 +9,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import SafeBottomBar from '../../components/SafeBottomBar';
-import { communityArticles, faqs, reviews } from '../../constants/dummyData';
+import { faqs, reviews } from '../../constants/dummyData';
 import { fetchPublishedBlogs } from '../../services/blogService';
+import { fetchCommunityPosts, votePost } from '../../services/communityService';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -23,48 +24,315 @@ const TABS = [
   { key: 'faq', label: 'FAQ', icon: 'help-circle-outline' },
 ];
 
-const ARTICLE_CATEGORIES = ['All', 'Training', 'Nutrition', 'Update', 'Recovery'];
+const COMMUNITY_SORT_TABS = [
+  { key: 'hot', label: 'Hot', icon: 'flame-outline' },
+  { key: 'new', label: 'New', icon: 'time-outline' },
+  { key: 'top', label: 'Top', icon: 'trending-up-outline' },
+];
 
-const CATEGORY_COLORS = {
-  Training: COLORS.secondary,
-  Nutrition: '#22C55E',
-  Update: '#3B82F6',
-  Recovery: '#A855F7',
-  Pinned: COLORS.secondary,
+const COMMUNITY_CATEGORY_COLORS = {
+  transformation: '#A855F7',
+  workout: COLORS.secondary,
+  nutrition: '#22C55E',
+  question: '#3B82F6',
+  motivation: '#F59E0B',
+  achievement: '#EC4899',
+  poll: '#06B6D4',
 };
 
-// Article card component
-function ArticleCard({ article, onPress }) {
-  const catColor = CATEGORY_COLORS[article.category] || COLORS.secondary;
-  return (
-    <TouchableOpacity style={styles.articleCard} onPress={onPress} activeOpacity={0.85}>
-      <View style={[styles.articleAccent, { backgroundColor: catColor }]} />
-      <View style={styles.articleBody}>
-        <View style={styles.articleBadgeRow}>
-          <View style={[styles.badge, { backgroundColor: catColor + '22' }]}>
-            <Text style={[styles.badgeText, { color: catColor }]}>{article.category?.toUpperCase()}</Text>
-          </View>
-          {article.pinned && (
-            <View style={[styles.badge, { backgroundColor: COLORS.secondaryGlow }]}>
-              <Text style={[styles.badgeText, { color: COLORS.secondary }]}>📌 PINNED</Text>
+function communityTimeAgo(dateStr) {
+  if (!dateStr) return '';
+
+  // Normalize format
+  const safeDateStr = dateStr
+    .replace(' ', 'T')                 // fix ISO format
+    .replace(/(\.\d{3})\d+/, '$1')     // trim microseconds → milliseconds
+    .replace('+00', 'Z');              // ensure UTC
+
+  const time = new Date(safeDateStr).getTime();
+
+  if (isNaN(time)) return 'Invalid date'; // safety check
+
+  const diff = Date.now() - time;
+  const mins = Math.floor(diff / 60000);
+
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return `${mins}m ago`;
+
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+
+  return `${Math.floor(days / 30)}mo ago`;
+}
+
+function CommunityFeedTab({ navigation }) {
+  const [sort, setSort] = useState('hot');
+  const [posts, setPosts] = useState([]);
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [error, setError] = useState(null);
+
+  const loadPosts = useCallback(async (pageNum = 1, isRefresh = false) => {
+    try {
+      setError(null);
+      const result = await fetchCommunityPosts({ sort, page: pageNum });
+      const newPosts = result.data || [];
+      if (pageNum === 1 || isRefresh) {
+        setPosts(newPosts);
+      } else {
+        setPosts((prev) => [...prev, ...newPosts]);
+      }
+      setHasMore(newPosts.length >= 20);
+      setPage(pageNum);
+    } catch (err) {
+      setError(err?.response?.data?.message || 'Failed to load posts');
+    }
+  }, [sort]);
+
+  useEffect(() => {
+    setLoading(true);
+    loadPosts(1).finally(() => setLoading(false));
+  }, [loadPosts]);
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadPosts(1, true);
+    setRefreshing(false);
+  }, [loadPosts]);
+
+  const handleLoadMore = useCallback(async () => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    await loadPosts(page + 1);
+    setLoadingMore(false);
+  }, [hasMore, loadingMore, loadPosts, page]);
+
+  const handleVote = useCallback(async (postId, type) => {
+    const prevPost = posts.find((post) => post.id === postId);
+    if (!prevPost) return;
+
+    const currentVote = prevPost.user_vote;
+    const nextVote = currentVote === type ? null : type;
+
+    setPosts((prev) => prev.map((post) => {
+      if (post.id !== postId) return post;
+      const upvotes = post.upvotes || 0;
+      const downvotes = post.downvotes || 0;
+
+      if (nextVote === 'up') {
+        return {
+          ...post,
+          user_vote: 'up',
+          upvotes: upvotes + (currentVote === 'up' ? 0 : 1),
+          downvotes: downvotes - (currentVote === 'down' ? 1 : 0),
+        };
+      }
+      if (nextVote === 'down') {
+        return {
+          ...post,
+          user_vote: 'down',
+          upvotes: upvotes - (currentVote === 'up' ? 1 : 0),
+          downvotes: downvotes + (currentVote === 'down' ? 0 : 1),
+        };
+      }
+      return {
+        ...post,
+        user_vote: null,
+        upvotes: upvotes - (currentVote === 'up' ? 1 : 0),
+        downvotes: downvotes - (currentVote === 'down' ? 1 : 0),
+      };
+    }));
+
+    try {
+      const result = await votePost(postId, type);
+      setPosts((prev) => prev.map((post) => (
+        post.id === postId ? { ...post, ...result } : post
+      )));
+    } catch {
+      setPosts((prev) => prev.map((post) => (
+        post.id === postId ? prevPost : post
+      )));
+    }
+  }, [posts]);
+
+  const renderPost = ({ item: post }) => {
+    const score = (post.upvotes || 0) - (post.downvotes || 0);
+    const badgeColor = COMMUNITY_CATEGORY_COLORS[post.category] || COLORS.secondary;
+
+    return (
+      <TouchableOpacity
+        style={styles.communityPostCard}
+        activeOpacity={0.82}
+        onPress={() => navigation.navigate('PostDetail', { postId: post.id })}
+      >
+        <View style={styles.communityPostHeader}>
+          <View style={styles.communityAuthorRow}>
+            {post.author_avatar ? (
+              <Image source={{ uri: post.author_avatar }} style={styles.communityAvatar} />
+            ) : (
+              <View style={[styles.communityAvatar, styles.communityAvatarPlaceholder]}>
+                <Ionicons name="person" size={14} color={COLORS.textMuted} />
+              </View>
+            )}
+            <View style={{ flex: 1 }}>
+              <Text style={styles.communityAuthorName}>{post.author_name || '[Deleted Member]'}</Text>
+              <Text style={styles.communityTimestamp}>{communityTimeAgo(post.created_at)}</Text>
             </View>
-          )}
-        </View>
-        <View style={styles.articleRow}>
-          <View style={{ flex: 1, gap: 4 }}>
-            <Text style={styles.articleTitle} numberOfLines={2}>{article.title}</Text>
-            <Text style={styles.articleExcerpt} numberOfLines={2}>{article.summary || article.excerpt}</Text>
+            <View style={[styles.communityCategoryBadge, { backgroundColor: badgeColor + '22' }]}>
+              <Text style={[styles.communityCategoryText, { color: badgeColor }]}>{post.category}</Text>
+            </View>
           </View>
-          <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} style={{ marginTop: 2 }} />
         </View>
-        <View style={styles.articleMeta}>
-          <Text style={styles.articleMetaText}>
-            {article.author} · {article.date} ·{' '}
-            <Text style={{ color: catColor }}>{article.readTime} read</Text>
-          </Text>
+
+        <Text style={styles.communityPostBody} numberOfLines={4}>{post.body}</Text>
+
+        {post.image_url ? (
+          <Image source={{ uri: post.image_url }} style={styles.communityPostImage} contentFit="cover" />
+        ) : null}
+
+        {post.is_poll && (
+          <View style={styles.communityPollBadge}>
+            <Ionicons name="bar-chart-outline" size={14} color={COLORS.secondary} />
+            <Text style={styles.communityPollBadgeText}>Poll — Tap to vote</Text>
+          </View>
+        )}
+
+        <View style={styles.communityPostFooter}>
+          <View style={styles.communityVoteRow}>
+            <TouchableOpacity
+              onPress={(e) => { e.stopPropagation(); handleVote(post.id, 'up'); }}
+              style={styles.communityVoteBtn}
+              hitSlop={8}
+            >
+              <Ionicons
+                name={post.user_vote === 'up' ? 'arrow-up-circle' : 'arrow-up-circle-outline'}
+                size={22}
+                color={post.user_vote === 'up' ? COLORS.secondary : COLORS.textMuted}
+              />
+            </TouchableOpacity>
+            <Text
+              style={[
+                styles.communityScoreText,
+                score > 0 && styles.communityScorePositive,
+                score < 0 && styles.communityScoreNegative,
+              ]}
+            >
+              {score}
+            </Text>
+            <TouchableOpacity
+              onPress={(e) => { e.stopPropagation(); handleVote(post.id, 'down'); }}
+              style={styles.communityVoteBtn}
+              hitSlop={8}
+            >
+              <Ionicons
+                name={post.user_vote === 'down' ? 'arrow-down-circle' : 'arrow-down-circle-outline'}
+                size={22}
+                color={post.user_vote === 'down' ? '#FF4444' : COLORS.textMuted}
+              />
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity
+            style={styles.communityCommentBtn}
+            onPress={() => navigation.navigate('PostDetail', { postId: post.id })}
+          >
+            <Ionicons name="chatbubble-outline" size={18} color={COLORS.textMuted} />
+            <Text style={styles.communityCommentCount}>{post.comment_count || 0}</Text>
+          </TouchableOpacity>
         </View>
+      </TouchableOpacity>
+    );
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.blogLoadingContainer}>
+        <ActivityIndicator size="large" color={COLORS.secondary} />
       </View>
-    </TouchableOpacity>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.blogLoadingContainer}>
+        <Ionicons name="cloud-offline-outline" size={40} color={COLORS.textMuted} />
+        <Text style={styles.blogErrorTitle}>Couldn't load community feed</Text>
+        <Text style={styles.blogErrorMsg}>{error}</Text>
+        <TouchableOpacity style={styles.blogRetryBtn} activeOpacity={0.85} onPress={handleRefresh}>
+          <Ionicons name="refresh" size={14} color={COLORS.white} />
+          <Text style={styles.blogRetryText}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.communityFeedContainer}>
+      <View style={styles.communitySortRow}>
+        {COMMUNITY_SORT_TABS.map((tab) => (
+          <TouchableOpacity
+            key={tab.key}
+            style={[styles.communitySortTab, sort === tab.key && styles.communitySortTabActive]}
+            onPress={() => setSort(tab.key)}
+          >
+            <Ionicons
+              name={tab.icon}
+              size={15}
+              color={sort === tab.key ? COLORS.secondary : COLORS.textMuted}
+            />
+            <Text style={[styles.communitySortLabel, sort === tab.key && styles.communitySortLabelActive]}>
+              {tab.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      <FlatList
+        data={posts}
+        keyExtractor={(item) => item.id}
+        renderItem={renderPost}
+        contentContainerStyle={styles.communityListContent}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={COLORS.secondary}
+            colors={[COLORS.secondary]}
+          />
+        }
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.5}
+        ListHeaderComponent={
+          <TouchableOpacity
+            style={styles.communityCreateField}
+            activeOpacity={0.85}
+            onPress={() => navigation.navigate('CreatePost')}
+          >
+            <Ionicons name="create-outline" size={18} color={COLORS.secondary} />
+            <Text style={styles.communityCreateFieldText}>Share with community...</Text>
+            <Ionicons name="arrow-forward" size={16} color={COLORS.secondary} />
+          </TouchableOpacity>
+        }
+        ListFooterComponent={
+          loadingMore ? (
+            <ActivityIndicator size="small" color={COLORS.secondary} style={{ paddingVertical: 16 }} />
+          ) : null
+        }
+        ListEmptyComponent={
+          <View style={styles.communityEmptyState}>
+            <Ionicons name="chatbubbles-outline" size={48} color={COLORS.textMuted} />
+            <Text style={styles.emptyText}>Be the first to post in the community</Text>
+          </View>
+        }
+      />
+    </View>
   );
 }
 
@@ -316,17 +584,6 @@ function BlogTab({ navigation }) {
 
 export default function CommunityScreen({ navigation }) {
   const [activeTab, setActiveTab] = useState('community');
-  const [activeCategory, setActiveCategory] = useState('All');
-
-  const pinnedArticles = (communityArticles || []).filter((a) => a.pinned);
-  const latestArticles = (communityArticles || []).filter((a) => {
-    const matchCat = activeCategory === 'All' || a.category === activeCategory;
-    return !a.pinned && matchCat;
-  });
-
-  const handleArticlePress = (article) => {
-    navigation.navigate('ArticleReader', { article });
-  };
 
   return (
     <SafeBottomBar style={styles.container}>
@@ -362,78 +619,7 @@ export default function CommunityScreen({ navigation }) {
       </View>
 
       {/* Tab content */}
-      {activeTab === 'community' && (
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.tabScrollContent}>
-          {/* Community Feed CTA */}
-          <TouchableOpacity
-            style={styles.communityFeedCta}
-            activeOpacity={0.85}
-            onPress={() => navigation.navigate('CommunityFeed')}
-          >
-            <View style={styles.communityFeedCtaLeft}>
-              <Ionicons name="chatbubbles" size={24} color={COLORS.secondary} />
-              <View style={{ marginLeft: 12, flex: 1 }}>
-                <Text style={styles.communityFeedCtaTitle}>Community Feed</Text>
-                <Text style={styles.communityFeedCtaSub}>Share progress, ask questions, vote & more</Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
-          </TouchableOpacity>
-
-          {/* Category filter pills */}
-          <ScrollView
-            horizontal showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.categoryPills}
-          >
-            {ARTICLE_CATEGORIES.map((cat) => (
-              <TouchableOpacity
-                key={cat}
-                style={[styles.categoryPill, activeCategory === cat && styles.categoryPillActive]}
-                onPress={() => setActiveCategory(cat)}
-              >
-                <Text style={[styles.categoryPillText, activeCategory === cat && styles.categoryPillTextActive]}>
-                  {cat}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-
-          {/* Pinned articles */}
-          {activeCategory === 'All' && pinnedArticles.length > 0 && (
-            <View style={styles.section}>
-              <Text style={styles.sectionLabel}>📌 PINNED</Text>
-              {pinnedArticles.map((article) => (
-                <ArticleCard
-                  key={article.id}
-                  article={article}
-                  onPress={() => handleArticlePress(article)}
-                />
-              ))}
-            </View>
-          )}
-
-          {/* Latest articles */}
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>
-              {activeCategory === 'All' ? 'LATEST' : activeCategory.toUpperCase()}
-            </Text>
-            {latestArticles.length === 0 ? (
-              <View style={styles.emptyState}>
-                <Ionicons name="newspaper-outline" size={40} color={COLORS.textMuted} />
-                <Text style={styles.emptyText}>No articles in this category</Text>
-              </View>
-            ) : (
-              latestArticles.map((article) => (
-                <ArticleCard
-                  key={article.id}
-                  article={article}
-                  onPress={() => handleArticlePress(article)}
-                />
-              ))
-            )}
-          </View>
-        </ScrollView>
-      )}
+      {activeTab === 'community' && <CommunityFeedTab navigation={navigation} />}
 
       {activeTab === 'reviews' && <ReviewsTab />}
 
@@ -464,14 +650,62 @@ export default function CommunityScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
-  communityFeedCta: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: COLORS.surface, borderRadius: 14,
-    padding: 14, marginBottom: 16, borderWidth: 1, borderColor: COLORS.secondary + '33',
+  communityFeedContainer: { flex: 1 },
+  communitySortRow: {
+    flexDirection: 'row', gap: 8, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8,
   },
-  communityFeedCtaLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
-  communityFeedCtaTitle: { fontSize: 15, fontWeight: '700', color: COLORS.white },
-  communityFeedCtaSub: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
+  communitySortTab: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 12, paddingVertical: 7,
+    borderRadius: 18, backgroundColor: COLORS.surface,
+  },
+  communitySortTabActive: { backgroundColor: COLORS.secondaryGlow },
+  communitySortLabel: { fontSize: 12, fontWeight: '700', color: COLORS.textMuted },
+  communitySortLabelActive: { color: COLORS.secondary },
+  communityListContent: { paddingHorizontal: 20, paddingBottom: 100 },
+  communityCreateField: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: COLORS.surface, borderRadius: 12,
+    borderWidth: 1, borderColor: COLORS.secondaryBorder,
+    paddingHorizontal: 14, paddingVertical: 12, marginBottom: 12,
+  },
+  communityCreateFieldText: { flex: 1, marginLeft: 10, color: COLORS.textMuted, fontSize: 13 },
+  communityPostCard: {
+    backgroundColor: COLORS.surface, borderRadius: 14,
+    padding: 14, marginBottom: 12,
+  },
+  communityPostHeader: { marginBottom: 10 },
+  communityAuthorRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  communityAvatar: { width: 34, height: 34, borderRadius: 17 },
+  communityAvatarPlaceholder: {
+    backgroundColor: COLORS.surface2, justifyContent: 'center', alignItems: 'center',
+  },
+  communityAuthorName: { fontSize: 14, fontWeight: '600', color: COLORS.white },
+  communityTimestamp: { fontSize: 11, color: COLORS.textMuted, marginTop: 1 },
+  communityCategoryBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
+  communityCategoryText: { fontSize: 11, fontWeight: '600', textTransform: 'capitalize' },
+  communityPostBody: { fontSize: 14, color: COLORS.textSecondary, lineHeight: 20, marginBottom: 10 },
+  communityPostImage: {
+    width: '100%', height: 200, borderRadius: 10, marginBottom: 10,
+    backgroundColor: COLORS.surface2,
+  },
+  communityPollBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: COLORS.secondary + '15', paddingHorizontal: 10,
+    paddingVertical: 6, borderRadius: 8, marginBottom: 10, alignSelf: 'flex-start',
+  },
+  communityPollBadgeText: { fontSize: 12, fontWeight: '600', color: COLORS.secondary },
+  communityPostFooter: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+  },
+  communityVoteRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  communityVoteBtn: { padding: 2 },
+  communityScoreText: { fontSize: 14, fontWeight: '700', color: COLORS.textMuted, minWidth: 20, textAlign: 'center' },
+  communityScorePositive: { color: COLORS.secondary },
+  communityScoreNegative: { color: '#FF4444' },
+  communityCommentBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  communityCommentCount: { fontSize: 13, color: COLORS.textMuted },
+  communityEmptyState: { alignItems: 'center', paddingVertical: 40, gap: 10 },
   glowTop: {
     position: 'absolute', top: 0, left: 0, right: 0, height: 260,
     backgroundColor: 'rgba(233,99,22,0.08)',
@@ -503,35 +737,8 @@ const styles = StyleSheet.create({
   // Scroll content
   tabScrollContent: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 100 },
 
-  // Category pills
-  categoryPills: { gap: 8, paddingBottom: 16 },
-  categoryPill: {
-    paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20,
-    borderWidth: 1, borderColor: COLORS.border, backgroundColor: 'transparent',
-  },
-  categoryPillActive: { borderColor: COLORS.secondary, backgroundColor: COLORS.secondaryGlow },
-  categoryPillText: { fontSize: 12, fontWeight: '600', color: COLORS.textMuted },
-  categoryPillTextActive: { color: COLORS.secondary, fontWeight: '800' },
-
-  // Section
-  section: { gap: 12, marginBottom: 20 },
-  sectionLabel: { fontSize: 10, fontWeight: '800', color: COLORS.textMuted, letterSpacing: 3 },
-
-  // Article card
-  articleCard: {
-    backgroundColor: COLORS.surface, borderRadius: 14, borderWidth: 1, borderColor: COLORS.border,
-    overflow: 'hidden', flexDirection: 'row',
-  },
-  articleAccent: { width: 4 },
-  articleBody: { flex: 1, padding: 14, gap: 8 },
-  articleBadgeRow: { flexDirection: 'row', gap: 6 },
   badge: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
   badgeText: { fontSize: 9, fontWeight: '800', letterSpacing: 1 },
-  articleRow: { flexDirection: 'row', gap: 8 },
-  articleTitle: { fontSize: 14, fontWeight: '800', color: COLORS.white, lineHeight: 20 },
-  articleExcerpt: { fontSize: 11, color: COLORS.textMuted, lineHeight: 16 },
-  articleMeta: { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)', paddingTop: 8 },
-  articleMetaText: { fontSize: 10, color: COLORS.textMuted },
 
   // Reviews
   rateCard: {
