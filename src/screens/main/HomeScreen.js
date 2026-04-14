@@ -7,12 +7,13 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
-import { membership, gymServices } from '../../constants/dummyData';
+import { gymServices } from '../../constants/dummyData';
 import { useAuthStore } from '../../store/authStore';
 import { useWalletStore } from '../../store/walletStore';
 import { fetchAnnouncements } from '../../services/announcementService';
 import { fetchTrainers, fetchMyTrainer, fetchTrialSessions, confirmTrialSession, rejectTrialSession } from '../../services/trainerService';
 import { getSocket } from '../../services/socketService';
+import { fetchMyMembership } from '../../services/membershipService';
 
 const RECEPTION_PHONE = '+919876543210';
 
@@ -41,6 +42,7 @@ export default function HomeScreen({ navigation }) {
   const [loadingAnnouncements, setLoadingAnnouncements] = useState(true);
   const [loadingTrainers, setLoadingTrainers] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [membershipData, setMembershipData] = useState(null);
 
   useEffect(() => {
     // Load wallet balance + recent transactions on mount
@@ -77,6 +79,9 @@ export default function HomeScreen({ navigation }) {
       fetchTrialSessions()
         .then((data) => setTrialSessions(data || []))
         .catch(() => setTrialSessions([])),
+      fetchMyMembership()
+        .then((data) => setMembershipData(data || null))
+        .catch(() => setMembershipData(null)),
     ]);
   }, []);
 
@@ -164,36 +169,69 @@ export default function HomeScreen({ navigation }) {
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
             >
-              {/* Row 1 */}
-              <View style={styles.memRow1}>
-                <View>
-                  <Text style={styles.memLabel}>MEMBERSHIP TYPE</Text>
-                  <View style={styles.memTypeRow}>
-                    <Text style={styles.memType}>{membership?.type || 'ELITE'}</Text>
-                    <View style={styles.activeBadge}>
-                      <View style={styles.activeDot} />
-                      <Text style={styles.activeText}>ACTIVE</Text>
+              {membershipData ? (() => {
+                const { membership: mem, plan, totalDays, daysLeft } = membershipData;
+                const tierLabel  = plan.tier.charAt(0).toUpperCase() + plan.tier.slice(1);
+                const tierColors = { basic: '#6B7280', pro: '#3B82F6', elite: COLORS.secondary };
+                const tierColor  = tierColors[plan.tier] ?? COLORS.secondary;
+                const dayColor   = daysLeft > 30 ? '#22C55E' : daysLeft > 7 ? '#F59E0B' : '#EF4444';
+                const progress   = Math.max(0.03, Math.min(1, daysLeft / totalDays));
+                const validTill  = new Date(mem.endDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+                return (
+                  <>
+                    {/* Row 1 */}
+                    <View style={styles.memRow1}>
+                      <View>
+                        <Text style={styles.memLabel}>MEMBERSHIP TYPE</Text>
+                        <View style={styles.memTypeRow}>
+                          <Text style={[styles.memType, { color: tierColor }]}>{tierLabel.toUpperCase()}</Text>
+                          <View style={styles.activeBadge}>
+                            <View style={styles.activeDot} />
+                            <Text style={styles.activeText}>ACTIVE</Text>
+                          </View>
+                        </View>
+                      </View>
+                      <View style={[styles.memLogoBox, { borderColor: tierColor + '40' }]}>
+                        <Text style={[styles.memLogoText, { color: tierColor }]}>B</Text>
+                      </View>
                     </View>
+
+                    <View style={styles.memDivider} />
+
+                    {/* Row 2 */}
+                    <View style={styles.memRow2}>
+                      <View>
+                        <Text style={styles.memLabel}>VALID TILL</Text>
+                        <Text style={styles.memDate}>{validTill}</Text>
+                      </View>
+                      <View style={styles.memDaysBox}>
+                        <Text style={[styles.memDaysNum, { color: dayColor }]}>{daysLeft}</Text>
+                        <Text style={styles.memDaysLabel}>days left</Text>
+                      </View>
+                    </View>
+
+                    {/* Progress bar */}
+                    <View style={styles.memProgressBg}>
+                      <View style={[styles.memProgressFill, { width: `${progress * 100}%`, backgroundColor: dayColor }]} />
+                    </View>
+                  </>
+                );
+              })() : (
+                /* No membership state */
+                <TouchableOpacity
+                  style={styles.noMemRow}
+                  onPress={() => navigation.navigate('MembershipPlans')}
+                >
+                  <View>
+                    <Text style={styles.memLabel}>MEMBERSHIP</Text>
+                    <Text style={styles.memType}>No Active Plan</Text>
+                    <Text style={styles.noMemSub}>Tap to view plans →</Text>
                   </View>
-                </View>
-                <View style={styles.memLogoBox}>
-                  <Text style={styles.memLogoText}>B</Text>
-                </View>
-              </View>
-
-              <View style={styles.memDivider} />
-
-              {/* Row 2 */}
-              <View style={styles.memRow2}>
-                <View>
-                  <Text style={styles.memLabel}>VALID TILL</Text>
-                  <Text style={styles.memDate}>{membership?.validTill || '1 Jul 2026'}</Text>
-                </View>
-                <View style={styles.memDaysBox}>
-                  <Text style={styles.memDaysNum}>{membership?.daysLeft || 128}</Text>
-                  <Text style={styles.memDaysLabel}>days left</Text>
-                </View>
-              </View>
+                  <View style={styles.memLogoBox}>
+                    <Text style={styles.memLogoText}>B</Text>
+                  </View>
+                </TouchableOpacity>
+              )}
 
               {/* Action buttons */}
               <View style={styles.contactRow}>
@@ -719,7 +757,11 @@ const styles = StyleSheet.create({
   memDate: { fontSize: 16, fontWeight: '700', color: COLORS.white },
   memDaysBox: { alignItems: 'flex-end' },
   memDaysNum: { fontSize: 28, fontWeight: '900', color: COLORS.secondary, lineHeight: 32 },
-  memDaysLabel: { fontSize: 10, color: COLORS.textMuted, fontWeight: '600', letterSpacing: 1 },
+  memDaysLabel:    { fontSize: 10, color: COLORS.textMuted, fontWeight: '600', letterSpacing: 1 },
+  memProgressBg:   { height: 5, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 3, overflow: 'hidden', marginBottom: 16 },
+  memProgressFill: { height: '100%', borderRadius: 3 },
+  noMemRow:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  noMemSub:  { fontSize: 12, color: COLORS.secondary, marginTop: 4 },
   contactRow: { flexDirection: 'row', gap: 10 },
   contactBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',

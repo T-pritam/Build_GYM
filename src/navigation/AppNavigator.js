@@ -27,6 +27,7 @@ import OrderHistoryScreen from '../screens/cafe/OrderHistoryScreen';
 // Profile screens
 import ProfileScreen from '../screens/profile/ProfileScreen';
 import MembershipScreen from '../screens/profile/MembershipScreen';
+import MembershipPlansScreen from '../screens/profile/MembershipPlansScreen';
 import BuildCoinTransactionsScreen from '../screens/profile/BuildCoinTransactionsScreen';
 import TransactionDetailScreen from '../screens/profile/TransactionDetailScreen';
 import ActivityDashboardScreen from '../screens/profile/ActivityDashboardScreen';
@@ -158,6 +159,7 @@ export default function AppNavigator() {
         {/* Profile sub screens */}
         <Stack.Screen name="Profile" component={ProfileScreen} />
         <Stack.Screen name="Membership" component={MembershipScreen} />
+        <Stack.Screen name="MembershipPlans" component={MembershipPlansScreen} />
         <Stack.Screen name="BuildCoinTransactions" component={BuildCoinTransactionsScreen} />
         <Stack.Screen
           name="TransactionDetail"
