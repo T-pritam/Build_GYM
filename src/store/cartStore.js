@@ -9,7 +9,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 export const useCartStore = create(
   persist(
     (set, get) => ({
-      items: [], // { id, name, category, imageUrl, priceCoins, protein, calories, isAvailable, qty }
+      items: [], // { id, menuItemId, name, category, imageUrl, priceCoins, protein, calories, isAvailable, qty, variationId, variationName, addons, specialInstructions }
 
       addItem: (item) =>
         set((s) => {

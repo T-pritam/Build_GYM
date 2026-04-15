@@ -36,10 +36,14 @@ export default function CartScreen({ navigation }) {
     setPlacing(true);
     try {
       const orderItems = items.map((i) => ({
-        menuItemId:     i.id,
+        menuItemId:     i.menuItemId || i.id,
         itemName:       i.name,
         itemPriceCoins: i.priceCoins,
         qty:            i.qty,
+        variationId:    i.variationId || null,
+        variationName:  i.variationName || null,
+        addons:         i.addons || null,
+        specialInstructions: i.specialInstructions || null,
       }));
       const res = await placeOrder({ items: orderItems });
       clearCart();
@@ -133,6 +137,14 @@ export default function CartScreen({ navigation }) {
 
                 <View style={styles.cartItemInfo}>
                   <Text style={styles.cartItemName}>{item.name}</Text>
+                  {item.variationName ? (
+                    <Text style={styles.cartItemVariation}>{item.variationName}</Text>
+                  ) : null}
+                  {item.addons?.length > 0 ? (
+                    <Text style={styles.cartItemAddons}>
+                      {item.addons.map((a) => a.name).join(', ')}
+                    </Text>
+                  ) : null}
                   <Text style={styles.cartItemPrice}>
                     {item.priceCoins} × {item.qty} ={' '}
                     <Text style={{ color: COLORS.secondary }}>{item.priceCoins * item.qty} coins</Text>
@@ -260,6 +272,8 @@ const styles = StyleSheet.create({
   cartItemLetter: { fontSize: 24, fontWeight: '900', color: COLORS.secondary },
   cartItemInfo: { flex: 1, gap: 4 },
   cartItemName: { fontSize: 15, fontWeight: '700', color: COLORS.white },
+  cartItemVariation: { fontSize: 12, color: COLORS.textSecondary },
+  cartItemAddons: { fontSize: 11, color: COLORS.textMuted, fontStyle: 'italic' },
   cartItemPrice: { fontSize: 13, color: COLORS.textMuted },
   unavailBadge: {
     alignSelf: 'flex-start',
