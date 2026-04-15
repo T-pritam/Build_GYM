@@ -27,6 +27,13 @@ export const fetchTodaysPlan = async () => {
 
 // ── Workout Logs ─────────────────────────────────────────────────────────────
 
+// Returns today's in_progress workout log (with preloaded sets), or null
+export const fetchActiveWorkout = async (planId) => {
+  const params = planId ? { planId } : {};
+  const { data } = await api.get('/member/workouts/active', { params });
+  return data.data; // null if no active session
+};
+
 export const startWorkout = async (body) => {
   // body: { planId } for Case A  OR  { muscleGroups: [...] } for Case B
   const { data } = await api.post('/member/workouts/start', body);

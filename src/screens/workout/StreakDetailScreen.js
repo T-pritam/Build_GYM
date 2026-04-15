@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator,
+  ActivityIndicator, StatusBar,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import { fetchStreak } from '../../services/workoutService';
@@ -15,6 +16,7 @@ const MILESTONES = [
 ];
 
 export default function StreakDetailScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const [streak, setStreak] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -39,12 +41,13 @@ export default function StreakDetailScreen({ navigation }) {
   const longest = streak?.longestStreak || 0;
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingTop: insets.top + 16 }]}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color={COLORS.white} />
         </TouchableOpacity>
-        <Text style={styles.title}>🔥 Streak</Text>
+        <Text style={styles.title}>Streak</Text>
         <View style={{ width: 24 }} />
       </View>
 

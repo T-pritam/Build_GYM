@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator,
+  ActivityIndicator, StatusBar,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import { fetchMuscleDistribution } from '../../services/workoutService';
@@ -21,6 +22,7 @@ const MUSCLE_COLORS = {
 };
 
 export default function MuscleDistributionScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const [data, setData] = useState([]);
   const [totalSets, setTotalSets] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -47,7 +49,8 @@ export default function MuscleDistributionScreen({ navigation }) {
   const formatLabel = (key) => key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingTop: insets.top + 16 }]}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color={COLORS.white} />

@@ -14,6 +14,7 @@ import { fetchAnnouncements } from '../../services/announcementService';
 import { fetchTrainers, fetchMyTrainer, fetchTrialSessions, confirmTrialSession, rejectTrialSession } from '../../services/trainerService';
 import { getSocket } from '../../services/socketService';
 import { fetchMyMembership } from '../../services/membershipService';
+import { fetchTodaysPlan, fetchStreak } from '../../services/workoutService';
 
 const RECEPTION_PHONE = '+919876543210';
 
@@ -43,6 +44,8 @@ export default function HomeScreen({ navigation }) {
   const [loadingTrainers, setLoadingTrainers] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [membershipData, setMembershipData] = useState(null);
+  const [todaysPlan, setTodaysPlan] = useState(null);
+  const [streakData, setStreakData] = useState(null);
 
   useEffect(() => {
     // Load wallet balance + recent transactions on mount
@@ -82,6 +85,12 @@ export default function HomeScreen({ navigation }) {
       fetchMyMembership()
         .then((data) => setMembershipData(data || null))
         .catch(() => setMembershipData(null)),
+      fetchTodaysPlan()
+        .then((data) => setTodaysPlan(data || null))
+        .catch(() => setTodaysPlan(null)),
+      fetchStreak()
+        .then((data) => setStreakData(data || null))
+        .catch(() => setStreakData(null)),
     ]);
   }, []);
 
@@ -454,26 +463,42 @@ export default function HomeScreen({ navigation }) {
         {/* ── STATS GRID ───────────────────────────── */}
         <View style={styles.section}>
           <View style={styles.statsGrid}>
+            {/* Left — Daily Streak (live data, navigates to StreakDetail) */}
             <TouchableOpacity
               style={styles.statCard}
-              onPress={() => navigation.navigate('Activity')}
+              onPress={() => navigation.navigate('StreakDetail')}
               activeOpacity={0.8}
             >
-              <Ionicons name="flash-outline" size={26} color={COLORS.secondary} />
+              <Ionicons name="flame" size={26} color={COLORS.secondary} />
               <View style={{ marginTop: 'auto' }}>
                 <Text style={styles.statLabel}>DAILY STREAK</Text>
-                <Text style={styles.statValue}>12 Days</Text>
+                <Text style={styles.statValue}>
+                  {streakData ? `${streakData.currentStreak} Days` : '— Days'}
+                </Text>
+                {streakData?.nextMilestone && (
+                  <Text style={styles.statHint}>
+                    {streakData.nextMilestone.daysRemaining}d to {streakData.nextMilestone.label}
+                  </Text>
+                )}
               </View>
             </TouchableOpacity>
+            {/* Right — Today's Workout (live plan name, navigates to WorkoutHome) */}
             <TouchableOpacity
               style={styles.statCard}
-              onPress={() => navigation.navigate('Activity')}
+              onPress={() => navigation.navigate('WorkoutHome')}
               activeOpacity={0.8}
             >
               <Ionicons name="barbell-outline" size={26} color={COLORS.secondary} />
               <View style={{ marginTop: 'auto' }}>
-                <Text style={styles.statLabel}>WORKOUT</Text>
-                <Text style={styles.statValue}>Chest Day</Text>
+                <Text style={styles.statLabel}>TODAY'S WORKOUT</Text>
+                <Text style={styles.statValue} numberOfLines={2}>
+                  {todaysPlan ? todaysPlan.name : 'Rest Day'}
+                </Text>
+                {todaysPlan && (
+                  <Text style={styles.statHint}>
+                    {todaysPlan.exercises?.length ?? 0} exercises
+                  </Text>
+                )}
               </View>
             </TouchableOpacity>
           </View>
@@ -510,11 +535,13 @@ export default function HomeScreen({ navigation }) {
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { marginBottom: 14 }]}>This Week</Text>
           <View style={styles.weekGrid}>
-            <TouchableOpacity style={styles.weekCard} onPress={() => navigation.navigate('Activity')}>
+            <TouchableOpacity style={styles.weekCard} onPress={() => navigation.navigate('StreakDetail')}>
               <View style={[styles.weekIconWrap, { backgroundColor: COLORS.secondaryGlow }]}>
                 <Ionicons name="flame-outline" size={22} color={COLORS.secondary} />
               </View>
-              <Text style={[styles.weekValue, { color: COLORS.secondary }]}>5</Text>
+              <Text style={[styles.weekValue, { color: COLORS.secondary }]}>
+                {streakData?.currentStreak ?? '—'}
+              </Text>
               <Text style={styles.weekLabel}>Streak</Text>
               <Text style={styles.weekLink}>View details →</Text>
             </TouchableOpacity>
@@ -617,24 +644,8 @@ export default function HomeScreen({ navigation }) {
           ))}
         </View>
 
-        {/* ── WORKOUT QUICK ACCESS ────────────────── */}
-        <TouchableOpacity
-          style={styles.workoutQuickCard}
-          onPress={() => navigation.navigate('WorkoutHome')}
-          activeOpacity={0.8}
-        >
-          <View style={styles.workoutQuickLeft}>
-            <Ionicons name="barbell" size={24} color={COLORS.secondary} />
-            <View style={{ marginLeft: 12 }}>
-              <Text style={styles.workoutQuickTitle}>Workouts</Text>
-              <Text style={styles.workoutQuickSub}>Plans, logs, stats & PRs</Text>
-            </View>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
-        </TouchableOpacity>
-
         {/* ── GYM SERVICES ─────────────────────────── */}
-        <View style={styles.section}>
+        {/* <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Gym Services</Text>
             <Text style={styles.tapHint}>Tap for details</Text>
@@ -656,7 +667,7 @@ export default function HomeScreen({ navigation }) {
               <Ionicons name="chevron-forward" size={18} color="#555" />
             </TouchableOpacity>
           ))}
-        </View>
+        </View> */}
 
         <View style={{ height: 100 }} />
       </ScrollView>
@@ -837,6 +848,7 @@ const styles = StyleSheet.create({
   },
   statLabel: { fontSize: 9, fontWeight: '700', color: COLORS.textMuted, letterSpacing: 1.5, marginBottom: 2 },
   statValue: { fontSize: 18, fontWeight: '800', color: COLORS.white },
+  statHint: { fontSize: 10, color: COLORS.textMuted, marginTop: 2 },
 
   // Trainers (UNCHANGED)
   trainerCard: {
@@ -924,4 +936,9 @@ const styles = StyleSheet.create({
   workoutQuickLeft: { flexDirection: 'row', alignItems: 'center' },
   workoutQuickTitle: { color: COLORS.white, fontSize: 16, fontWeight: '700' },
   workoutQuickSub: { color: COLORS.textMuted, fontSize: 12, marginTop: 2 },
+  workoutTodayBadge: {
+    backgroundColor: COLORS.secondary, borderRadius: 6,
+    paddingHorizontal: 7, paddingVertical: 3, marginLeft: 8,
+  },
+  workoutTodayBadgeText: { color: COLORS.white, fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
 });

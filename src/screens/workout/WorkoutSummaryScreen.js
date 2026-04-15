@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, Share,
+  ActivityIndicator, Share, StatusBar,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import { fetchWorkoutDetail, fetchNudges } from '../../services/workoutService';
 
 export default function WorkoutSummaryScreen({ route, navigation }) {
+  const insets = useSafeAreaInsets();
   const { workoutLogId, summary: routeSummary, isCaseA } = route.params || {};
   const [detail, setDetail] = useState(routeSummary || null);
   const [nudges, setNudges] = useState([]);
@@ -51,7 +53,8 @@ export default function WorkoutSummaryScreen({ route, navigation }) {
   const prs = detail?.sets?.filter((s) => s.isPr) || [];
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingTop: insets.top + 16 }]}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
       {/* Celebration */}
       <View style={styles.celebration}>
         <Text style={styles.emoji}>🎉</Text>

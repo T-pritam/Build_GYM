@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, RefreshControl,
+  ActivityIndicator, RefreshControl, StatusBar,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import { useAuthStore } from '../../store/authStore';
@@ -10,12 +11,15 @@ import {
   fetchTodaysPlan, fetchActivityRings, fetchStreak,
   fetchWeeklySummary, fetchNudges,
 } from '../../services/workoutService';
+import { fetchMyTrainer } from '../../services/trainerService';
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 export default function WorkoutHomeScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const user = useAuthStore((s) => s.user);
   const [todaysPlan, setTodaysPlan] = useState(null);
+  const [myTrainer, setMyTrainer] = useState(null);
   const [rings, setRings] = useState(null);
   const [streak, setStreak] = useState(null);
   const [weeklySummary, setWeeklySummary] = useState(null);
@@ -25,14 +29,16 @@ export default function WorkoutHomeScreen({ navigation }) {
 
   const loadData = useCallback(async () => {
     try {
-      const [plan, ringData, streakData, summary, nudgeData] = await Promise.allSettled([
+      const [plan, trainerData, ringData, streakData, summary, nudgeData] = await Promise.allSettled([
         fetchTodaysPlan(),
+        fetchMyTrainer(),
         fetchActivityRings(),
         fetchStreak(),
         fetchWeeklySummary(),
         fetchNudges('home'),
       ]);
       setTodaysPlan(plan.status === 'fulfilled' ? plan.value : null);
+      setMyTrainer(trainerData.status === 'fulfilled' ? trainerData.value : null);
       setRings(ringData.status === 'fulfilled' ? ringData.value : null);
       setStreak(streakData.status === 'fulfilled' ? streakData.value : null);
       setWeeklySummary(summary.status === 'fulfilled' ? summary.value : null);
@@ -52,54 +58,20 @@ export default function WorkoutHomeScreen({ navigation }) {
   if (loading) {
     return (
       <View style={styles.center}>
+        <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
         <ActivityIndicator size="large" color={COLORS.secondary} />
       </View>
     );
   }
 
-  return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.secondary} />}
-    >
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.greeting}>Workouts</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('WorkoutHistory')}>
-          <Ionicons name="time-outline" size={24} color={COLORS.textSecondary} />
-        </TouchableOpacity>
-      </View>
+  const hasTrainer = !!myTrainer;
 
-      {/* Activity Rings */}
-      {rings && (
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Today's Activity</Text>
-          <View style={styles.ringsRow}>
-            <RingItem
-              label="Move"
-              value={`${Math.round(rings.move.current)} kg`}
-              pct={rings.move.pct}
-              color="#FF3B30"
-            />
-            <RingItem
-              label="Train"
-              value={`${rings.train.current} min`}
-              pct={rings.train.pct}
-              color="#34C759"
-            />
-            <RingItem
-              label="Streak"
-              value={streak ? `${streak.currentStreak}d` : '0d'}
-              pct={streak ? Math.min(streak.currentStreak / 7 * 100, 100) : 0}
-              color="#007AFF"
-            />
-          </View>
-        </View>
-      )}
-
-      {/* Today's Assigned Workout (Case A) */}
-      {todaysPlan ? (
+  // Case A: member has trainer + plan today → Start Workout card
+  // Case A rest: member has trainer but no plan today → Rest Day card
+  // Case B: no trainer → Self-log card
+  const renderWorkoutCard = () => {
+    if (hasTrainer && todaysPlan) {
+      return (
         <TouchableOpacity
           style={styles.todayCard}
           onPress={() => navigation.navigate('WorkoutSession', { planId: todaysPlan.id, plan: todaysPlan })}
@@ -121,76 +93,144 @@ export default function WorkoutHomeScreen({ navigation }) {
             <Ionicons name="play" size={18} color={COLORS.white} />
           </View>
         </TouchableOpacity>
-      ) : (
-        /* Self-Log Button (Case B) */
-        <TouchableOpacity
-          style={styles.selfLogCard}
-          onPress={() => navigation.navigate('MuscleGroupPicker')}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="add-circle-outline" size={32} color={COLORS.secondary} />
-          <Text style={styles.selfLogTitle}>Start Workout</Text>
-          <Text style={styles.selfLogSubtitle}>No plan assigned today — log your own workout</Text>
-        </TouchableOpacity>
-      )}
+      );
+    }
 
-      {/* Weekly Summary */}
-      {weeklySummary && (
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>This Week</Text>
-          <View style={styles.statsRow}>
-            <StatItem label="Workouts" value={weeklySummary.workoutCount} />
-            <StatItem label="Volume" value={`${Math.round(weeklySummary.totalVolumeKg)} kg`} />
-            <StatItem label="Minutes" value={weeklySummary.totalMinutes} />
-          </View>
+    if (hasTrainer && !todaysPlan) {
+      return (
+        <View style={styles.restDayCard}>
+          <Ionicons name="moon-outline" size={32} color={COLORS.textSecondary} />
+          <Text style={styles.restDayTitle}>Rest Day</Text>
+          <Text style={styles.restDaySubtitle}>
+            No workout assigned for today. Rest up — your trainer has you covered.
+          </Text>
+          {myTrainer && (
+            <Text style={styles.restDayTrainer}>
+              Trainer: {myTrainer.name || myTrainer.fullName || 'Your Trainer'}
+            </Text>
+          )}
         </View>
-      )}
+      );
+    }
 
-      {/* Streak Info */}
-      {streak && (
-        <TouchableOpacity
-          style={styles.card}
-          onPress={() => navigation.navigate('StreakDetail')}
-          activeOpacity={0.8}
-        >
-          <View style={styles.streakRow}>
-            <View>
-              <Text style={styles.cardTitle}>🔥 Streak</Text>
-              <Text style={styles.streakValue}>{streak.currentStreak} days</Text>
-            </View>
-            <View style={{ alignItems: 'flex-end' }}>
-              <Text style={styles.textMuted}>Longest: {streak.longestStreak} days</Text>
-              {streak.nextMilestone && (
-                <Text style={styles.textMuted}>
-                  Next: {streak.nextMilestone.label} ({streak.nextMilestone.daysRemaining}d away)
-                </Text>
-              )}
-            </View>
-          </View>
-        </TouchableOpacity>
-      )}
+    // Case B — no trainer
+    return (
+      <TouchableOpacity
+        style={styles.selfLogCard}
+        onPress={() => navigation.navigate('MuscleGroupPicker')}
+        activeOpacity={0.8}
+      >
+        <Ionicons name="add-circle-outline" size={32} color={COLORS.secondary} />
+        <Text style={styles.selfLogTitle}>Start Workout</Text>
+        <Text style={styles.selfLogSubtitle}>No plan assigned today — log your own workout</Text>
+      </TouchableOpacity>
+    );
+  };
 
-      {/* Quick Actions */}
-      <View style={styles.actionsRow}>
-        <QuickAction icon="stats-chart" label="Stats" onPress={() => navigation.navigate('WorkoutStats')} />
-        <QuickAction icon="trophy" label="PRs" onPress={() => navigation.navigate('PersonalRecords')} />
-        <QuickAction icon="body" label="Muscles" onPress={() => navigation.navigate('MuscleDistribution')} />
-      </View>
-
-      {/* PT Nudge */}
-      {nudges.length > 0 && (
-        <View style={styles.nudgeCard}>
-          <Text style={styles.nudgeTitle}>{nudges[0].title}</Text>
-          <Text style={styles.nudgeMessage}>{nudges[0].message}</Text>
-          <TouchableOpacity
-            style={styles.nudgeCta}
-            onPress={() => navigation.navigate('Trainers')}
-          >
-            <Text style={styles.nudgeCtaText}>{nudges[0].cta}</Text>
+  return (
+    <View style={styles.wrapper}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + 16 }]}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.secondary} />}
+      >
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.greeting}>Workouts</Text>
+          <TouchableOpacity onPress={() => navigation.navigate('WorkoutHistory')}>
+            <Ionicons name="time-outline" size={24} color={COLORS.textSecondary} />
           </TouchableOpacity>
         </View>
-      )}
-    </ScrollView>
+
+        {/* Activity Rings */}
+        {rings && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Today's Activity</Text>
+            <View style={styles.ringsRow}>
+              <RingItem
+                label="Move"
+                value={`${Math.round(rings.move.current)} kg`}
+                pct={rings.move.pct}
+                color="#FF3B30"
+              />
+              <RingItem
+                label="Train"
+                value={`${rings.train.current} min`}
+                pct={rings.train.pct}
+                color="#34C759"
+              />
+              <RingItem
+                label="Streak"
+                value={streak ? `${streak.currentStreak}d` : '0d'}
+                pct={streak ? Math.min(streak.currentStreak / 7 * 100, 100) : 0}
+                color="#007AFF"
+              />
+            </View>
+          </View>
+        )}
+
+        {/* Workout Card: Case A / Rest Day / Case B */}
+        {renderWorkoutCard()}
+
+        {/* Weekly Summary */}
+        {weeklySummary && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>This Week</Text>
+            <View style={styles.statsRow}>
+              <StatItem label="Workouts" value={weeklySummary.workoutCount} />
+              <StatItem label="Volume" value={`${Math.round(weeklySummary.totalVolumeKg)} kg`} />
+              <StatItem label="Minutes" value={weeklySummary.totalMinutes} />
+            </View>
+          </View>
+        )}
+
+        {/* Streak Info */}
+        {streak && (
+          <TouchableOpacity
+            style={styles.card}
+            onPress={() => navigation.navigate('StreakDetail')}
+            activeOpacity={0.8}
+          >
+            <View style={styles.streakRow}>
+              <View>
+                <Text style={styles.cardTitle}>Streak</Text>
+                <Text style={styles.streakValue}>{streak.currentStreak} days</Text>
+              </View>
+              <View style={{ alignItems: 'flex-end' }}>
+                <Text style={styles.textMuted}>Longest: {streak.longestStreak} days</Text>
+                {streak.nextMilestone && (
+                  <Text style={styles.textMuted}>
+                    Next: {streak.nextMilestone.label} ({streak.nextMilestone.daysRemaining}d away)
+                  </Text>
+                )}
+              </View>
+            </View>
+          </TouchableOpacity>
+        )}
+
+        {/* Quick Actions */}
+        <View style={styles.actionsRow}>
+          <QuickAction icon="stats-chart" label="Stats" onPress={() => navigation.navigate('WorkoutStats')} />
+          <QuickAction icon="trophy" label="PRs" onPress={() => navigation.navigate('PersonalRecords')} />
+          <QuickAction icon="body" label="Muscles" onPress={() => navigation.navigate('MuscleDistribution')} />
+        </View>
+
+        {/* PT Nudge (Case B only — API already filters these out for trainer-assigned members) */}
+        {nudges.length > 0 && (
+          <View style={styles.nudgeCard}>
+            <Text style={styles.nudgeTitle}>{nudges[0].title}</Text>
+            <Text style={styles.nudgeMessage}>{nudges[0].message}</Text>
+            <TouchableOpacity
+              style={styles.nudgeCta}
+              onPress={() => navigation.navigate('Trainers')}
+            >
+              <Text style={styles.nudgeCtaText}>{nudges[0].cta}</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </ScrollView>
+    </View>
   );
 }
 
@@ -235,11 +275,12 @@ function QuickAction({ icon, label, onPress }) {
 // ── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
+  wrapper: { flex: 1, backgroundColor: COLORS.background },
   container: { flex: 1, backgroundColor: COLORS.background },
   content: { padding: 16, paddingBottom: 32 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background },
 
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, marginTop: 8 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   greeting: { fontSize: 28, fontWeight: '700', color: COLORS.white },
 
   card: { backgroundColor: COLORS.surface, borderRadius: 16, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: COLORS.border },
@@ -263,6 +304,12 @@ const styles = StyleSheet.create({
   todayTrainer: { fontSize: 13, color: COLORS.textMuted, marginBottom: 16 },
   startBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: COLORS.secondary, borderRadius: 12, paddingVertical: 14 },
   startBtnText: { fontSize: 16, fontWeight: '700', color: COLORS.white },
+
+  // Rest day card (Case A, no plan today)
+  restDayCard: { backgroundColor: COLORS.surface, borderRadius: 16, padding: 24, marginBottom: 16, alignItems: 'center', borderWidth: 1, borderColor: COLORS.border },
+  restDayTitle: { fontSize: 18, fontWeight: '600', color: COLORS.white, marginTop: 8 },
+  restDaySubtitle: { fontSize: 13, color: COLORS.textMuted, marginTop: 6, textAlign: 'center', lineHeight: 18 },
+  restDayTrainer: { fontSize: 12, color: COLORS.textSecondary, marginTop: 10 },
 
   // Self-log card (Case B)
   selfLogCard: { backgroundColor: COLORS.surface, borderRadius: 16, padding: 24, marginBottom: 16, alignItems: 'center', borderWidth: 1, borderColor: COLORS.border, borderStyle: 'dashed' },

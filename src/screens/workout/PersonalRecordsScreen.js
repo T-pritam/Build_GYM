@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator,
+  ActivityIndicator, StatusBar,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import { fetchPersonalRecords } from '../../services/workoutService';
@@ -14,6 +15,7 @@ const PR_TYPE_LABELS = {
 };
 
 export default function PersonalRecordsScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -44,12 +46,13 @@ export default function PersonalRecordsScreen({ navigation }) {
   });
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingTop: insets.top + 16 }]}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color={COLORS.white} />
         </TouchableOpacity>
-        <Text style={styles.title}>🏆 Personal Records</Text>
+        <Text style={styles.title}>Personal Records</Text>
         <View style={{ width: 24 }} />
       </View>
 

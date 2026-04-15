@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  ActivityIndicator, TextInput,
+  ActivityIndicator, TextInput, StatusBar,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import { fetchExercises } from '../../services/workoutService';
 
 export default function ExercisePickerScreen({ route, navigation }) {
+  const insets = useSafeAreaInsets();
   const { muscleGroups } = route.params;
   const [exercises, setExercises] = useState([]);
   const [selected, setSelected] = useState([]);
@@ -77,8 +79,9 @@ export default function ExercisePickerScreen({ route, navigation }) {
 
   return (
     <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color={COLORS.white} />
         </TouchableOpacity>

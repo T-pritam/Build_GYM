@@ -1,15 +1,17 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, Alert,
+  ActivityIndicator, Alert, StatusBar,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import {
-  startWorkout, logSet, getWorkoutSets, completeWorkout,
+  fetchActiveWorkout, startWorkout, logSet, getWorkoutSets, completeWorkout,
 } from '../../services/workoutService';
 
 export default function WorkoutSessionScreen({ route, navigation }) {
+  const insets = useSafeAreaInsets();
   const { planId, plan, selfLogExercises, muscleGroups } = route.params || {};
   const isCaseA = !!planId;
 
@@ -19,29 +21,85 @@ export default function WorkoutSessionScreen({ route, navigation }) {
   const [currentExIdx, setCurrentExIdx] = useState(0);
   const [loading, setLoading] = useState(true);
   const [completing, setCompleting] = useState(false);
+  const [isCompleted, setIsCompleted] = useState(false);
   const [restTimer, setRestTimer] = useState(0);
   const timerRef = useRef(null);
   const startTimeRef = useRef(Date.now());
 
-  // Start workout on mount
+  // Build exercise list from a source array (plan exercises or server exercises)
+  const buildExerciseList = (source) => source.map((ex) => ({
+    id: ex.exerciseId || ex.id,
+    name: ex.exerciseName || ex.name,
+    targetSets: ex.targetSets ?? null,
+    targetReps: ex.targetReps ?? null,
+    targetWeight: ex.targetWeight ?? null,
+    restSeconds: ex.restSeconds || 90,
+  }));
+
+  // Group raw set rows into { [exerciseId]: [set, ...] }
+  const groupSets = (rawSets) => {
+    const grouped = {};
+    for (const s of rawSets) {
+      const key = s.exerciseId;
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push({
+        setNumber: s.setNumber,
+        actualWeight: parseFloat(s.actualWeight),
+        actualReps: s.actualReps,
+        setType: s.setType || 'normal',
+        isPr: s.isPr || false,
+      });
+    }
+    for (const key of Object.keys(grouped)) {
+      grouped[key].sort((a, b) => a.setNumber - b.setNumber);
+    }
+    return grouped;
+  };
+
+  // On mount: check for an existing active session first, only call startWorkout if none found
   useEffect(() => {
     (async () => {
       try {
-        const body = isCaseA
-          ? { planId }
-          : { muscleGroups: muscleGroups || [] };
-        const log = await startWorkout(body);
-        setWorkoutLog(log);
+        // ── Step 1: Check if there's already an in_progress log for today ──────
+        let log = isCaseA ? await fetchActiveWorkout(planId) : null;
 
-        if (isCaseA && plan?.exercises) {
-          setExercises(plan.exercises.map((ex) => ({
-            id: ex.exerciseId,
-            name: ex.exerciseName || ex.name,
-            targetSets: ex.targetSets,
-            targetReps: ex.targetReps,
-            targetWeight: ex.targetWeight,
-            restSeconds: ex.restSeconds || 90,
-          })));
+        if (log) {
+          // Resume existing session — sets are already in log.sets
+          setWorkoutLog(log);
+          if (log.sets?.length > 0) {
+            setSetsByExercise(groupSets(log.sets));
+          }
+        } else {
+          // ── Step 2: No active session — startWorkout (idempotent on backend) ─
+          const body = isCaseA
+            ? { planId }
+            : { muscleGroups: muscleGroups || [] };
+          log = await startWorkout(body);
+          setWorkoutLog(log);
+
+          if (log.alreadyCompleted || log.status === 'completed' || log.status === 'partial') {
+            navigation.replace('WorkoutSummary', { workoutLogId: log.id, isCaseA });
+            return;
+          }
+
+          // If it's a resumed session (backend returned existing in_progress log),
+          // load its sets — startWorkout doesn't include sets in response
+          if (log.resumed && log.id) {
+            try {
+              const existingSets = await getWorkoutSets(log.id);
+              if (existingSets?.length > 0) {
+                setSetsByExercise(groupSets(existingSets));
+              }
+            } catch (setsErr) {
+              console.warn('[WorkoutSession] could not load existing sets:', setsErr?.message);
+            }
+          }
+        }
+
+        // ── Build exercise list (from plan passed via route params) ──────────
+        if (isCaseA) {
+          const source = plan?.exercises?.length > 0 ? plan.exercises : (log.exercises || []);
+          setExercises(buildExerciseList(source));
         } else if (selfLogExercises) {
           setExercises(selfLogExercises.map((ex) => ({
             id: ex.id,
@@ -53,7 +111,8 @@ export default function WorkoutSessionScreen({ route, navigation }) {
           })));
         }
       } catch (e) {
-        Alert.alert('Error', e.response?.data?.message || 'Could not start workout');
+        console.error('[WorkoutSession] mount error:', e?.response?.data || e?.message);
+        Alert.alert('Error', e?.response?.data?.message || 'Could not start workout');
         navigation.goBack();
       } finally {
         setLoading(false);
@@ -64,7 +123,10 @@ export default function WorkoutSessionScreen({ route, navigation }) {
 
   const currentExercise = exercises[currentExIdx];
   const currentSets = setsByExercise[currentExercise?.id] || [];
-  const nextSetNumber = currentSets.length + 1;
+  // Use max existing set number + 1 (safe even after loading previously logged sets)
+  const nextSetNumber = currentSets.length > 0
+    ? Math.max(...currentSets.map((s) => s.setNumber)) + 1
+    : 1;
 
   // Rest timer
   const startRestTimer = (seconds) => {
@@ -79,7 +141,7 @@ export default function WorkoutSessionScreen({ route, navigation }) {
   };
 
   const handleLogSet = async (weight, reps, setType = 'normal') => {
-    if (!workoutLog || !currentExercise) return;
+    if (!workoutLog || !currentExercise || isCompleted) return;
     try {
       const result = await logSet(workoutLog.id, {
         exerciseId: currentExercise.id,
@@ -89,12 +151,14 @@ export default function WorkoutSessionScreen({ route, navigation }) {
         setType,
       });
 
+      // result = { success, data: { setLog, prsHit } }
+      const prsHit = result?.data?.prsHit || [];
       const newSet = {
         setNumber: nextSetNumber,
         actualWeight: parseFloat(weight) || 0,
         actualReps: parseInt(reps) || 0,
         setType,
-        isPr: result.data?.isPr || false,
+        isPr: prsHit.length > 0,
       };
 
       setSetsByExercise((prev) => ({
@@ -112,17 +176,26 @@ export default function WorkoutSessionScreen({ route, navigation }) {
   };
 
   const handleCompleteWorkout = async () => {
-    if (!workoutLog) return;
+    if (!workoutLog || isCompleted || completing) return;
     setCompleting(true);
     try {
       const result = await completeWorkout(workoutLog.id);
+      setIsCompleted(true);
+      // Replace immediately — user should not be able to come back to this screen
       navigation.replace('WorkoutSummary', {
         workoutLogId: workoutLog.id,
         summary: result.data,
         isCaseA,
       });
     } catch (e) {
-      Alert.alert('Error', e.response?.data?.message || 'Could not complete workout');
+      const msg = e?.response?.data?.message || 'Could not complete workout';
+      // If backend says already done, still navigate to summary
+      if (e?.response?.status === 400 && msg.includes('not in progress')) {
+        setIsCompleted(true);
+        navigation.replace('WorkoutSummary', { workoutLogId: workoutLog.id, isCaseA });
+      } else {
+        Alert.alert('Error', msg);
+      }
     } finally {
       setCompleting(false);
     }
@@ -148,21 +221,35 @@ export default function WorkoutSessionScreen({ route, navigation }) {
 
   return (
     <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
       {/* Top bar */}
-      <View style={styles.topBar}>
-        <TouchableOpacity onPress={() => Alert.alert('Leave?', 'Progress will be saved as partial.', [
-          { text: 'Stay', style: 'cancel' },
-          { text: 'Leave', onPress: () => navigation.goBack(), style: 'destructive' },
-        ])}>
+      <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
+        <TouchableOpacity onPress={() => {
+          if (isCompleted) {
+            navigation.replace('WorkoutSummary', { workoutLogId: workoutLog?.id, isCaseA });
+            return;
+          }
+          Alert.alert('Leave?', 'Progress will be saved. You can resume this workout today.', [
+            { text: 'Stay', style: 'cancel' },
+            { text: 'Leave', onPress: () => navigation.goBack(), style: 'destructive' },
+          ]);
+        }}>
           <Ionicons name="close" size={28} color={COLORS.textSecondary} />
         </TouchableOpacity>
         <View style={styles.timerBadge}>
           <Ionicons name="time-outline" size={16} color={COLORS.secondary} />
           <Text style={styles.timerText}>{elapsedMinutes} min</Text>
         </View>
-        <TouchableOpacity onPress={confirmFinish} disabled={completing}>
-          <Text style={styles.finishText}>{completing ? 'Saving…' : 'Finish'}</Text>
-        </TouchableOpacity>
+        {isCompleted ? (
+          <View style={styles.completedBadge}>
+            <Ionicons name="checkmark-circle" size={16} color="#34C759" />
+            <Text style={styles.completedText}>Done</Text>
+          </View>
+        ) : (
+          <TouchableOpacity onPress={confirmFinish} disabled={completing}>
+            <Text style={styles.finishText}>{completing ? 'Saving…' : 'Finish'}</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Rest timer overlay */}
@@ -210,27 +297,52 @@ export default function WorkoutSessionScreen({ route, navigation }) {
             </View>
           )}
 
-          {/* Logged sets */}
-          <Text style={styles.sectionTitle}>Sets Logged</Text>
-          {currentSets.length === 0 && (
-            <Text style={styles.emptyText}>No sets logged yet</Text>
-          )}
-          {currentSets.map((s) => (
-            <View key={s.setNumber} style={styles.setRow}>
-              <Text style={styles.setNum}>Set {s.setNumber}</Text>
-              <Text style={styles.setDetail}>{s.actualWeight} kg × {s.actualReps} reps</Text>
-              <Text style={styles.setType}>{s.setType}</Text>
-              {s.isPr && <Text style={styles.prBadge}>🏆 PR!</Text>}
+          {/* Completed banner */}
+          {isCompleted && (
+            <View style={styles.completedBanner}>
+              <Ionicons name="checkmark-circle" size={20} color="#34C759" />
+              <Text style={styles.completedBannerText}>Workout completed!</Text>
             </View>
-          ))}
+          )}
 
-          {/* Log set form */}
-          <SetInputForm
-            onSubmit={handleLogSet}
-            defaultWeight={isCaseA ? currentExercise.targetWeight : ''}
-            defaultReps={isCaseA ? currentExercise.targetReps : ''}
-            setNumber={nextSetNumber}
-          />
+          {/* Logged sets */}
+          <Text style={styles.sectionTitle}>
+            Sets Logged{currentSets.length > 0 ? ` (${currentSets.length})` : ''}
+          </Text>
+          {currentSets.length === 0 && (
+            <Text style={styles.emptyText}>No sets logged yet — log your first set below</Text>
+          )}
+          {currentSets.map((s) => {
+            const typeColors = {
+              warmup:  { bg: 'rgba(59,130,246,0.12)', text: '#3B82F6' },
+              drop:    { bg: 'rgba(168,85,247,0.12)', text: '#A855F7' },
+              failure: { bg: 'rgba(239,68,68,0.12)',  text: '#EF4444' },
+              normal:  { bg: 'rgba(255,255,255,0.06)', text: COLORS.textMuted },
+            };
+            const tc = typeColors[s.setType] || typeColors.normal;
+            return (
+              <View key={`${s.setNumber}-${s.setType}`} style={styles.setRow}>
+                <View style={styles.setNumBadge}>
+                  <Text style={styles.setNum}>{s.setNumber}</Text>
+                </View>
+                <Text style={styles.setDetail}>{s.actualWeight} kg × {s.actualReps}</Text>
+                <View style={[styles.setTypeBadge, { backgroundColor: tc.bg }]}>
+                  <Text style={[styles.setType, { color: tc.text }]}>{s.setType}</Text>
+                </View>
+                {s.isPr && <Text style={styles.prBadge}>🏆 PR</Text>}
+              </View>
+            );
+          })}
+
+          {/* Log set form — hidden after completion */}
+          {!isCompleted && (
+            <SetInputForm
+              onSubmit={handleLogSet}
+              defaultWeight={isCaseA ? currentExercise.targetWeight : ''}
+              defaultReps={isCaseA ? currentExercise.targetReps : ''}
+              setNumber={nextSetNumber}
+            />
+          )}
         </ScrollView>
       )}
     </View>
@@ -358,14 +470,33 @@ const styles = StyleSheet.create({
   targetLabel: { color: COLORS.textMuted, fontSize: 11 },
   targetValue: { color: COLORS.white, fontSize: 15, fontWeight: '600' },
 
+  // Completed state
+  completedBadge: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  completedText: { color: '#34C759', fontSize: 15, fontWeight: '700' },
+  completedBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: 'rgba(52,199,89,0.1)', borderWidth: 1, borderColor: 'rgba(52,199,89,0.3)',
+    borderRadius: 10, padding: 12, marginBottom: 12,
+  },
+  completedBannerText: { color: '#34C759', fontSize: 14, fontWeight: '600' },
+
   // Sets
   sectionTitle: { fontSize: 14, fontWeight: '600', color: COLORS.textSecondary, marginBottom: 8 },
   emptyText: { color: COLORS.textMuted, fontSize: 13, marginBottom: 12 },
-  setRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.surface, borderRadius: 10, padding: 12, marginBottom: 6, borderWidth: 1, borderColor: COLORS.border },
-  setNum: { color: COLORS.textSecondary, fontSize: 13, width: 50 },
-  setDetail: { color: COLORS.white, fontSize: 15, fontWeight: '600', flex: 1 },
-  setType: { color: COLORS.textMuted, fontSize: 11, marginRight: 8 },
-  prBadge: { fontSize: 14 },
+  setRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: COLORS.surface, borderRadius: 10, padding: 10,
+    marginBottom: 6, borderWidth: 1, borderColor: COLORS.border,
+  },
+  setNumBadge: {
+    width: 26, height: 26, borderRadius: 13, backgroundColor: 'rgba(255,255,255,0.08)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  setNum: { color: COLORS.textSecondary, fontSize: 12, fontWeight: '700' },
+  setDetail: { color: COLORS.white, fontSize: 14, fontWeight: '600', flex: 1 },
+  setTypeBadge: { borderRadius: 5, paddingHorizontal: 7, paddingVertical: 2 },
+  setType: { fontSize: 10, fontWeight: '700' },
+  prBadge: { fontSize: 12 },
 
   // Input
   inputCard: { backgroundColor: COLORS.surface, borderRadius: 16, padding: 16, marginTop: 16, borderWidth: 1, borderColor: COLORS.border },

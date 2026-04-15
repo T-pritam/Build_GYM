@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator,
+  ActivityIndicator, StatusBar,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import { fetchWorkoutDetail } from '../../services/workoutService';
 
 export default function WorkoutDetailScreen({ route, navigation }) {
+  const insets = useSafeAreaInsets();
   const { workoutId } = route.params;
   const [detail, setDetail] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -52,7 +54,8 @@ export default function WorkoutDetailScreen({ route, navigation }) {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.header}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color={COLORS.white} />
         </TouchableOpacity>

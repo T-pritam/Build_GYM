@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator,
+  ActivityIndicator, StatusBar,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import { fetchExercises } from '../../services/workoutService';
@@ -21,6 +22,7 @@ const MUSCLE_GROUPS = [
 ];
 
 export default function MuscleGroupPickerScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const [selected, setSelected] = useState([]);
 
   const toggle = (key) => {
@@ -36,7 +38,8 @@ export default function MuscleGroupPickerScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color={COLORS.white} />
         </TouchableOpacity>

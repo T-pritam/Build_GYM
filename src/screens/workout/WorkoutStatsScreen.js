@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, RefreshControl,
+  ActivityIndicator, RefreshControl, StatusBar,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import { fetchKPIs, fetchWeeklySummary } from '../../services/workoutService';
 
 export default function WorkoutStatsScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const [kpis, setKpis] = useState(null);
   const [weekly, setWeekly] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -36,9 +38,10 @@ export default function WorkoutStatsScreen({ navigation }) {
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, { paddingTop: insets.top + 16 }]}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.secondary} />}
     >
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color={COLORS.white} />
