@@ -15,6 +15,7 @@ import { fetchTrainers, fetchMyTrainer, fetchTrialSessions, confirmTrialSession,
 import { getSocket } from '../../services/socketService';
 import { fetchMyMembership } from '../../services/membershipService';
 import { fetchTodaysPlan, fetchStreak } from '../../services/workoutService';
+import { getMyLeaderboardStats } from '../../services/leaderboardService';
 
 const RECEPTION_PHONE = '+919876543210';
 
@@ -46,6 +47,7 @@ export default function HomeScreen({ navigation }) {
   const [membershipData, setMembershipData] = useState(null);
   const [todaysPlan, setTodaysPlan] = useState(null);
   const [streakData, setStreakData] = useState(null);
+  const [leaderboardStats, setLeaderboardStats] = useState(null);
 
   useEffect(() => {
     // Load wallet balance + recent transactions on mount
@@ -91,6 +93,9 @@ export default function HomeScreen({ navigation }) {
       fetchStreak()
         .then((data) => setStreakData(data || null))
         .catch(() => setStreakData(null)),
+      getMyLeaderboardStats()
+        .then((data) => setLeaderboardStats(data || null))
+        .catch(() => setLeaderboardStats(null)),
     ]);
   }, []);
 
@@ -557,7 +562,9 @@ export default function HomeScreen({ navigation }) {
               <View style={[styles.weekIconWrap, { backgroundColor: 'rgba(168,85,247,0.15)' }]}>
                 <Ionicons name="trophy-outline" size={22} color="#A855F7" />
               </View>
-              <Text style={[styles.weekValue, { color: '#A855F7', fontSize: 18 }]}>Rank 3</Text>
+              <Text style={[styles.weekValue, { color: '#A855F7', fontSize: 18 }]}>
+                {leaderboardStats?.rank ? `Rank ${leaderboardStats.rank}` : leaderboardStats?.optedIn === false ? 'Opt In' : '—'}
+              </Text>
               <Text style={styles.weekLabel}>Leaderboard</Text>
               <Text style={styles.weekLink}>View all →</Text>
             </TouchableOpacity>
