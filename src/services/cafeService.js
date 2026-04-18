@@ -9,7 +9,7 @@ export const fetchMenu = (category) =>
 
 /**
  * Place an order.
- * body: { items: [{ menuItemId, itemName, itemPriceCoins, qty }], note? }
+ * body: { items: [{ menuItemId, itemName, itemPriceCoins, qty, variationId?, variationName?, addons?: [{name, priceCoins}], specialInstructions? }], note? }
  */
 export const placeOrder = (body) => api.post('/cafe/orders', body);
 

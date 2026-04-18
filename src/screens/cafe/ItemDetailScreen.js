@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   StatusBar, Image, Share,
@@ -11,6 +11,25 @@ import SafeBottomBar from '../../components/SafeBottomBar';
 import { useCartStore } from '../../store/cartStore';
 
 const SOCKET_URL = BASE_API_URL.replace(/\/api\/?$/, '');
+
+/** Check if the current time falls within an availability window. */
+function isWithinTimeWindow(from, until) {
+  if (!from || !until) return true;
+  const now = new Date();
+  const [fH, fM] = from.split(':').map(Number);
+  const [uH, uM] = until.split(':').map(Number);
+  const mins = now.getHours() * 60 + now.getMinutes();
+  return mins >= fH * 60 + fM && mins <= uH * 60 + uM;
+}
+
+/** Format a time string like "07:00" → "7:00 AM". */
+function fmtTime(t) {
+  if (!t) return '';
+  const [h, m] = t.split(':').map(Number);
+  const suffix = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 || 12;
+  return `${h12}:${String(m).padStart(2, '0')} ${suffix}`;
+}
 
 const NUTRI_ICONS = [
   { label: 'Calories', key: 'calories', icon: 'flame-outline', color: '#F97316' },
@@ -28,6 +47,41 @@ export default function ItemDetailScreen({ navigation, route }) {
   const markUnavailable = useCartStore((s) => s.markUnavailable);
   const markAvailable   = useCartStore((s) => s.markAvailable);
   const socketRef = useRef(null);
+
+  // Variations & add-ons state
+  const availableVariations = useMemo(
+    () => (item?.variations ?? []).filter((v) => v.isAvailable !== false),
+    [item?.variations],
+  );
+  const [selectedVariation, setSelectedVariation] = useState(
+    availableVariations[0] ?? null,
+  );
+  const availableAddons = useMemo(
+    () => (item?.addons ?? []).filter((a) => a.isAvailable !== false),
+    [item?.addons],
+  );
+  const [selectedAddonIds, setSelectedAddonIds] = useState([]);
+
+  const selectedAddons = useMemo(
+    () => availableAddons.filter((a) => selectedAddonIds.includes(a.id)),
+    [availableAddons, selectedAddonIds],
+  );
+
+  // Compute total price: base + variation delta + addons
+  const basePriceCoins = item?.priceCoins ?? item?.price ?? 0;
+  const variationPrice = selectedVariation?.priceCoins ?? selectedVariation?.price ?? 0;
+  const addonTotal = selectedAddons.reduce((s, a) => s + (a.priceCoins ?? a.price ?? 0), 0);
+  const totalPriceCoins = (availableVariations.length > 0 ? variationPrice : basePriceCoins) + addonTotal;
+
+  // Time-window availability
+  const withinWindow = isWithinTimeWindow(item?.availableFrom, item?.availableUntil);
+  const canAddToCart = isAvailable && withinWindow;
+
+  const toggleAddon = (id) => {
+    setSelectedAddonIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
+  };
 
   useEffect(() => {
     if (!item) return;
@@ -52,17 +106,26 @@ export default function ItemDetailScreen({ navigation, route }) {
   const decQty = () => setQty((q) => Math.max(1, q - 1));
 
   const handleAddToCart = () => {
-    if (!isAvailable) return; // guard — button is disabled, but double-check
+    if (!canAddToCart) return;
+    const addonKey = selectedAddonIds.length
+      ? selectedAddonIds.slice().sort().join(',')
+      : '';
+    const compositeKey = `${item.id}_${selectedVariation?.id || 'base'}_${addonKey}`;
     for (let i = 0; i < qty; i++) {
       addItem({
-        id:          item.id,
+        id:          compositeKey,
+        menuItemId:  item.id,
         name:        item.name,
         category:    item.category,
         imageUrl:    item.imageUrl,
-        priceCoins:  item.priceCoins,
+        priceCoins:  totalPriceCoins,
         protein:     item.protein,
         calories:    item.calories,
-        isAvailable: true, // available at time of adding
+        isAvailable: true,
+        variationId:   selectedVariation?.id || null,
+        variationName: selectedVariation?.name || null,
+        addons:        selectedAddons.map((a) => ({ id: a.id, name: a.name, priceCoins: a.priceCoins ?? a.price })),
+        specialInstructions: null,
       });
     }
     navigation.goBack();
@@ -111,9 +174,14 @@ export default function ItemDetailScreen({ navigation, route }) {
           </View>
           <Text style={styles.itemName}>{item.name}</Text>
           <View style={styles.priceRow}>
-            <Text style={styles.priceCoins}>{item.priceCoins ?? item.price}</Text>
+            <Text style={styles.priceCoins}>{totalPriceCoins}</Text>
             <Text style={styles.priceSub}> Build Coins</Text>
           </View>
+          {item.prepTimeMinutes ? (
+            <View style={styles.prepBadge}>
+              <Text style={styles.prepBadgeText}>⏱ ~{item.prepTimeMinutes} min</Text>
+            </View>
+          ) : null}
 
           <View style={styles.descCard}>
             <Text style={styles.descText}>{item.description}</Text>
@@ -146,6 +214,71 @@ export default function ItemDetailScreen({ navigation, route }) {
             </View>
           </View>
 
+          {/* Variations selector */}
+          {availableVariations.length > 0 && (
+            <View style={styles.variationsSection}>
+              <Text style={styles.sectionHeading}>VARIATIONS</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.variationsRow}>
+                {availableVariations.map((v) => {
+                  const isSelected = selectedVariation?.id === v.id;
+                  return (
+                    <TouchableOpacity
+                      key={v.id}
+                      style={[styles.variationChip, isSelected && styles.variationChipSelected]}
+                      onPress={() => setSelectedVariation(v)}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={[styles.variationChipText, isSelected && styles.variationChipTextSelected]}>
+                        {v.name}
+                      </Text>
+                      <Text style={[styles.variationChipPrice, isSelected && styles.variationChipPriceSelected]}>
+                        {v.priceCoins ?? v.price} coins
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          )}
+
+          {/* Add-ons section */}
+          {availableAddons.length > 0 && (
+            <View style={styles.addonsSection}>
+              <Text style={styles.sectionHeading}>ADD-ONS</Text>
+              {availableAddons.map((a) => {
+                const isChecked = selectedAddonIds.includes(a.id);
+                return (
+                  <TouchableOpacity
+                    key={a.id}
+                    style={[styles.addonRow, isChecked && styles.addonRowSelected]}
+                    onPress={() => toggleAddon(a.id)}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons
+                      name={isChecked ? 'checkbox' : 'square-outline'}
+                      size={22}
+                      color={isChecked ? COLORS.secondary : COLORS.textMuted}
+                    />
+                    <Text style={styles.addonName}>{a.name}</Text>
+                    <Text style={styles.addonPrice}>+{a.priceCoins ?? a.price} coins</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
+
+          {/* Time availability */}
+          {item.availableFrom && item.availableUntil ? (
+            <View style={[styles.timeBadge, !withinWindow && styles.timeBadgeInactive]}>
+              <Ionicons name="time-outline" size={16} color={withinWindow ? COLORS.secondary : COLORS.textMuted} />
+              <Text style={[styles.timeBadgeText, !withinWindow && { color: COLORS.textMuted }]}>
+                {withinWindow
+                  ? `Available ${fmtTime(item.availableFrom)}–${fmtTime(item.availableUntil)}`
+                  : `Available from ${fmtTime(item.availableFrom)}`}
+              </Text>
+            </View>
+          ) : null}
+
           {isAvailable ? (
             <View style={styles.availBanner}>
               <Ionicons name="checkmark-circle" size={18} color="#22C55E" />
@@ -173,9 +306,9 @@ export default function ItemDetailScreen({ navigation, route }) {
         </View>
 
         <TouchableOpacity
-          style={[styles.addCartBtn, !isAvailable && styles.addCartBtnDisabled]}
+          style={[styles.addCartBtn, !canAddToCart && styles.addCartBtnDisabled]}
           onPress={handleAddToCart}
-          disabled={!isAvailable}
+          disabled={!canAddToCart}
           activeOpacity={0.85}
         >
           <Ionicons name="cart-outline" size={20} color={COLORS.white} />
@@ -254,6 +387,46 @@ const styles = StyleSheet.create({
   },
   nutriValue: { fontSize: 18, fontWeight: '800', color: COLORS.white },
   nutriLabel: { fontSize: 11, color: COLORS.textMuted, fontWeight: '500' },
+
+  // Variations
+  variationsSection: { gap: 10 },
+  sectionHeading: { fontSize: 10, fontWeight: '900', color: COLORS.secondary, letterSpacing: 3 },
+  variationsRow: { gap: 10 },
+  variationChip: {
+    backgroundColor: COLORS.surface, borderRadius: 20, borderWidth: 1, borderColor: COLORS.border,
+    paddingHorizontal: 16, paddingVertical: 10, alignItems: 'center',
+  },
+  variationChipSelected: { backgroundColor: COLORS.secondaryGlow, borderColor: COLORS.secondary },
+  variationChipText: { fontSize: 13, fontWeight: '700', color: COLORS.textSecondary },
+  variationChipTextSelected: { color: COLORS.secondary },
+  variationChipPrice: { fontSize: 11, color: COLORS.textMuted, marginTop: 2 },
+  variationChipPriceSelected: { color: COLORS.secondary },
+
+  // Add-ons
+  addonsSection: { gap: 8 },
+  addonRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: COLORS.surface, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border,
+    paddingHorizontal: 14, paddingVertical: 12,
+  },
+  addonRowSelected: { borderColor: COLORS.secondary, backgroundColor: COLORS.secondaryGlow },
+  addonName: { flex: 1, fontSize: 14, fontWeight: '600', color: COLORS.white },
+  addonPrice: { fontSize: 13, fontWeight: '700', color: COLORS.secondary },
+
+  // Prep time badge
+  prepBadge: {
+    alignSelf: 'flex-start', backgroundColor: COLORS.surface, borderRadius: 8,
+    paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: COLORS.border,
+  },
+  prepBadgeText: { fontSize: 12, color: COLORS.textSecondary, fontWeight: '600' },
+
+  // Time availability
+  timeBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: '#2A1A0A', borderRadius: 12, padding: 14,
+  },
+  timeBadgeInactive: { backgroundColor: COLORS.surface },
+  timeBadgeText: { fontSize: 13, fontWeight: '600', color: COLORS.secondary },
   availBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     backgroundColor: '#0A2A1A', borderRadius: 12, padding: 14,

@@ -8,12 +8,13 @@ import { fetchOrderById } from '../../services/cafeService';
 import { useActiveOrderStore } from '../../store/activeOrderStore';
 import { getSocket } from '../../services/socketService';
 
-const STATUS_STEPS = ['received', 'preparing', 'ready', 'done'];
+const STATUS_STEPS = ['placed', 'accepted', 'preparing', 'ready', 'complete'];
 const STEP_LABELS = {
-  received:  'Order Placed',
+  placed:    'Order Placed',
+  accepted:  'Accepted',
   preparing: 'Preparing',
   ready:     'Ready for Pickup',
-  done:      'Completed',
+  complete:  'Completed',
 };
 
 function fmtTs(iso) {
@@ -79,7 +80,7 @@ export default function OrderTrackingScreen({ navigation, route }) {
       if (id !== orderId) return;
       setOrder((prev) => prev ? { ...prev, status } : prev);
       // Keep store in sync so HOC reflects the latest status
-      if (status === 'done' || status === 'cancelled') {
+      if (status === 'complete' || status === 'done' || status === 'cancelled') {
         clearActiveOrder();
       } else {
         updateOrderStatus(status);
@@ -135,18 +136,19 @@ export default function OrderTrackingScreen({ navigation, route }) {
     );
   }
 
-  const currentStatusIdx = STATUS_STEPS.indexOf(order?.status ?? 'received');
+  const currentStatusIdx = STATUS_STEPS.indexOf(order?.status ?? 'placed');
 
   // Per-status timestamps
   const timestamps = {
-    received:  order?.createdAt,
+    placed:    order?.createdAt,
+    accepted:  order?.acceptedAt,
     preparing: order?.preparingAt,
     ready:     order?.readyAt,
-    done:      order?.completedAt,
+    complete:  order?.completedAt,
   };
 
   // Build step states relative to current status
-  const steps = STATUS_STEPS.slice(0, 4).map((key, i) => {
+  const steps = STATUS_STEPS.map((key, i) => {
     let stepStatus;
     if (i < currentStatusIdx)       stepStatus = 'done';
     else if (i === currentStatusIdx) stepStatus = 'active';
@@ -205,8 +207,8 @@ export default function OrderTrackingScreen({ navigation, route }) {
           ))}
         </View>
 
-        {/* OTP card — only show when order is not done */}
-        {order?.status !== 'done' && (
+        {/* OTP card — only show when order is not complete */}
+        {order?.status !== 'complete' && order?.status !== 'done' && (
           <View style={styles.otpCard}>
             <Text style={styles.otpLabel}>YOUR PICKUP OTP</Text>
             <View style={styles.otpDigits}>
@@ -261,7 +263,7 @@ export default function OrderTrackingScreen({ navigation, route }) {
         )}
 
         {/* Notification hint */}
-        {order?.status !== 'done' && (
+        {order?.status !== 'complete' && order?.status !== 'done' && (
           <View style={styles.notifHint}>
             <Ionicons name="notifications-outline" size={14} color={COLORS.textMuted} />
             <Text style={styles.notifHintText}>You'll be notified when your order is ready.</Text>
