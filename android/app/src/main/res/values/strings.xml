@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">Build Gym</string>
+    <string name="nfc_service_desc">Rosslare NFC Card Service</string>
+    <string name="nfc_aid_description">Rosslare Mobile Credential</string>
 </resources>

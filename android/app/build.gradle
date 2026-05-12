@@ -99,6 +99,12 @@ android {
         versionName "1.0"
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
+
+        sourceSets {
+            main {
+                jniLibs.srcDirs = ['libs']
+            }
+        }
     }
     signingConfigs {
         debug {
@@ -182,4 +188,12 @@ dependencies {
     } else {
         implementation jscFlavor
     }
+
+    // Rosslare BLE SDK
+    implementation fileTree(dir: 'libs', include: ['*.aar'])
+
+    // Microsoft App Center (required by blelib.aar)
+    def appCenterSdkVersion = '4.2.0'
+    implementation "com.microsoft.appcenter:appcenter-analytics:${appCenterSdkVersion}"
+    implementation "com.microsoft.appcenter:appcenter-crashes:${appCenterSdkVersion}"
 }
