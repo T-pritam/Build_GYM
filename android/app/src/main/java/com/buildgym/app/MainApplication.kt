@@ -1,9 +1,9 @@
 package com.buildgym.app
 
 import android.app.Application
-import android.content.SharedPreferences
 import android.content.res.Configuration
 import android.nfc.NfcAdapter
+import android.provider.Settings
 import android.util.Log
 
 import com.buildgym.BuildConfig
@@ -22,14 +22,10 @@ import com.rosslare.cardemulation.NfcService
 import expo.modules.ApplicationLifecycleDispatcher
 import expo.modules.ReactNativeHostWrapper
 
-import java.util.UUID
-
 class MainApplication : Application(), ReactApplication {
 
   companion object {
     private const val TAG = "RosslareSDK"
-    private const val PREFS_NAME = "rosslare_prefs"
-    private const val KEY_CREDENTIAL_ID = "credential_id"
 
     lateinit var bleService: BleService
     var nfcService: NfcService? = null
@@ -40,8 +36,7 @@ class MainApplication : Application(), ReactApplication {
       object : DefaultReactNativeHost(this) {
         override fun getPackages(): List<ReactPackage> =
             PackageList(this).packages.apply {
-              // Packages that cannot be autolinked yet can be added manually here, for example:
-              // add(MyReactNativePackage())
+              add(RosslarePackage())
             }
 
           override fun getJSMainModuleName(): String = ".expo/.virtual-metro-entry"
@@ -55,13 +50,12 @@ class MainApplication : Application(), ReactApplication {
   override val reactHost: ReactHost
     get() = ReactNativeHostWrapper.createReactHost(applicationContext, reactNativeHost)
 
-  private fun getOrCreateCredentialId(): Long {
-    val prefs: SharedPreferences = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
-    val stored = prefs.getLong(KEY_CREDENTIAL_ID, -1L)
-    if (stored != -1L) return stored
-    val generated = UUID.randomUUID().mostSignificantBits and Long.MAX_VALUE
-    prefs.edit().putLong(KEY_CREDENTIAL_ID, generated).apply()
-    return generated
+  // Returns the ANDROID_ID hex string as a signed Long by reading the raw bytes
+  // big-endian — exactly how setAutoBLEID() encodes it internally.
+  // Used only for NFC (which requires a Long) and for logging.
+  private fun androidIdAsLong(): Long {
+    val hex = Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID) ?: return 0L
+    return java.lang.Long.parseUnsignedLong(hex, 16)
   }
 
   override fun onCreate() {
@@ -74,13 +68,16 @@ class MainApplication : Application(), ReactApplication {
     loadReactNative(this)
     ApplicationLifecycleDispatcher.onApplicationCreate(this)
 
-    val credentialId = getOrCreateCredentialId()
+    val androidId = Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID) ?: ""
+    Log.d(TAG, "BLE credential ID (ANDROID_ID hex): $androidId")
 
     try {
+      // BleService constructor calls setAutoBLEID() automatically — DO NOT call
+      // setCustomBLEID() here. setCustomBLEID(long) reverses the byte order, so
+      // the transmitted credential would not match the registered ANDROID_ID.
       bleService = BleService(this, TAG, false)
       bleService.init()
-      bleService.setCustomBLEID(credentialId)
-      Log.d(TAG, "BLE credential ID: $credentialId")
+      Log.d(TAG, "BLE service initialized with auto credential")
     } catch (e: Exception) {
       Log.e(TAG, "BLE init failed: ${e.javaClass.simpleName} — ${e.message}")
     }
@@ -88,8 +85,10 @@ class MainApplication : Application(), ReactApplication {
     try {
       if (NfcAdapter.getDefaultAdapter(this) != null) {
         nfcService = NfcService(this, TAG, false)
-        nfcService?.SetCustomNfcID(credentialId)
-        Log.d(TAG, "NFC credential ID: $credentialId")
+        // NFC requires a Long — use the big-endian interpretation of ANDROID_ID bytes,
+        // which is the same value AxTraxPro stores as iCardCode.
+        nfcService?.SetCustomNfcID(androidIdAsLong())
+        Log.d(TAG, "NFC credential ID: $androidId")
       } else {
         Log.d(TAG, "NFC not available on this device — skipping NFC init")
       }

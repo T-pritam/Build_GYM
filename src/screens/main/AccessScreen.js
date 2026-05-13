@@ -11,6 +11,7 @@ import {
   Alert,
   ScrollView,
 } from 'react-native';
+import { autoUnlock } from '../../services/bleService';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -72,7 +73,7 @@ export default function AccessScreen({ navigation }) {
     Animated.timing(pulseOpacity, { toValue: 0, duration: 200, useNativeDriver: true }).start();
   };
 
-  const handleAccess = () => {
+  const handleAccess = async () => {
     if (membership.status !== 'ACTIVE') {
       setStatus('denied');
       setTimeout(() => setStatus('idle'), 3000);
@@ -80,18 +81,32 @@ export default function AccessScreen({ navigation }) {
     }
     setStatus('scanning');
     startPulse();
-    setTimeout(() => {
+    try {
+      const readerName = await autoUnlock(10);
       stopPulse();
       setStatus('success');
       const selectedMode = ACCESS_MODES.find((m) => m.id === mode);
       const now = new Date();
       const time = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
       setLogs((prev) => [
-        { id: Date.now(), text: selectedMode.logText, time, type: 'success' },
+        { id: Date.now(), text: `${selectedMode.logText} via ${readerName}`, time, type: 'success' },
         ...prev.slice(0, 4),
       ]);
       setTimeout(() => setStatus('idle'), 2500);
-    }, 2500);
+    } catch (err) {
+      stopPulse();
+      const code = err.code ?? err.message;
+      if (code === 'PERMISSION_DENIED') {
+        Alert.alert('Permission Required', 'Please allow Bluetooth access to unlock the door.');
+      } else if (code === 'BT_NOT_ENABLED') {
+        Alert.alert('Bluetooth Off', 'Please turn on Bluetooth to unlock the door.');
+      } else if (code === 'NO_READERS_FOUND') {
+        Alert.alert('No Reader Found', 'Move closer to the door and try again.');
+      } else {
+        Alert.alert('Access Failed', err.message ?? 'Could not unlock. Please try again.');
+      }
+      setStatus('idle');
+    }
   };
 
   const getButtonColors = () => {
@@ -102,7 +117,7 @@ export default function AccessScreen({ navigation }) {
   };
 
   const getStatusMsg = () => {
-    if (status === 'scanning') return 'Scanning for device...';
+    if (status === 'scanning') return 'Searching for reader...';
     if (status === 'success') return 'Access granted ✓';
     if (status === 'denied') return 'Access denied – inactive membership';
     return 'Tap to unlock';

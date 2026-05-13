@@ -12,7 +12,16 @@
  */
 
 import axios from 'axios';
+import * as Application from 'expo-application';
 import { BASE_API_URL } from '@env';
+
+const getBleCredentialId = () => {
+  try {
+    return Application.getAndroidId() ?? null;
+  } catch {
+    return null;
+  }
+};
 
 // Plain public client (no auth interceptors)
 const publicClient = axios.create({
@@ -41,8 +50,10 @@ export const sendOTP = async (phone, context = 'member') => {
  * @returns {{ accessToken, refreshToken, user }}
  */
 export const verifyOTP = async (phone, code) => {
+  const bleCredentialId = getBleCredentialId();
+  console.log('[RosslareSDK] BLE Credential ID:', bleCredentialId);
   console.log(BASE_API_URL, 'Verifying OTP for:', phone);
-  const { data } = await publicClient.post('/otp/verify', { phone, code });
+  const { data } = await publicClient.post('/otp/verify', { phone, code, bleCredentialId });
   console.log('verifyOTP response:', data);
   return data.data; // { accessToken, refreshToken, user }
 };
