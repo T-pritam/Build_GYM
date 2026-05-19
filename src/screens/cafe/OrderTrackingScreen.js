@@ -1,20 +1,21 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import messaging from '@react-native-firebase/messaging';
+import { useFocusEffect } from '@react-navigation/native';
 import { COLORS } from '../../constants/colors';
 import { fetchOrderById } from '../../services/cafeService';
 import { useActiveOrderStore } from '../../store/activeOrderStore';
-import { getSocket } from '../../services/socketService';
+import { mapCafeStatus, isTerminalCafeStatus, GYM_STEPS } from '../../utils/cafeStatus';
 
-const STATUS_STEPS = ['placed', 'accepted', 'preparing', 'ready', 'complete'];
 const STEP_LABELS = {
   placed:    'Order Placed',
   accepted:  'Accepted',
   preparing: 'Preparing',
-  ready:     'Ready for Pickup',
-  complete:  'Completed',
+  ready:     'Ready / Out for delivery',
+  complete:  'Delivered',
 };
 
 function fmtTs(iso) {
@@ -47,57 +48,56 @@ function StepIcon({ stepStatus }) {
 }
 
 export default function OrderTrackingScreen({ navigation, route }) {
-  const { orderId, order: initialOrder } = route?.params || {};
+  const { orderId: paramOrderId, order: initialOrder } = route?.params || {};
+  const orderId = paramOrderId || initialOrder?.orderId || initialOrder?.id;
   const [order, setOrder] = useState(initialOrder ?? null);
   const storedActive = useActiveOrderStore(s => s.activeOrder);
   const { updateOrderStatus, clearActiveOrder } = useActiveOrderStore();
+  const pollRef = useRef(null);
 
-  // Fetch order from API when navigating from history/transactions (no initialOrder)
-  useEffect(() => {
-    if (!initialOrder && orderId) {
-      fetchOrderById(orderId)
-        .then(res => setOrder(res.data.data))
-        .catch(() => {});
-    }
-  }, [orderId]);
+  const refresh = useCallback(async () => {
+    if (!orderId) return;
+    try {
+      const res = await fetchOrderById(orderId);
+      const fresh = res.data || {};
+      setOrder((prev) => ({ ...(prev || {}), ...fresh }));
+      if (fresh.status) {
+        if (isTerminalCafeStatus(fresh.status)) {
+          if (storedActive?.orderId === orderId || storedActive?.id === orderId) {
+            clearActiveOrder();
+          }
+        } else {
+          updateOrderStatus(fresh.status);
+        }
+      }
+    } catch (_) { /* keep last */ }
+  }, [orderId, storedActive?.orderId, storedActive?.id]);
 
-  // Socket: use the singleton so we're guaranteed to be in the room before
-  // any status update fires (no race with a fresh socket connecting late).
+  useFocusEffect(useCallback(() => {
+    refresh();
+    pollRef.current = setInterval(refresh, 15000);
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+      pollRef.current = null;
+    };
+  }, [refresh]));
+
+  // Refresh immediately on a foreground FCM matching this order
   useEffect(() => {
     if (!orderId) return;
+    const unsub = messaging().onMessage((msg) => {
+      const incomingId = msg?.data?.orderId;
+      if (incomingId && incomingId === orderId) refresh();
+    });
+    return () => { try { unsub?.(); } catch (_) {} };
+  }, [orderId, refresh]);
 
-    const socket = getSocket();
-
-    const joinRoom = () => socket.emit('join:order', orderId);
-
-    // Join immediately if already connected, else wait for connect event
-    if (socket.connected) {
-      joinRoom();
-    }
-    socket.on('connect', joinRoom);
-
-    const handleStatusUpdate = ({ orderId: id, status }) => {
-      if (id !== orderId) return;
-      setOrder((prev) => prev ? { ...prev, status } : prev);
-      // Keep store in sync so HOC reflects the latest status
-      if (status === 'complete' || status === 'done' || status === 'cancelled') {
-        clearActiveOrder();
-      } else {
-        updateOrderStatus(status);
-      }
-    };
-
-    socket.on('order:status_updated', handleStatusUpdate);
-
-    return () => {
-      socket.off('connect', joinRoom);
-      socket.off('order:status_updated', handleStatusUpdate);
-      // Do NOT disconnect — singleton is shared across the app
-    };
-  }, [orderId]);
+  const cafeStatus = order?.status;
+  const mapped = mapCafeStatus(cafeStatus);
+  const isCancelled = mapped.step === 'cancelled';
 
   // Cancelled state — show dedicated banner
-  if (order?.status === 'cancelled') {
+  if (isCancelled) {
     return (
       <View style={styles.container}>
         <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
@@ -107,7 +107,9 @@ export default function OrderTrackingScreen({ navigation, route }) {
           <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
             <Ionicons name="arrow-back" size={20} color={COLORS.white} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>{order?.ref ?? 'Order'}</Text>
+          <Text style={styles.headerTitle}>
+            {orderId ? `#${String(orderId).slice(-6).toUpperCase()}` : 'Order'}
+          </Text>
           <View style={{ width: 40 }} />
         </View>
 
@@ -115,20 +117,9 @@ export default function OrderTrackingScreen({ navigation, route }) {
           <View style={styles.cancelledCard}>
             <Ionicons name="close-circle" size={56} color="#EF4444" />
             <Text style={styles.cancelledTitle}>Order Cancelled</Text>
-            <Text style={styles.cancelledSub}>
-              Your order {order.ref} was cancelled.
-            </Text>
-            {order.cancelledAt ? (
-              <Text style={styles.cancelledTime}>{fmtTs(order.cancelledAt)}</Text>
-            ) : null}
-            {order.cancelNote ? (
-              <View style={styles.cancelNoteBox}>
-                <Ionicons name="chatbubble-outline" size={14} color="#888" />
-                <Text style={styles.cancelNoteText}>"{order.cancelNote}"</Text>
-              </View>
-            ) : null}
+            <Text style={styles.cancelledSub}>This order was cancelled.</Text>
             <Text style={styles.cancelledRefund}>
-              {order.totalCoins} Build Coins have been refunded to your wallet.
+              If payment was captured, the refund will be processed by Razorpay within 5–7 business days.
             </Text>
           </View>
         </View>
@@ -136,19 +127,23 @@ export default function OrderTrackingScreen({ navigation, route }) {
     );
   }
 
-  const currentStatusIdx = STATUS_STEPS.indexOf(order?.status ?? 'placed');
+  const currentStatusIdx = GYM_STEPS.indexOf(mapped.step);
 
-  // Per-status timestamps
+  // Per-status timestamps from the history array (oldest → newest)
+  const history = order?.statusHistory ?? [];
+  const ts = (cafeStatuses) => {
+    for (const s of history) if (cafeStatuses.includes(s.status)) return s.createdAt;
+    return null;
+  };
   const timestamps = {
-    placed:    order?.createdAt,
-    accepted:  order?.acceptedAt,
-    preparing: order?.preparingAt,
-    ready:     order?.readyAt,
-    complete:  order?.completedAt,
+    placed:    ts(['KOT_GENERATED', 'PAYMENT_PENDING']) ?? order?.createdAt,
+    accepted:  ts(['NEW']),
+    preparing: ts(['PREPARING']),
+    ready:     ts(['READY', 'PICKUP_CLAIMED', 'OUT_FOR_DELIVERY']),
+    complete:  ts(['DELIVERED', 'COMPLETED']) ?? order?.completedAt,
   };
 
-  // Build step states relative to current status
-  const steps = STATUS_STEPS.map((key, i) => {
+  const steps = GYM_STEPS.map((key, i) => {
     let stepStatus;
     if (i < currentStatusIdx)       stepStatus = 'done';
     else if (i === currentStatusIdx) stepStatus = 'active';
@@ -156,10 +151,16 @@ export default function OrderTrackingScreen({ navigation, route }) {
     return { key, label: STEP_LABELS[key], stepStatus, ts: timestamps[key] };
   });
 
-  const otp =
-    order?.pickupOtp ??
-    (storedActive?.id === order?.id ? storedActive?.pickupOtp : null) ??
-    '------';
+  // PIN — only for GYM_APP source. Cafe backend returns deliveryPin on the
+  // detail endpoint for the placing customer; fall back to the active-order
+  // store if the polled detail call hasn't completed yet.
+  const deliveryPin =
+    order?.deliveryPin ??
+    (storedActive?.orderId === orderId || storedActive?.id === orderId ? storedActive?.deliveryPin : null) ??
+    null;
+  const isGymOrder = (order?.orderSource ?? storedActive?.orderSource) === 'GYM_APP';
+  const showPin = isGymOrder && !isTerminalCafeStatus(cafeStatus);
+  const pinDigits = deliveryPin && String(deliveryPin).length === 6 ? String(deliveryPin) : '------';
 
   return (
     <View style={styles.container}>
@@ -173,11 +174,15 @@ export default function OrderTrackingScreen({ navigation, route }) {
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={20} color={COLORS.white} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{order?.ref ?? 'Order'}</Text>
+        <Text style={styles.headerTitle}>
+          {orderId ? `#${String(orderId).slice(-6).toUpperCase()}` : 'Order'}
+        </Text>
         <View style={{ width: 40 }} />
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        {/* Status label */}
+        <Text style={styles.statusLabel}>{mapped.label}</Text>
 
         {/* Progress stepper */}
         <View style={styles.stepperContainer}>
@@ -207,18 +212,18 @@ export default function OrderTrackingScreen({ navigation, route }) {
           ))}
         </View>
 
-        {/* OTP card — only show when order is not complete */}
-        {order?.status !== 'complete' && order?.status !== 'done' && (
+        {/* Delivery PIN — share with captain at delivery */}
+        {showPin && (
           <View style={styles.otpCard}>
-            <Text style={styles.otpLabel}>YOUR PICKUP OTP</Text>
+            <Text style={styles.otpLabel}>DELIVERY PIN</Text>
             <View style={styles.otpDigits}>
-              {otp.split('').map((digit, i) => (
+              {pinDigits.split('').map((digit, i) => (
                 <View key={i} style={styles.otpDigitBox}>
                   <Text style={styles.otpDigitText}>{digit}</Text>
                 </View>
               ))}
             </View>
-            <Text style={styles.otpHint}>Show this code to the café staff</Text>
+            <Text style={styles.otpHint}>Share this 6-digit PIN with the captain at delivery</Text>
           </View>
         )}
 
@@ -230,43 +235,47 @@ export default function OrderTrackingScreen({ navigation, route }) {
                 <Text style={styles.detailsMetaLabel}>Order time:</Text>
                 <Text style={styles.detailsMetaValue}>{fmtTs(order.createdAt) ?? '—'}</Text>
               </View>
-              <View style={styles.detailsMetaRow}>
-                <Text style={styles.detailsMetaLabel}>Total:</Text>
-                <Text style={[styles.detailsMetaValue, { color: COLORS.secondary }]}>
-                  {order.totalCoins} coins
-                </Text>
-              </View>
+              {order.totalAmount != null && (
+                <View style={styles.detailsMetaRow}>
+                  <Text style={styles.detailsMetaLabel}>Total:</Text>
+                  <Text style={[styles.detailsMetaValue, { color: COLORS.secondary }]}>
+                    ₹{order.totalAmount}
+                  </Text>
+                </View>
+              )}
             </View>
 
-            {/* Items list with images */}
             {order.items?.length > 0 && (
               <View style={styles.itemsList}>
-                {order.items.map((item, i) => (
-                  <View key={item.id ?? i} style={[styles.itemRow, i < order.items.length - 1 && styles.itemRowBorder]}>
-                    {item.imageUrl ? (
-                      <Image source={{ uri: item.imageUrl }} style={styles.itemThumb} />
-                    ) : (
-                      <View style={[styles.itemThumb, styles.itemThumbPlaceholder]}>
-                        <Ionicons name="fast-food-outline" size={18} color="#555" />
+                {order.items.map((item, i) => {
+                  const qty = item.quantity ?? item.qty ?? 1;
+                  const unit = Number(item.unitPrice ?? item.itemPriceCoins ?? 0);
+                  return (
+                    <View key={item.id ?? i} style={[styles.itemRow, i < order.items.length - 1 && styles.itemRowBorder]}>
+                      {item.imageUrl ? (
+                        <Image source={{ uri: item.imageUrl }} style={styles.itemThumb} />
+                      ) : (
+                        <View style={[styles.itemThumb, styles.itemThumbPlaceholder]}>
+                          <Ionicons name="fast-food-outline" size={18} color="#555" />
+                        </View>
+                      )}
+                      <View style={styles.itemInfo}>
+                        <Text style={styles.itemName}>{item.name ?? item.itemName}</Text>
+                        <Text style={styles.itemQty}>×{qty}</Text>
                       </View>
-                    )}
-                    <View style={styles.itemInfo}>
-                      <Text style={styles.itemName}>{item.itemName}</Text>
-                      <Text style={styles.itemQty}>×{item.qty}</Text>
+                      <Text style={styles.itemPrice}>₹{unit * qty}</Text>
                     </View>
-                    <Text style={styles.itemPrice}>{item.itemPriceCoins * item.qty} coins</Text>
-                  </View>
-                ))}
+                  );
+                })}
               </View>
             )}
           </View>
         )}
 
-        {/* Notification hint */}
-        {order?.status !== 'complete' && order?.status !== 'done' && (
+        {!isTerminalCafeStatus(cafeStatus) && (
           <View style={styles.notifHint}>
             <Ionicons name="notifications-outline" size={14} color={COLORS.textMuted} />
-            <Text style={styles.notifHintText}>You'll be notified when your order is ready.</Text>
+            <Text style={styles.notifHintText}>You'll be notified at each step.</Text>
           </View>
         )}
       </ScrollView>
@@ -291,7 +300,8 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 18, fontWeight: '800', color: COLORS.white },
   scrollContent: { paddingHorizontal: 20, paddingBottom: 60, gap: 16 },
 
-  // Cancelled state
+  statusLabel: { fontSize: 16, fontWeight: '800', color: COLORS.secondary, textAlign: 'center', paddingVertical: 6 },
+
   cancelledContainer: { flex: 1, justifyContent: 'center', paddingHorizontal: 24 },
   cancelledCard: {
     backgroundColor: COLORS.surface, borderRadius: 20, borderWidth: 1, borderColor: '#EF444433',
@@ -299,12 +309,8 @@ const styles = StyleSheet.create({
   },
   cancelledTitle: { fontSize: 22, fontWeight: '900', color: '#EF4444' },
   cancelledSub: { fontSize: 14, color: COLORS.textSecondary, textAlign: 'center' },
-  cancelledTime: { fontSize: 12, color: '#888' },
-  cancelNoteBox: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, paddingHorizontal: 8 },
-  cancelNoteText: { fontSize: 13, color: '#888', fontStyle: 'italic', flex: 1, textAlign: 'center' },
   cancelledRefund: { fontSize: 13, color: COLORS.textMuted, textAlign: 'center', marginTop: 4 },
 
-  // Stepper
   stepperContainer: { paddingVertical: 8, gap: 0 },
   stepRow: { flexDirection: 'row', gap: 16 },
   stepLeft: { alignItems: 'center', width: 24 },
@@ -329,7 +335,6 @@ const styles = StyleSheet.create({
   stepTs: { fontSize: 11, color: COLORS.textMuted, marginTop: 2 },
   stepTsPending: { fontSize: 11, color: '#333', marginTop: 2 },
 
-  // OTP card
   otpCard: {
     backgroundColor: COLORS.surface, borderRadius: 14, borderWidth: 1, borderColor: COLORS.secondary,
     padding: 24, alignItems: 'center', gap: 16,
@@ -342,9 +347,8 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   otpDigitText: { fontSize: 24, fontWeight: '900', color: COLORS.secondary },
-  otpHint: { fontSize: 13, color: COLORS.textMuted },
+  otpHint: { fontSize: 13, color: COLORS.textMuted, textAlign: 'center' },
 
-  // Details card
   detailsCard: {
     backgroundColor: COLORS.surface, borderRadius: 14, borderWidth: 1, borderColor: COLORS.border, overflow: 'hidden',
   },
@@ -353,7 +357,6 @@ const styles = StyleSheet.create({
   detailsMetaLabel: { fontSize: 13, color: COLORS.textMuted },
   detailsMetaValue: { fontSize: 13, color: COLORS.textSecondary, flex: 1, textAlign: 'right', marginLeft: 8 },
 
-  // Items list
   itemsList: { borderTopWidth: 1, borderTopColor: COLORS.border },
   itemRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 12 },
   itemRowBorder: { borderBottomWidth: 1, borderBottomColor: COLORS.border },
@@ -367,7 +370,6 @@ const styles = StyleSheet.create({
   itemQty:  { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
   itemPrice: { fontSize: 13, fontWeight: '700', color: COLORS.secondary },
 
-  // Notification hint
   notifHint: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 6, paddingVertical: 8,

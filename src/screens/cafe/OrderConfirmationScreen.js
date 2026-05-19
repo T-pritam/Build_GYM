@@ -7,6 +7,8 @@ import { COLORS } from '../../constants/colors';
 
 export default function OrderConfirmationScreen({ navigation, route }) {
   const order = route?.params?.order;
+  const orderId = order?.orderId || order?.id;
+  const deliveryPin = order?.deliveryPin;
 
   const scaleAnim   = useRef(new Animated.Value(0)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
@@ -18,7 +20,7 @@ export default function OrderConfirmationScreen({ navigation, route }) {
     ]).start();
   }, []);
 
-  const itemCount = order?.items?.reduce((s, i) => s + i.qty, 0) ?? 0;
+  const itemCount = order?.items?.reduce((s, i) => s + (i.qty ?? i.quantity ?? 0), 0) ?? 0;
 
   return (
     <View style={styles.container}>
@@ -44,14 +46,25 @@ export default function OrderConfirmationScreen({ navigation, route }) {
         </View>
         <Text style={styles.heading}>Order Placed! 🎉</Text>
         <Text style={styles.subheading}>
-          Your order is being prepared.{'\n'}Pick it up at the café counter.
+          Your order is being prepared.{'\n'}The captain will deliver it to you.
         </Text>
       </Animated.View>
+
+      {/* Delivery PIN — share with captain at delivery */}
+      {deliveryPin ? (
+        <Animated.View style={[styles.pinCard, { opacity: opacityAnim }]}>
+          <Text style={styles.pinLabel}>DELIVERY PIN</Text>
+          <Text style={styles.pinValue}>{deliveryPin}</Text>
+          <Text style={styles.pinHint}>Share this 6-digit PIN with the captain when they arrive.</Text>
+        </Animated.View>
+      ) : null}
 
       {/* Summary card */}
       <Animated.View style={[styles.summaryCard, { opacity: opacityAnim }]}>
         <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>{order?.ref ?? 'Order'}</Text>
+          <Text style={styles.summaryLabel}>
+            {orderId ? `#${String(orderId).slice(-6).toUpperCase()}` : 'Order'}
+          </Text>
           <View style={styles.activeBadge}>
             <Text style={styles.activeBadgeText}>CONFIRMED</Text>
           </View>
@@ -61,20 +74,24 @@ export default function OrderConfirmationScreen({ navigation, route }) {
           <Text style={styles.summaryLabel}>Items ordered</Text>
           <Text style={styles.summaryValue}>{itemCount}</Text>
         </View>
-        <View style={styles.divider} />
-        <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Coins deducted</Text>
-          <Text style={[styles.summaryValue, { color: COLORS.secondary }]}>
-            {order?.totalCoins ?? 0} coins
-          </Text>
-        </View>
+        {order?.totalAmount != null ? (
+          <>
+            <View style={styles.divider} />
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Paid</Text>
+              <Text style={[styles.summaryValue, { color: COLORS.secondary }]}>
+                ₹{order.totalAmount}
+              </Text>
+            </View>
+          </>
+        ) : null}
       </Animated.View>
 
       {/* Footer */}
       <View style={styles.footer}>
         <TouchableOpacity
           style={styles.trackBtn}
-          onPress={() => navigation.navigate('OrderTracking', { orderId: order?.id, order })}
+          onPress={() => navigation.navigate('OrderTracking', { orderId, order })}
           activeOpacity={0.85}
         >
           <Ionicons name="location-outline" size={18} color={COLORS.secondary} />
@@ -142,4 +159,20 @@ const styles = StyleSheet.create({
     paddingVertical: 16, borderRadius: 14, backgroundColor: COLORS.secondary,
   },
   homeBtnText: { fontSize: 15, fontWeight: '900', color: COLORS.white, letterSpacing: 2 },
+  pinCard: {
+    marginHorizontal: 24, marginBottom: 16,
+    backgroundColor: COLORS.surface, borderRadius: 16,
+    borderWidth: 1, borderColor: COLORS.secondaryBorder,
+    padding: 20, alignItems: 'center', gap: 6,
+  },
+  pinLabel: {
+    fontSize: 11, fontWeight: '900', color: COLORS.secondary, letterSpacing: 3,
+  },
+  pinValue: {
+    fontSize: 38, fontWeight: '900', color: COLORS.white,
+    letterSpacing: 10, fontVariant: ['tabular-nums'],
+  },
+  pinHint: {
+    fontSize: 12, color: COLORS.textSecondary, textAlign: 'center', marginTop: 4,
+  },
 });

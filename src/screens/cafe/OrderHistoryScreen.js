@@ -8,20 +8,14 @@ import { COLORS } from '../../constants/colors';
 import { fetchMyOrders } from '../../services/cafeService';
 import { useActiveOrderStore } from '../../store/activeOrderStore';
 import SafeBottomBar from '../../components/SafeBottomBar';
-
-const STATUS_COLORS = {
-  received:  '#3B82F6',
-  preparing: '#EAB308',
-  ready:     '#22C55E',
-  done:      '#555555',
-  cancelled: '#EF4444',
-};
+import { mapCafeStatus, STATUS_COLOR } from '../../utils/cafeStatus';
 
 const STATUS_LABELS = {
-  received:  'Placed',
+  placed:    'Placed',
+  accepted:  'Accepted',
   preparing: 'Preparing',
   ready:     'Ready',
-  done:      'Done',
+  complete:  'Delivered',
   cancelled: 'Cancelled',
 };
 
@@ -35,26 +29,26 @@ function timeAgo(createdAt) {
   }
 
 function OrderRow({ order, onPress }) {
-  const statusColor = STATUS_COLORS[order.status] ?? '#555';
-  const itemsText = order.items?.map(i => `${i.itemName} ×${i.qty}`).join(', ') ?? '—';
+  const mapped = mapCafeStatus(order.status);
+  const statusColor = STATUS_COLOR[mapped.step] ?? '#555';
+  const itemsText = order.items?.map(i => `${i.name ?? i.itemName} ×${i.quantity ?? i.qty}`).join(', ') ?? '—';
+  const ref = order.id ? `#${String(order.id).slice(-6).toUpperCase()}` : (order.ref || '');
 
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.75}>
       <View style={styles.cardTop}>
-        <Text style={styles.cardRef}>{order.ref}</Text>
+        <Text style={styles.cardRef}>{ref}</Text>
         <View style={[styles.statusBadge, { backgroundColor: statusColor + '22', borderColor: statusColor + '55' }]}>
-          <Text style={[styles.statusText, { color: statusColor }]}>{STATUS_LABELS[order.status] ?? order.status}</Text>
+          <Text style={[styles.statusText, { color: statusColor }]}>
+            {STATUS_LABELS[mapped.step] ?? mapped.label}
+          </Text>
         </View>
       </View>
       <Text style={styles.cardItems} numberOfLines={1}>{itemsText}</Text>
       <View style={styles.cardBottom}>
-        <View style={styles.coinsRow}>
-          <Ionicons name="logo-bitcoin" size={13} color={COLORS.secondary} />
-          <Text style={styles.coinsText}>{order.totalCoins} coins</Text>
-        </View>
+        <Text style={styles.coinsText}>₹{order.totalAmount ?? order.totalCoins ?? 0}</Text>
         <Text style={styles.timeText}>{timeAgo(order.createdAt)}</Text>
       </View>
-      {/* <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} style={styles.chevron} /> */}
     </TouchableOpacity>
   );
 }
@@ -68,13 +62,14 @@ export default function OrderHistoryScreen({ navigation }) {
   const [nextCursor, setNextCursor] = useState(null);
   const [hasMore, setHasMore]       = useState(false);
 
-  const loadOrders = useCallback(async (cursor = null, replace = true) => {
+  const loadOrders = useCallback(async () => {
+    // Cafe backend's /orders/mine returns the latest 100 orders unpaginated.
     try {
-      const res = await fetchMyOrders({ limit: 10, cursor });
-      const { data = [], nextCursor: nc, hasMore: hm } = res.data;
-      setOrders(prev => replace ? data : [...prev, ...data]);
-      setNextCursor(nc ?? null);
-      setHasMore(hm ?? false);
+      const res = await fetchMyOrders();
+      const list = res.data?.orders ?? [];
+      setOrders(list);
+      setNextCursor(null);
+      setHasMore(false);
     } catch {
       // silently fail
     }
@@ -86,22 +81,19 @@ export default function OrderHistoryScreen({ navigation }) {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await loadOrders(null, true);
+    await loadOrders();
     setRefreshing(false);
   }, [loadOrders]);
 
-  const onEndReached = useCallback(async () => {
-    if (!hasMore || loadingMore || !nextCursor) return;
-    setLoadingMore(true);
-    await loadOrders(nextCursor, false);
-    setLoadingMore(false);
-  }, [hasMore, loadingMore, nextCursor, loadOrders]);
+  const onEndReached = useCallback(() => {}, []);
 
   const handlePress = (order) => {
-    // If this is the current active order, use the store version which has the OTP
+    // If this is the active order in the store, carry over the PIN (the list
+    // projection only exposes it via deliveryPin on the server for the owner).
+    const activeOrderId = activeOrder?.orderId ?? activeOrder?.id;
     const enriched =
-      activeOrder?.id === order.id && activeOrder?.pickupOtp
-        ? { ...order, pickupOtp: activeOrder.pickupOtp }
+      activeOrderId === order.id && activeOrder?.deliveryPin && !order.deliveryPin
+        ? { ...order, deliveryPin: activeOrder.deliveryPin, orderSource: activeOrder.orderSource }
         : order;
     navigation.navigate('OrderTracking', { orderId: order.id, order: enriched });
   };

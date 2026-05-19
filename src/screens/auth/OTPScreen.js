@@ -83,12 +83,20 @@ export default function OTPScreen({ navigation, route }) {
         return;
       }
 
-      // Persist to store + SecureStore
-      await setAuth(user, accessToken, refreshToken);
+      // Persist to store + SecureStore. Keep phone on the user object so the
+      // gym→cafe auth bridge can sign HMAC payloads later without re-prompting.
+      const userWithPhone = user?.phone ? user : { ...user, phone };
+      await setAuth(userWithPhone, accessToken, refreshToken);
 
-      // Associate FCM token with this userId now that we know who logged in
+      // Associate FCM token with this userId on the gym backend, then mirror
+      // the registration to the cafe backend (best-effort — non-blocking).
       AsyncStorage.getItem(FCM_TOKEN_KEY).then(token => {
-        if (token) saveFCMToken(token, null, user.id).catch(() => { });
+        if (!token) return;
+        saveFCMToken(token, null, user.id).catch(() => { });
+        // Lazy import to keep this auth screen free of cafe deps until needed
+        import('../../services/cafeFcmService')
+          .then(m => m.registerCafeFcmToken(token, { phone, userId: user.id }))
+          .catch(() => { });
       }).catch(() => { });
 
       // Route based on onboarding status

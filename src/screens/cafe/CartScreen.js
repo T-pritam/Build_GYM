@@ -3,25 +3,30 @@ import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   StatusBar, Image, Alert, ActivityIndicator,
 } from 'react-native';
+import RazorpayCheckout from 'react-native-razorpay';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import SafeBottomBar from '../../components/SafeBottomBar';
 import { useCartStore, cartTotal, hasUnavailableItems } from '../../store/cartStore';
 import { placeOrder } from '../../services/cafeService';
 import { useActiveOrderStore } from '../../store/activeOrderStore';
-import { useWalletStore } from '../../store/walletStore';
-import { handleInsufficientCoins } from '../../utils/handleInsufficientCoins';
+import { useAuthStore } from '../../store/authStore';
 
 export default function CartScreen({ navigation }) {
   const { items, addItem, removeItem, clearCart } = useCartStore();
   const [placing, setPlacing] = useState(false);
   const setActiveOrder = useActiveOrderStore(s => s.setActiveOrder);
-  const balance = useWalletStore(s => s.balance);
+  const user = useAuthStore(s => s.user);
 
-  const totalCoins = cartTotal(items);
+  const totalRupees = cartTotal(items);
   const anyUnavailable = hasUnavailableItems(items);
   const totalQty = items.reduce((s, c) => s + c.qty, 0);
-  const afterOrder = balance - totalCoins;
+
+  const finalizeAndNavigate = (orderPayload) => {
+    setActiveOrder(orderPayload);
+    clearCart();
+    navigation.replace('OrderConfirmation', { order: orderPayload });
+  };
 
   const handlePlaceOrder = async () => {
     if (anyUnavailable) {
@@ -36,29 +41,60 @@ export default function CartScreen({ navigation }) {
     setPlacing(true);
     try {
       const orderItems = items.map((i) => ({
-        menuItemId:     i.menuItemId || i.id,
-        itemName:       i.name,
-        itemPriceCoins: i.priceCoins,
-        qty:            i.qty,
-        variationId:    i.variationId || null,
-        variationName:  i.variationName || null,
-        addons:         i.addons || null,
-        specialInstructions: i.specialInstructions || null,
+        menuItemId:  i.menuItemId || i.id,
+        quantity:    i.qty,
+        unitPrice:   Number(i.price ?? 0),
+        modifiers:   Array.isArray(i.modifiers) ? i.modifiers : [],
+        specialNote: i.specialInstructions || undefined,
       }));
+
       const res = await placeOrder({ items: orderItems });
-      clearCart();
-      const newOrder = res.data.data;
-      setActiveOrder(newOrder);
-      navigation.replace('OrderConfirmation', { order: newOrder });
-    } catch (e) {
-      if (e?.response?.data?.code === 'INSUFFICIENT_FUNDS') {
-        const required = e.response.data.required;
-        const bal = e.response.data.balance;
-        handleInsufficientCoins({ required, balance: bal, navigation });
-      } else {
-        const msg = e?.response?.data?.message ?? 'Failed to place order. Please try again.';
-        Alert.alert('Order Failed', msg);
+      const data = res.data || {};
+      const {
+        orderId,
+        razorpayOrderId,
+        amountPaise,
+        keyId,
+        deliveryPin,
+        orderSource,
+      } = data;
+
+      // Cafe backend always creates Razorpay order for INR > 0 GYM_APP flow.
+      if (!razorpayOrderId || !keyId) {
+        // Should never happen for gym-source orders, but fall back gracefully.
+        finalizeAndNavigate({ orderId, deliveryPin, orderSource, totalAmount: totalRupees });
+        return;
       }
+
+      const checkoutOpts = {
+        key:         keyId,
+        order_id:    razorpayOrderId,
+        amount:      amountPaise,
+        currency:    'INR',
+        name:        'Build Cafe',
+        description: `Order ${orderId.slice(-6).toUpperCase()}`,
+        prefill: {
+          contact: (user?.phone || '').replace(/^\+91/, ''),
+          email:   user?.email || '',
+          name:    user?.fullName || [user?.firstName, user?.lastName].filter(Boolean).join(' '),
+        },
+        theme: { color: '#E96316' },
+      };
+
+      try {
+        await RazorpayCheckout.open(checkoutOpts);
+        finalizeAndNavigate({ orderId, deliveryPin, orderSource, totalAmount: totalRupees });
+      } catch (rzpErr) {
+        // User dismissed or payment failed — order is in PAYMENT_PENDING and can
+        // be retried from OrderTracking. Surface gentle message, keep the cart.
+        const msg = rzpErr?.description || rzpErr?.message || 'Payment was cancelled.';
+        Alert.alert('Payment not completed', msg + ' You can retry from Order History.');
+        // Persist the pending order so tracking screen can show retry option
+        setActiveOrder({ orderId, deliveryPin, orderSource, status: 'PAYMENT_PENDING', totalAmount: totalRupees });
+      }
+    } catch (e) {
+      const msg = e?.response?.data?.error || e?.response?.data?.message || 'Failed to place order. Please try again.';
+      Alert.alert('Order Failed', msg);
     } finally {
       setPlacing(false);
     }
@@ -83,23 +119,21 @@ export default function CartScreen({ navigation }) {
         <View style={{ width: 40 }} />
       </View>
 
-      {/* Balance Summary Card */}
+      {/* Summary Card — order subtotal in INR */}
       <View style={styles.balanceCard}>
         <View style={styles.balanceCol}>
-          <Text style={styles.balanceLabel}>Your Balance</Text>
-          <Text style={styles.balanceValue}>₿ {balance.toLocaleString()}</Text>
+          <Text style={styles.balanceLabel}>Items</Text>
+          <Text style={styles.balanceValue}>{totalQty}</Text>
         </View>
         <View style={styles.balanceDivider} />
         <View style={styles.balanceCol}>
-          <Text style={styles.balanceLabel}>Order Total</Text>
-          <Text style={[styles.balanceValue, { color: COLORS.secondary }]}>₿ {totalCoins}</Text>
+          <Text style={styles.balanceLabel}>Subtotal</Text>
+          <Text style={[styles.balanceValue, { color: COLORS.secondary }]}>₹{totalRupees}</Text>
         </View>
         <View style={styles.balanceDivider} />
         <View style={styles.balanceCol}>
-          <Text style={styles.balanceLabel}>After Order</Text>
-          <Text style={[styles.balanceValue, { color: afterOrder >= 0 ? COLORS.success : COLORS.error }]}>
-            ₿ {afterOrder.toLocaleString()}
-          </Text>
+          <Text style={styles.balanceLabel}>Pay via</Text>
+          <Text style={styles.balanceValue}>Razorpay</Text>
         </View>
       </View>
 
@@ -140,14 +174,14 @@ export default function CartScreen({ navigation }) {
                   {item.variationName ? (
                     <Text style={styles.cartItemVariation}>{item.variationName}</Text>
                   ) : null}
-                  {item.addons?.length > 0 ? (
+                  {item.modifiers?.length > 0 ? (
                     <Text style={styles.cartItemAddons}>
-                      {item.addons.map((a) => a.name).join(', ')}
+                      {item.modifiers.map((a) => a.name).join(', ')}
                     </Text>
                   ) : null}
                   <Text style={styles.cartItemPrice}>
-                    {item.priceCoins} × {item.qty} ={' '}
-                    <Text style={{ color: COLORS.secondary }}>{item.priceCoins * item.qty} coins</Text>
+                    ₹{Number(item.price ?? 0)} × {item.qty} ={' '}
+                    <Text style={{ color: COLORS.secondary }}>₹{Number(item.price ?? 0) * item.qty}</Text>
                   </Text>
                   {!item.isAvailable && (
                     <View style={styles.unavailBadge}>
@@ -178,7 +212,7 @@ export default function CartScreen({ navigation }) {
         <View style={styles.infoBanner}>
           <Ionicons name="information-circle-outline" size={20} color={COLORS.secondary} />
           <Text style={styles.infoText}>
-            Orders cannot be cancelled once placed. Collect your order at the café counter.
+            Orders cannot be cancelled after payment. You'll get a 6-digit PIN — share it with the captain at the time of delivery.
           </Text>
         </View>
 
@@ -190,10 +224,7 @@ export default function CartScreen({ navigation }) {
         <SafeBottomBar style={styles.footer}>
           <View style={styles.footerTotal}>
             <Text style={styles.footerTotalLabel}>Total:</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Ionicons name="logo-bitcoin" size={18} color={COLORS.secondary} />
-              <Text style={styles.footerTotalValue}>{totalCoins} coins</Text>
-            </View>
+            <Text style={styles.footerTotalValue}>₹{totalRupees}</Text>
           </View>
           <TouchableOpacity
             style={[styles.placeOrderBtn, (anyUnavailable || placing) && styles.placeOrderBtnDisabled]}
@@ -205,7 +236,7 @@ export default function CartScreen({ navigation }) {
               <ActivityIndicator color={COLORS.white} />
             ) : (
               <>
-                <Text style={styles.placeOrderText}>PLACE ORDER</Text>
+                <Text style={styles.placeOrderText}>PAY & PLACE ORDER</Text>
                 <Ionicons name="arrow-forward" size={20} color={COLORS.white} />
               </>
             )}

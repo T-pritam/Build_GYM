@@ -5,10 +5,9 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { io } from 'socket.io-client';
-import { BASE_API_URL } from '@env';
 import { COLORS } from '../../constants/colors';
 import { fetchMenu } from '../../services/cafeService';
+import { subscribeMenuAvailability } from '../../services/cafeSupabase';
 import { useCartStore, cartQty, cartTotal } from '../../store/cartStore';
 
 const { width } = Dimensions.get('window');
@@ -25,9 +24,6 @@ const CATEGORY_ICONS = {
   'Hot Beverages': 'cafe-outline',
 };
 
-// Derive socket URL — strip /api suffix
-const SOCKET_URL = BASE_API_URL.replace(/\/api\/?$/, '');
-
 export default function CafeScreen({ navigation }) {
   const [menuItems,       setMenuItems]       = useState([]);
   const [categories,      setCategories]      = useState(['All']);
@@ -42,25 +38,40 @@ export default function CafeScreen({ navigation }) {
   const removeItem     = useCartStore(s => s.removeItem);
   const markUnavailable = useCartStore(s => s.markUnavailable);
   const markAvailable   = useCartStore(s => s.markAvailable);
-  const socketRef = useRef(null);
 
-  // Keep latest cart-store callbacks in a ref so the socket handler never
-  // needs to be in the dependency array (avoids reconnect on every cart update)
+  // Keep latest cart-store callbacks in a ref so the realtime handler never
+  // needs to be in the dependency array (avoids re-subscribing on cart updates)
   const cartActionsRef = useRef({ markUnavailable, markAvailable });
   useEffect(() => {
     cartActionsRef.current = { markUnavailable, markAvailable };
   });
 
-  // Fetch menu from API
+  // Fetch menu from the Cafe backend. /menu returns { categories: [{ name, items: [...] }] }.
+  // We flatten to a single array with `category` denormalized onto each item to keep
+  // the existing 2-column grid UI unchanged.
   const loadMenu = useCallback(async () => {
     try {
       const res = await fetchMenu();
-      const data = res.data.data;
-      setMenuItems(data);
-      const cats = ['All', ...new Set(data.map((i) => i.category))];
-      setCategories(cats);
-    } catch {
-      // keep existing on error
+      const cats = res.data?.categories ?? [];
+      const flat = cats.flatMap((c) =>
+        (c.items ?? []).map((i) => ({
+          id:          i.id,
+          name:        i.name,
+          description: i.description,
+          imageUrl:    i.imageUrl,
+          isVeg:       i.isVeg,
+          isAvailable: i.isAvailable !== false,
+          price:       Number(i.price ?? 0),
+          modifiers:   Array.isArray(i.modifiers) ? i.modifiers : [],
+          maxOrderQty: i.maxOrderQty,
+          category:    c.name,
+        })),
+      );
+      setMenuItems(flat);
+      const catNames = ['All', ...cats.map((c) => c.name)];
+      setCategories(catNames);
+    } catch (err) {
+      console.warn('cafe menu load failed:', err?.response?.data || err?.message);
     } finally {
       setLoading(false);
     }
@@ -69,26 +80,30 @@ export default function CafeScreen({ navigation }) {
   useEffect(() => {
     loadMenu();
 
-    // Single persistent socket — never re-created on cart changes
-    const socket = io(SOCKET_URL, { transports: ['websocket'] });
-    socketRef.current = socket;
-
-    socket.on('menu:item_updated', ({ id, isAvailable }) => {
-      // Update local menu list
+    // Supabase realtime — mirrors the cafe customer app's `menu:availability` channel.
+    const unsubscribe = subscribeMenuAvailability((evt) => {
+      if (evt.type === 'REFRESH') {
+        loadMenu();
+        return;
+      }
+      const ids = evt.itemIds ?? (evt.itemId ? [evt.itemId] : []);
+      if (!ids.length) return;
+      const newAvail = evt.type === 'AVAILABLE';
       setMenuItems((prev) =>
-        prev.map((item) => item.id === id ? { ...item, isAvailable } : item),
+        prev.map((item) => ids.includes(item.id) ? { ...item, isAvailable: newAvail } : item),
       );
-      // Update cart item availability via stable ref — no dependency needed
-      if (!isAvailable) cartActionsRef.current.markUnavailable(id);
-      else              cartActionsRef.current.markAvailable(id);
+      ids.forEach((id) => {
+        if (newAvail) cartActionsRef.current.markAvailable(id);
+        else          cartActionsRef.current.markUnavailable(id);
+      });
     });
 
-    return () => socket.disconnect();
-  }, [loadMenu]); // loadMenu is stable (useCallback with no deps)
+    return () => { unsubscribe?.(); };
+  }, [loadMenu]);
 
   const getQty = (itemId) => cartItems.find((c) => c.id === itemId)?.qty || 0;
   const totalItems = cartQty(cartItems);
-  const totalCoins = cartTotal(cartItems);
+  const totalRupees = cartTotal(cartItems);
 
   const filteredItems = menuItems.filter((item) => {
     const matchCat    = activeCategory === 'All' || item.category === activeCategory;
@@ -99,13 +114,13 @@ export default function CafeScreen({ navigation }) {
   const handleAddToCart = useCallback((item) => {
     addItem({
       id:          item.id,
+      menuItemId:  item.id,
       name:        item.name,
       category:    item.category,
       imageUrl:    item.imageUrl,
-      priceCoins:  item.priceCoins,
-      protein:     item.protein,
-      calories:    item.calories,
+      price:       Number(item.price ?? 0),
       isAvailable: item.isAvailable,
+      modifiers:   [],
     });
   }, [addItem]);
 
@@ -158,8 +173,7 @@ export default function CafeScreen({ navigation }) {
 
           {/* Price */}
           <View style={styles.priceRow}>
-            <MaterialCommunityIcons name="bitcoin" size={11} color={COLORS.secondary} />
-            <Text style={styles.priceText}>{item.priceCoins}</Text>
+            <Text style={styles.priceText}>₹{Number(item.price ?? 0)}</Text>
           </View>
 
           {/* ADD button or qty stepper */}
@@ -212,7 +226,7 @@ export default function CafeScreen({ navigation }) {
         <View style={styles.headerRow}>
           <View>
             <Text style={styles.headerTitle}>Build Café</Text>
-            <Text style={styles.headerSub}>Order with Build Coins</Text>
+            <Text style={styles.headerSub}>Order takeaway · pay with Razorpay</Text>
           </View>
           <TouchableOpacity
             style={styles.cartBtn}
@@ -299,7 +313,7 @@ export default function CafeScreen({ navigation }) {
         <View style={styles.cartBar}>
           <Text style={styles.cartBarQty}>{totalItems} item{totalItems !== 1 ? 's' : ''}</Text>
           <TouchableOpacity style={styles.cartBarBtn} onPress={() => navigation.navigate('Cart')}>
-            <Text style={styles.cartBarBtnText}>VIEW CART · {totalCoins} coins</Text>
+            <Text style={styles.cartBarBtnText}>VIEW CART · ₹{totalRupees}</Text>
             <Ionicons name="arrow-forward" size={16} color={COLORS.white} />
           </TouchableOpacity>
         </View>

@@ -1,6 +1,9 @@
 /**
  * cartStore.js — Persisted cart using Zustand v5 + AsyncStorage.
- * Items carry availability state so the UI can react to real-time socket events.
+ *
+ * Items now use INR (`price`) instead of coins. Modifiers/addons follow the
+ * cafe backend shape: `[{ name, price }]`. Items carry availability state so
+ * the UI can react to Supabase realtime menu:availability events.
  */
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
@@ -9,7 +12,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 export const useCartStore = create(
   persist(
     (set, get) => ({
-      items: [], // { id, menuItemId, name, category, imageUrl, priceCoins, protein, calories, isAvailable, qty, variationId, variationName, addons, specialInstructions }
+      // Each item:
+      //   { id, menuItemId, name, category, imageUrl, price, protein, calories,
+      //     isAvailable, qty, variationId, variationName, modifiers: [{name, price}],
+      //     specialInstructions }
+      items: [],
 
       addItem: (item) =>
         set((s) => {
@@ -29,13 +36,11 @@ export const useCartStore = create(
 
       clearCart: () => set({ items: [] }),
 
-      /** Called when socket fires menu:item_updated — marks item unavailable in cart */
       markUnavailable: (id) =>
         set((s) => ({
           items: s.items.map((i) => i.id === id ? { ...i, isAvailable: false } : i),
         })),
 
-      /** Called when socket fires menu:item_updated and item becomes available again */
       markAvailable: (id) =>
         set((s) => ({
           items: s.items.map((i) => i.id === id ? { ...i, isAvailable: true } : i),
@@ -48,7 +53,12 @@ export const useCartStore = create(
   ),
 );
 
+const lineTotal = (i) => {
+  const mods = Array.isArray(i.modifiers) ? i.modifiers.reduce((m, x) => m + (Number(x.price) || 0), 0) : 0;
+  return ((Number(i.price) || 0) + mods) * (i.qty || 0);
+};
+
 // Derived helpers — call these outside the store
-export const cartTotal = (items) => items.reduce((s, i) => s + i.priceCoins * i.qty, 0);
+export const cartTotal = (items) => items.reduce((s, i) => s + lineTotal(i), 0);
 export const cartQty   = (items) => items.reduce((s, i) => s + i.qty, 0);
 export const hasUnavailableItems = (items) => items.some((i) => !i.isAvailable);

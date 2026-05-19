@@ -1,16 +1,13 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   StatusBar, Image, Share,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { io } from 'socket.io-client';
-import { BASE_API_URL } from '@env';
 import { COLORS } from '../../constants/colors';
 import SafeBottomBar from '../../components/SafeBottomBar';
 import { useCartStore } from '../../store/cartStore';
-
-const SOCKET_URL = BASE_API_URL.replace(/\/api\/?$/, '');
+import { subscribeMenuAvailability } from '../../services/cafeSupabase';
 
 /** Check if the current time falls within an availability window. */
 function isWithinTimeWindow(from, until) {
@@ -46,9 +43,8 @@ export default function ItemDetailScreen({ navigation, route }) {
   const addItem        = useCartStore((s) => s.addItem);
   const markUnavailable = useCartStore((s) => s.markUnavailable);
   const markAvailable   = useCartStore((s) => s.markAvailable);
-  const socketRef = useRef(null);
 
-  // Variations & add-ons state
+  // Variations not supported by cafe backend — kept for UI compat (always empty)
   const availableVariations = useMemo(
     () => (item?.variations ?? []).filter((v) => v.isAvailable !== false),
     [item?.variations],
@@ -56,10 +52,18 @@ export default function ItemDetailScreen({ navigation, route }) {
   const [selectedVariation, setSelectedVariation] = useState(
     availableVariations[0] ?? null,
   );
-  const availableAddons = useMemo(
-    () => (item?.addons ?? []).filter((a) => a.isAvailable !== false),
-    [item?.addons],
-  );
+  // Cafe backend exposes `modifiers: [{ id?, name, price }]`. Map them into the
+  // existing add-ons UI shape so this screen stays unchanged structurally.
+  const availableAddons = useMemo(() => {
+    const raw = item?.modifiers ?? item?.addons ?? [];
+    return raw
+      .filter((a) => a.isAvailable !== false)
+      .map((a, idx) => ({
+        id: a.id ?? `${item?.id}_mod_${idx}`,
+        name: a.name,
+        price: Number(a.price ?? a.priceCoins ?? 0),
+      }));
+  }, [item]);
   const [selectedAddonIds, setSelectedAddonIds] = useState([]);
 
   const selectedAddons = useMemo(
@@ -67,11 +71,11 @@ export default function ItemDetailScreen({ navigation, route }) {
     [availableAddons, selectedAddonIds],
   );
 
-  // Compute total price: base + variation delta + addons
-  const basePriceCoins = item?.priceCoins ?? item?.price ?? 0;
-  const variationPrice = selectedVariation?.priceCoins ?? selectedVariation?.price ?? 0;
-  const addonTotal = selectedAddons.reduce((s, a) => s + (a.priceCoins ?? a.price ?? 0), 0);
-  const totalPriceCoins = (availableVariations.length > 0 ? variationPrice : basePriceCoins) + addonTotal;
+  // Compute total price (INR): base + variation delta + addons
+  const basePrice    = Number(item?.price ?? item?.priceCoins ?? 0);
+  const variationPrice = Number(selectedVariation?.price ?? selectedVariation?.priceCoins ?? 0);
+  const addonTotal     = selectedAddons.reduce((s, a) => s + (Number(a.price) || 0), 0);
+  const totalPrice     = (availableVariations.length > 0 ? variationPrice : basePrice) + addonTotal;
 
   // Time-window availability
   const withinWindow = isWithinTimeWindow(item?.availableFrom, item?.availableUntil);
@@ -85,19 +89,15 @@ export default function ItemDetailScreen({ navigation, route }) {
 
   useEffect(() => {
     if (!item) return;
-
-    const socket = io(SOCKET_URL, { transports: ['websocket'] });
-    socketRef.current = socket;
-
-    socket.on('menu:item_updated', ({ id, isAvailable: avail }) => {
-      if (id !== item.id) return;
+    const unsubscribe = subscribeMenuAvailability((evt) => {
+      const ids = evt.itemIds ?? (evt.itemId ? [evt.itemId] : []);
+      if (!ids.includes(item.id)) return;
+      const avail = evt.type === 'AVAILABLE';
       setIsAvailable(avail);
-      // Keep cart store in sync for this item too
-      if (!avail) markUnavailable(id);
-      else        markAvailable(id);
+      if (!avail) markUnavailable(item.id);
+      else        markAvailable(item.id);
     });
-
-    return () => socket.disconnect();
+    return () => { unsubscribe?.(); };
   }, [item?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!item) return null;
@@ -118,13 +118,11 @@ export default function ItemDetailScreen({ navigation, route }) {
         name:        item.name,
         category:    item.category,
         imageUrl:    item.imageUrl,
-        priceCoins:  totalPriceCoins,
-        protein:     item.protein,
-        calories:    item.calories,
+        price:       totalPrice,
         isAvailable: true,
         variationId:   selectedVariation?.id || null,
         variationName: selectedVariation?.name || null,
-        addons:        selectedAddons.map((a) => ({ id: a.id, name: a.name, priceCoins: a.priceCoins ?? a.price })),
+        modifiers:     selectedAddons.map((a) => ({ name: a.name, price: Number(a.price) || 0 })),
         specialInstructions: null,
       });
     }
@@ -132,7 +130,7 @@ export default function ItemDetailScreen({ navigation, route }) {
   };
 
   const handleShare = () => {
-    Share.share({ message: `Check out ${item.name} at Build Cafe — only ${item.priceCoins} Build Coins!` });
+    Share.share({ message: `Check out ${item.name} at Build Cafe — only ₹${basePrice}!` });
   };
 
   return (
@@ -174,8 +172,7 @@ export default function ItemDetailScreen({ navigation, route }) {
           </View>
           <Text style={styles.itemName}>{item.name}</Text>
           <View style={styles.priceRow}>
-            <Text style={styles.priceCoins}>{totalPriceCoins}</Text>
-            <Text style={styles.priceSub}> Build Coins</Text>
+            <Text style={styles.priceCoins}>₹{totalPrice}</Text>
           </View>
           {item.prepTimeMinutes ? (
             <View style={styles.prepBadge}>
@@ -232,7 +229,7 @@ export default function ItemDetailScreen({ navigation, route }) {
                         {v.name}
                       </Text>
                       <Text style={[styles.variationChipPrice, isSelected && styles.variationChipPriceSelected]}>
-                        {v.priceCoins ?? v.price} coins
+                        ₹{v.price ?? v.priceCoins}
                       </Text>
                     </TouchableOpacity>
                   );
@@ -260,7 +257,7 @@ export default function ItemDetailScreen({ navigation, route }) {
                       color={isChecked ? COLORS.secondary : COLORS.textMuted}
                     />
                     <Text style={styles.addonName}>{a.name}</Text>
-                    <Text style={styles.addonPrice}>+{a.priceCoins ?? a.price} coins</Text>
+                    <Text style={styles.addonPrice}>+₹{Number(a.price ?? 0)}</Text>
                   </TouchableOpacity>
                 );
               })}

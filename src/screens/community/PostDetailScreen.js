@@ -368,7 +368,9 @@ export default function PostDetailScreen({ navigation, route }) {
                   </Text>
                   {showResults && (
                     <View style={styles.pollResultRow}>
-                      <View style={[styles.pollBar, { width: `${opt.percentage}%` }]} />
+                      <View style={styles.pollBarTrack}>
+                        <View style={[styles.pollBar, { width: `${opt.percentage}%` }]} />
+                      </View>
                       <Text style={styles.pollPercent}>{opt.percentage}%</Text>
                     </View>
                   )}
@@ -618,8 +620,11 @@ const styles = StyleSheet.create({
   pollResultRow: {
     flexDirection: 'row', alignItems: 'center', marginTop: 6, gap: 8,
   },
+  pollBarTrack: {
+    flex: 1, height: 4, backgroundColor: COLORS.surface2, borderRadius: 2, overflow: 'hidden',
+  },
   pollBar: {
-    height: 4, backgroundColor: COLORS.secondary, borderRadius: 2, minWidth: 4,
+    height: 4, backgroundColor: COLORS.secondary, borderRadius: 2,
   },
   pollPercent: { fontSize: 12, fontWeight: '600', color: COLORS.textMuted },
   pollMeta: { fontSize: 12, color: COLORS.textMuted, marginTop: 4 },
