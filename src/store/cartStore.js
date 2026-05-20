@@ -20,10 +20,13 @@ export const useCartStore = create(
 
       addItem: (item) =>
         set((s) => {
+          const max = Math.min(10, item.maxOrderQty ?? 10);
           const existing = s.items.find((i) => i.id === item.id);
           if (existing) {
+            if (existing.qty >= max) return s;
             return { items: s.items.map((i) => i.id === item.id ? { ...i, qty: i.qty + 1 } : i) };
           }
+          if (max < 1) return s;
           return { items: [...s.items, { ...item, qty: 1 }] };
         }),
 

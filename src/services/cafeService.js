@@ -14,9 +14,14 @@ async function withAuth(fn) {
   return fn();
 }
 
-/** GET /menu — returns categories with items + modifiers. */
+/**
+ * GET /menu — public on the cafe backend; we deliberately skip the auth
+ * bridge so the menu loads even before the first authenticated action.
+ * If a logged-in token is already in storage cafeApi will attach it, but a
+ * missing/expired token will not block the request.
+ */
 export const fetchMenu = (category) =>
-  withAuth(() => cafeApi.get('/menu', { params: category ? { category } : {} }));
+  cafeApi.get('/menu', { params: category ? { category } : {} });
 
 /**
  * POST /orders — place an order from the gym app (always TAKEAWAY, GYM_APP source).
@@ -35,8 +40,9 @@ export const placeOrder = (body) =>
 export const retryPayment = (orderId) =>
   withAuth(() => cafeApi.post(`/orders/${orderId}/retry-payment`));
 
-/** GET /orders/mine — current customer's order history. */
-export const fetchMyOrders = () => withAuth(() => cafeApi.get('/orders/mine'));
+/** GET /orders/mine — current customer's order history (paginated). */
+export const fetchMyOrders = ({ limit = 15, offset = 0 } = {}) =>
+  withAuth(() => cafeApi.get('/orders/mine', { params: { limit, offset } }));
 
 /** GET /orders/:id — enriched order detail. */
 export const fetchOrderById = (id) => withAuth(() => cafeApi.get(`/orders/${id}`));

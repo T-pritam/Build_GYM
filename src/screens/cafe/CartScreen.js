@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   StatusBar, Image, Alert, ActivityIndicator,
@@ -9,11 +9,14 @@ import { COLORS } from '../../constants/colors';
 import SafeBottomBar from '../../components/SafeBottomBar';
 import { useCartStore, cartTotal, hasUnavailableItems } from '../../store/cartStore';
 import { placeOrder } from '../../services/cafeService';
+import { subscribeMenuAvailability } from '../../services/cafeSupabase';
 import { useActiveOrderStore } from '../../store/activeOrderStore';
 import { useAuthStore } from '../../store/authStore';
 
 export default function CartScreen({ navigation }) {
   const { items, addItem, removeItem, clearCart } = useCartStore();
+  const markUnavailable = useCartStore(s => s.markUnavailable);
+  const markAvailable   = useCartStore(s => s.markAvailable);
   const [placing, setPlacing] = useState(false);
   const setActiveOrder = useActiveOrderStore(s => s.setActiveOrder);
   const user = useAuthStore(s => s.user);
@@ -21,6 +24,16 @@ export default function CartScreen({ navigation }) {
   const totalRupees = cartTotal(items);
   const anyUnavailable = hasUnavailableItems(items);
   const totalQty = items.reduce((s, c) => s + c.qty, 0);
+
+  // Keep cart in sync with live availability while on this screen
+  useEffect(() => {
+    const unsub = subscribeMenuAvailability((evt) => {
+      if (evt.type === 'REFRESH') return;
+      const ids = evt.itemIds ?? (evt.itemId ? [evt.itemId] : []);
+      ids.forEach(id => evt.type === 'UNAVAILABLE' ? markUnavailable(id) : markAvailable(id));
+    });
+    return () => unsub?.();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const finalizeAndNavigate = (orderPayload) => {
     setActiveOrder(orderPayload);

@@ -33,7 +33,7 @@ export function subscribeMenuAvailability(onEvent) {
   const supa = getCafeSupabase();
   if (!supa) return () => {};
   const channel = supa
-    .channel(`menu:availability:gym-${Date.now()}`)
+    .channel('menu:availability')
     .on('broadcast', { event: 'ITEM_AVAILABLE' }, ({ payload }) =>
       onEvent?.({ type: 'AVAILABLE', itemId: payload?.itemId, itemIds: payload?.itemIds }))
     .on('broadcast', { event: 'ITEMS_UNAVAILABLE' }, ({ payload }) =>

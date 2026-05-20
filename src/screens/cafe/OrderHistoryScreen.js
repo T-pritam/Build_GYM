@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   StatusBar, ActivityIndicator, RefreshControl,
@@ -53,23 +53,25 @@ function OrderRow({ order, onPress }) {
   );
 }
 
+const PAGE_SIZE = 15;
+
 export default function OrderHistoryScreen({ navigation }) {
   const activeOrder = useActiveOrderStore(s => s.activeOrder);
   const [orders, setOrders]         = useState([]);
   const [loading, setLoading]       = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [nextCursor, setNextCursor] = useState(null);
   const [hasMore, setHasMore]       = useState(false);
+  const offsetRef = useRef(0);
+  const loadingMoreRef = useRef(false);
 
   const loadOrders = useCallback(async () => {
-    // Cafe backend's /orders/mine returns the latest 100 orders unpaginated.
     try {
-      const res = await fetchMyOrders();
+      const res = await fetchMyOrders({ limit: PAGE_SIZE, offset: 0 });
       const list = res.data?.orders ?? [];
       setOrders(list);
-      setNextCursor(null);
-      setHasMore(false);
+      offsetRef.current = list.length;
+      setHasMore(res.data?.hasMore ?? false);
     } catch {
       // silently fail
     }
@@ -85,7 +87,23 @@ export default function OrderHistoryScreen({ navigation }) {
     setRefreshing(false);
   }, [loadOrders]);
 
-  const onEndReached = useCallback(() => {}, []);
+  const onEndReached = useCallback(async () => {
+    if (!hasMore || loadingMoreRef.current) return;
+    loadingMoreRef.current = true;
+    setLoadingMore(true);
+    try {
+      const res = await fetchMyOrders({ limit: PAGE_SIZE, offset: offsetRef.current });
+      const more = res.data?.orders ?? [];
+      setOrders(prev => [...prev, ...more]);
+      offsetRef.current += more.length;
+      setHasMore(res.data?.hasMore ?? false);
+    } catch {
+      // silently fail
+    } finally {
+      loadingMoreRef.current = false;
+      setLoadingMore(false);
+    }
+  }, [hasMore]);
 
   const handlePress = (order) => {
     // If this is the active order in the store, carry over the PIN (the list

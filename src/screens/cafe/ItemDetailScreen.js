@@ -79,7 +79,8 @@ export default function ItemDetailScreen({ navigation, route }) {
 
   // Time-window availability
   const withinWindow = isWithinTimeWindow(item?.availableFrom, item?.availableUntil);
-  const canAddToCart = isAvailable && withinWindow;
+  const stockedOut   = (item?.maxOrderQty ?? 10) < 1;
+  const canAddToCart = isAvailable && withinWindow && !stockedOut;
 
   const toggleAddon = (id) => {
     setSelectedAddonIds((prev) =>
@@ -102,7 +103,9 @@ export default function ItemDetailScreen({ navigation, route }) {
 
   if (!item) return null;
 
-  const incQty = () => setQty((q) => q + 1);
+  const maxQty = Math.min(10, item.maxOrderQty ?? 10);
+
+  const incQty = () => setQty((q) => Math.min(q + 1, maxQty));
   const decQty = () => setQty((q) => Math.max(1, q - 1));
 
   const handleAddToCart = () => {
@@ -113,17 +116,18 @@ export default function ItemDetailScreen({ navigation, route }) {
     const compositeKey = `${item.id}_${selectedVariation?.id || 'base'}_${addonKey}`;
     for (let i = 0; i < qty; i++) {
       addItem({
-        id:          compositeKey,
-        menuItemId:  item.id,
-        name:        item.name,
-        category:    item.category,
-        imageUrl:    item.imageUrl,
-        price:       totalPrice,
-        isAvailable: true,
+        id:           compositeKey,
+        menuItemId:   item.id,
+        name:         item.name,
+        category:     item.category,
+        imageUrl:     item.imageUrl,
+        price:        totalPrice,
+        isAvailable:  true,
         variationId:   selectedVariation?.id || null,
         variationName: selectedVariation?.name || null,
         modifiers:     selectedAddons.map((a) => ({ name: a.name, price: Number(a.price) || 0 })),
         specialInstructions: null,
+        maxOrderQty:   item.maxOrderQty,
       });
     }
     navigation.goBack();
@@ -293,12 +297,12 @@ export default function ItemDetailScreen({ navigation, route }) {
       {/* Sticky bottom */}
       <SafeBottomBar style={styles.stickyBottom}>
         <View style={styles.qtyPill}>
-          <TouchableOpacity style={styles.qtyBtn} onPress={decQty}>
-            <Ionicons name="remove" size={18} color={COLORS.secondary} />
+          <TouchableOpacity style={styles.qtyBtn} onPress={decQty} disabled={qty <= 1}>
+            <Ionicons name="remove" size={18} color={qty <= 1 ? COLORS.textMuted : COLORS.secondary} />
           </TouchableOpacity>
-          <Text style={styles.qtyNum}>{qty}</Text>
-          <TouchableOpacity style={styles.qtyBtn} onPress={incQty}>
-            <Ionicons name="add" size={18} color={COLORS.secondary} />
+          <Text style={styles.qtyNum}>{qty}{qty >= maxQty ? ' max' : ''}</Text>
+          <TouchableOpacity style={styles.qtyBtn} onPress={incQty} disabled={qty >= maxQty}>
+            <Ionicons name="add" size={18} color={qty >= maxQty ? COLORS.textMuted : COLORS.secondary} />
           </TouchableOpacity>
         </View>
 

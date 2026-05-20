@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  StatusBar, TextInput, Dimensions, Image, ActivityIndicator,
+  StatusBar, TextInput, Dimensions, Image, ActivityIndicator, RefreshControl,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -30,6 +30,7 @@ export default function CafeScreen({ navigation }) {
   const [activeCategory,  setActiveCategory]  = useState('All');
   const [search,          setSearch]          = useState('');
   const [loading,         setLoading]         = useState(true);
+  const [refreshing,      setRefreshing]      = useState(false);
 
 
   // Use stable individual selectors — prevents socket effect from re-running on cart changes
@@ -49,7 +50,7 @@ export default function CafeScreen({ navigation }) {
   // Fetch menu from the Cafe backend. /menu returns { categories: [{ name, items: [...] }] }.
   // We flatten to a single array with `category` denormalized onto each item to keep
   // the existing 2-column grid UI unchanged.
-  const loadMenu = useCallback(async () => {
+  const loadMenu = useCallback(async ({ isRefresh = false } = {}) => {
     try {
       const res = await fetchMenu();
       const cats = res.data?.categories ?? [];
@@ -73,9 +74,15 @@ export default function CafeScreen({ navigation }) {
     } catch (err) {
       console.warn('cafe menu load failed:', err?.response?.data || err?.message);
     } finally {
-      setLoading(false);
+      if (isRefresh) setRefreshing(false);
+      else setLoading(false);
     }
   }, []);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    loadMenu({ isRefresh: true });
+  }, [loadMenu]);
 
   useEffect(() => {
     loadMenu();
@@ -113,14 +120,15 @@ export default function CafeScreen({ navigation }) {
 
   const handleAddToCart = useCallback((item) => {
     addItem({
-      id:          item.id,
-      menuItemId:  item.id,
-      name:        item.name,
-      category:    item.category,
-      imageUrl:    item.imageUrl,
-      price:       Number(item.price ?? 0),
-      isAvailable: item.isAvailable,
-      modifiers:   [],
+      id:           item.id,
+      menuItemId:   item.id,
+      name:         item.name,
+      category:     item.category,
+      imageUrl:     item.imageUrl,
+      price:        Number(item.price ?? 0),
+      isAvailable:  item.isAvailable,
+      modifiers:    [],
+      maxOrderQty:  item.maxOrderQty,
     });
   }, [addItem]);
 
@@ -129,7 +137,8 @@ export default function CafeScreen({ navigation }) {
   }, [removeItem]);
 
   const renderItem = ({ item }) => {
-    const qty = getQty(item.id);
+    const qty    = getQty(item.id);
+    const maxQty = Math.min(10, item.maxOrderQty ?? 10);
 
     return (
       <TouchableOpacity
@@ -195,7 +204,11 @@ export default function CafeScreen({ navigation }) {
                   <Ionicons name="remove" size={14} color={COLORS.secondary} />
                 </TouchableOpacity>
                 <Text style={styles.qtyNum}>{qty}</Text>
-                <TouchableOpacity style={styles.qtyPlus} onPress={() => handleAddToCart(item)}>
+                <TouchableOpacity
+                  style={[styles.qtyPlus, qty >= maxQty && styles.qtyPlusDisabled]}
+                  onPress={() => handleAddToCart(item)}
+                  disabled={qty >= maxQty}
+                >
                   <Ionicons name="add" size={14} color={COLORS.white} />
                 </TouchableOpacity>
               </View>
@@ -266,6 +279,9 @@ export default function CafeScreen({ navigation }) {
         keyExtractor={(item) => item.id}
         numColumns={2}
         renderItem={renderItem}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.secondary} />
+        }
         ListHeaderComponent={() => (
           <>
             {/* Category tabs */}
@@ -427,6 +443,7 @@ const styles = StyleSheet.create({
   qtyMinus: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
   qtyNum: { fontSize: 14, fontWeight: '900', color: COLORS.white },
   qtyPlus: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.secondary },
+  qtyPlusDisabled: { opacity: 0.35 },
 
   naText: { fontSize: 12, color: COLORS.textMuted, fontStyle: 'italic', marginTop: 2 },
 
