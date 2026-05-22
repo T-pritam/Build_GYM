@@ -243,6 +243,28 @@ export default function OrderTrackingScreen({ navigation, route }) {
                   </Text>
                 </View>
               )}
+              {Number(order.discountAmount) > 0 && (
+                <View style={styles.detailsMetaRow}>
+                  <Text style={styles.detailsMetaLabel}>Reward discount:</Text>
+                  <Text style={[styles.detailsMetaValue, { color: '#22C55E' }]}>
+                    −₹{Number(order.discountAmount).toFixed(0)}
+                  </Text>
+                </View>
+              )}
+              {order.rewardPointsRedeemed > 0 && (
+                <View style={styles.detailsMetaRow}>
+                  <Text style={styles.detailsMetaLabel}>Points redeemed:</Text>
+                  <Text style={styles.detailsMetaValue}>{order.rewardPointsRedeemed} pts</Text>
+                </View>
+              )}
+              {order.pointsEarned > 0 && (
+                <View style={styles.detailsMetaRow}>
+                  <Text style={styles.detailsMetaLabel}>Points earned:</Text>
+                  <Text style={[styles.detailsMetaValue, { color: COLORS.secondary }]}>
+                    +{order.pointsEarned} pts
+                  </Text>
+                </View>
+              )}
             </View>
 
             {order.items?.length > 0 && (

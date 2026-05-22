@@ -5,11 +5,25 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useFocusEffect } from '@react-navigation/native';
 import { COLORS } from '../../constants/colors';
 import SafeBottomBar from '../../components/SafeBottomBar';
-import { fetchMyMembership } from '../../services/membershipService';
+import { fetchMyMembership, resumeMembershipPause } from '../../services/membershipService';
 
 const RECEPTION = '+919876543210';
+
+// ─── Pause status display ─────────────────────────────────────────────────────
+const PAUSE_STATUS = {
+  scheduled: { label: 'Scheduled', color: '#3B82F6' },
+  active:    { label: 'Active',    color: '#F59E0B' },
+  completed: { label: 'Completed', color: '#22C55E' },
+  cancelled: { label: 'Cancelled', color: '#6B7280' },
+};
+
+function fmtPauseRange(p) {
+  const f = (d) => new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' });
+  return `${f(p.startDate)} → ${f(p.endDate)}`;
+}
 
 // ─── Tier colours ─────────────────────────────────────────────────────────────
 const TIER_COLORS = {
@@ -77,6 +91,7 @@ export default function MembershipScreen({ navigation }) {
   const [membershipData, setMembershipData] = useState(null);
   const [loading, setLoading]               = useState(true);
   const [refreshing, setRefreshing]         = useState(false);
+  const [resuming, setResuming]             = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -90,6 +105,22 @@ export default function MembershipScreen({ navigation }) {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  // Refresh whenever the screen regains focus (e.g. returning from the pause form)
+  useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  const handleResume = useCallback(async (pauseId) => {
+    if (!pauseId) return;
+    setResuming(true);
+    try {
+      await resumeMembershipPause(pauseId);
+      await load();
+    } catch (err) {
+      Alert.alert('Error', err?.response?.data?.message ?? 'Failed to resume membership.');
+    } finally {
+      setResuming(false);
+    }
+  }, [load]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -148,6 +179,14 @@ export default function MembershipScreen({ navigation }) {
   const progress = Math.max(0.03, Math.min(1, daysLeft / totalDays));
   const dayColor = daysColor(daysLeft);
 
+  const pauseInfo       = membershipData.pause ?? {};
+  const isPaused        = !!pauseInfo.isPaused;
+  const currentPause    = pauseInfo.currentPause ?? null;
+  const pauseHistory    = pauseInfo.history ?? [];
+  const pausesUsed      = pauseInfo.pausesUsed ?? 0;
+  const permittedPauses = pauseInfo.permittedPauseCount ?? 0;
+  const pausesRemaining = pauseInfo.pausesRemaining ?? 0;
+
   const validFrom = new Date(membership.startDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
   const validTill = new Date(membership.endDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 
@@ -192,9 +231,11 @@ export default function MembershipScreen({ navigation }) {
             <View style={[styles.tierBadge, { backgroundColor: tierInfo.badge }]}>
               <Text style={styles.tierBadgeText}>{tierInfo.label.toUpperCase()}</Text>
             </View>
-            <View style={styles.activeBadge}>
-              <View style={styles.activeDot} />
-              <Text style={styles.activeText}>Active</Text>
+            <View style={isPaused ? styles.pausedBadge : styles.activeBadge}>
+              <View style={[styles.activeDot, isPaused && styles.pausedDot]} />
+              <Text style={isPaused ? styles.pausedText : styles.activeText}>
+                {isPaused ? 'Paused' : 'Active'}
+              </Text>
             </View>
           </View>
 
@@ -239,6 +280,47 @@ export default function MembershipScreen({ navigation }) {
             </View>
           )}
         </LinearGradient>
+
+        {/* ── Pause / Resume membership ─── */}
+        {isPaused && currentPause ? (
+          <View style={styles.pauseBanner}>
+            <Ionicons name="pause-circle" size={24} color="#F59E0B" />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.pauseBannerTitle}>Membership Paused</Text>
+              <Text style={styles.pauseBannerSub}>
+                {fmtPauseRange(currentPause)} · resumes automatically
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={[styles.resumeBtn, resuming && { opacity: 0.6 }]}
+              onPress={() => handleResume(currentPause.id)}
+              disabled={resuming}
+            >
+              {resuming
+                ? <ActivityIndicator size="small" color="#000" />
+                : <Text style={styles.resumeBtnText}>Resume</Text>}
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <TouchableOpacity
+            style={styles.pauseBtn}
+            onPress={() => navigation.navigate('PauseSubscription')}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="pause-circle-outline" size={20} color={COLORS.secondary} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.pauseBtnTitle}>
+                {currentPause ? 'Pause Scheduled' : 'Pause Membership'}
+              </Text>
+              <Text style={styles.pauseBtnSub}>
+                {currentPause
+                  ? `Starts ${fmtPauseRange(currentPause)}`
+                  : `${pausesUsed} of ${permittedPauses} pauses used`}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
+          </TouchableOpacity>
+        )}
 
         {/* ── Upgrade nudge for Basic ─── */}
         {plan.tier === 'basic' && (
@@ -308,6 +390,34 @@ export default function MembershipScreen({ navigation }) {
           </>
         )}
 
+        {/* ── Pause History ─── */}
+        {pauseHistory.length > 0 && (
+          <>
+            <Text style={styles.sectionTitle}>Pause History</Text>
+            <View style={styles.featuresCard}>
+              {pauseHistory.map((h, i) => {
+                const meta = PAUSE_STATUS[h.status] ?? { label: h.status, color: '#888' };
+                return (
+                  <View
+                    key={h.id}
+                    style={[styles.pauseHistRow, i < pauseHistory.length - 1 && styles.featureRowBorder]}
+                  >
+                    <View style={[styles.pauseHistDot, { backgroundColor: meta.color }]} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.pauseHistDates}>{fmtPauseRange(h)}</Text>
+                      <Text style={styles.pauseHistMeta}>
+                        {h.isAdminOverride ? 'By gym staff' : 'Self-requested'}
+                        {h.resumedEarly ? ' · resumed early' : ''}
+                      </Text>
+                    </View>
+                    <Text style={[styles.pauseHistStatus, { color: meta.color }]}>{meta.label}</Text>
+                  </View>
+                );
+              })}
+            </View>
+          </>
+        )}
+
         {/* ── Contact row ─── */}
         <View style={styles.actionRow}>
           <TouchableOpacity
@@ -364,7 +474,41 @@ const styles = StyleSheet.create({
   },
   activeDot:  { width: 6, height: 6, borderRadius: 3, backgroundColor: '#22C55E' },
   activeText: { fontSize: 10, fontWeight: '800', color: '#22C55E' },
+  pausedBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(245,158,11,0.12)',
+    borderWidth: 1, borderColor: 'rgba(245,158,11,0.3)', borderRadius: 20, paddingHorizontal: 8, paddingVertical: 4,
+  },
+  pausedDot:  { backgroundColor: '#F59E0B' },
+  pausedText: { fontSize: 10, fontWeight: '800', color: '#F59E0B' },
   tenureText: { fontSize: 12, color: '#888', marginBottom: 16 },
+
+  // Pause / Resume
+  pauseBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: 'rgba(245,158,11,0.08)', borderWidth: 1, borderColor: 'rgba(245,158,11,0.25)',
+    borderRadius: 12, padding: 14, marginBottom: 20,
+  },
+  pauseBannerTitle: { fontSize: 13, fontWeight: '800', color: '#fff' },
+  pauseBannerSub:   { fontSize: 11, color: '#888', marginTop: 2 },
+  resumeBtn: {
+    minWidth: 82, height: 36, borderRadius: 8, backgroundColor: '#F59E0B',
+    alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12,
+  },
+  resumeBtnText: { fontSize: 12, fontWeight: '800', color: '#000' },
+  pauseBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: '#1C1C1E', borderWidth: 1, borderColor: 'rgba(233,99,22,0.25)',
+    borderRadius: 12, padding: 14, marginBottom: 20,
+  },
+  pauseBtnTitle: { fontSize: 13, fontWeight: '800', color: '#fff' },
+  pauseBtnSub:   { fontSize: 11, color: '#888', marginTop: 2 },
+
+  // Pause history
+  pauseHistRow:    { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 },
+  pauseHistDot:    { width: 8, height: 8, borderRadius: 4 },
+  pauseHistDates:  { fontSize: 13, color: '#e5e5e5', fontWeight: '600' },
+  pauseHistMeta:   { fontSize: 10, color: '#888', marginTop: 2 },
+  pauseHistStatus: { fontSize: 11, fontWeight: '800' },
 
   datesRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20,

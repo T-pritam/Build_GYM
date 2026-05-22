@@ -6,6 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import SafeBottomBar from '../../components/SafeBottomBar';
+import AddonPickerModal from '../../components/AddonPickerModal';
 import { useCartStore } from '../../store/cartStore';
 import { subscribeMenuAvailability } from '../../services/cafeSupabase';
 
@@ -64,29 +65,17 @@ export default function ItemDetailScreen({ navigation, route }) {
         price: Number(a.price ?? a.priceCoins ?? 0),
       }));
   }, [item]);
-  const [selectedAddonIds, setSelectedAddonIds] = useState([]);
+  const [showAddonModal, setShowAddonModal] = useState(false);
 
-  const selectedAddons = useMemo(
-    () => availableAddons.filter((a) => selectedAddonIds.includes(a.id)),
-    [availableAddons, selectedAddonIds],
-  );
-
-  // Compute total price (INR): base + variation delta + addons
-  const basePrice    = Number(item?.price ?? item?.priceCoins ?? 0);
+  // Compute display price (INR): base or variation — add-on total shown in modal button
+  const basePrice      = Number(item?.price ?? item?.priceCoins ?? 0);
   const variationPrice = Number(selectedVariation?.price ?? selectedVariation?.priceCoins ?? 0);
-  const addonTotal     = selectedAddons.reduce((s, a) => s + (Number(a.price) || 0), 0);
-  const totalPrice     = (availableVariations.length > 0 ? variationPrice : basePrice) + addonTotal;
+  const displayPrice   = availableVariations.length > 0 ? variationPrice : basePrice;
 
   // Time-window availability
   const withinWindow = isWithinTimeWindow(item?.availableFrom, item?.availableUntil);
   const stockedOut   = (item?.maxOrderQty ?? 10) < 1;
   const canAddToCart = isAvailable && withinWindow && !stockedOut;
-
-  const toggleAddon = (id) => {
-    setSelectedAddonIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
-    );
-  };
 
   useEffect(() => {
     if (!item) return;
@@ -110,9 +99,16 @@ export default function ItemDetailScreen({ navigation, route }) {
 
   const handleAddToCart = () => {
     if (!canAddToCart) return;
-    const addonKey = selectedAddonIds.length
-      ? selectedAddonIds.slice().sort().join(',')
-      : '';
+    if (availableAddons.length > 0) {
+      setShowAddonModal(true);
+    } else {
+      doAddToCart([]);
+    }
+  };
+
+  const doAddToCart = (selectedAddons) => {
+    setShowAddonModal(false);
+    const addonKey = selectedAddons.map((a) => a.id).sort().join(',');
     const compositeKey = `${item.id}_${selectedVariation?.id || 'base'}_${addonKey}`;
     for (let i = 0; i < qty; i++) {
       addItem({
@@ -121,7 +117,7 @@ export default function ItemDetailScreen({ navigation, route }) {
         name:         item.name,
         category:     item.category,
         imageUrl:     item.imageUrl,
-        price:        totalPrice,
+        price:        displayPrice,
         isAvailable:  true,
         variationId:   selectedVariation?.id || null,
         variationName: selectedVariation?.name || null,
@@ -176,7 +172,7 @@ export default function ItemDetailScreen({ navigation, route }) {
           </View>
           <Text style={styles.itemName}>{item.name}</Text>
           <View style={styles.priceRow}>
-            <Text style={styles.priceCoins}>₹{totalPrice}</Text>
+            <Text style={styles.priceCoins}>₹{displayPrice}</Text>
           </View>
           {item.prepTimeMinutes ? (
             <View style={styles.prepBadge}>
@@ -242,29 +238,13 @@ export default function ItemDetailScreen({ navigation, route }) {
             </View>
           )}
 
-          {/* Add-ons section */}
+          {/* Add-ons hint — selection happens in modal when adding to cart */}
           {availableAddons.length > 0 && (
-            <View style={styles.addonsSection}>
-              <Text style={styles.sectionHeading}>ADD-ONS</Text>
-              {availableAddons.map((a) => {
-                const isChecked = selectedAddonIds.includes(a.id);
-                return (
-                  <TouchableOpacity
-                    key={a.id}
-                    style={[styles.addonRow, isChecked && styles.addonRowSelected]}
-                    onPress={() => toggleAddon(a.id)}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons
-                      name={isChecked ? 'checkbox' : 'square-outline'}
-                      size={22}
-                      color={isChecked ? COLORS.secondary : COLORS.textMuted}
-                    />
-                    <Text style={styles.addonName}>{a.name}</Text>
-                    <Text style={styles.addonPrice}>+₹{Number(a.price ?? 0)}</Text>
-                  </TouchableOpacity>
-                );
-              })}
+            <View style={styles.addonHint}>
+              <Ionicons name="add-circle-outline" size={16} color={COLORS.secondary} />
+              <Text style={styles.addonHintText}>
+                {availableAddons.length} extra{availableAddons.length > 1 ? 's' : ''} available — choose when adding
+              </Text>
             </View>
           )}
 
@@ -313,11 +293,18 @@ export default function ItemDetailScreen({ navigation, route }) {
           activeOpacity={0.85}
         >
           <Ionicons name="cart-outline" size={20} color={COLORS.white} />
-          <Text style={styles.addCartText}>
-            ADD TO CART
-          </Text>
+          <Text style={styles.addCartText}>ADD TO CART</Text>
         </TouchableOpacity>
       </SafeBottomBar>
+
+      <AddonPickerModal
+        visible={showAddonModal}
+        itemName={item.name}
+        basePrice={displayPrice}
+        addons={availableAddons}
+        onConfirm={doAddToCart}
+        onDismiss={() => setShowAddonModal(false)}
+      />
     </View>
   );
 }
@@ -403,16 +390,14 @@ const styles = StyleSheet.create({
   variationChipPrice: { fontSize: 11, color: COLORS.textMuted, marginTop: 2 },
   variationChipPriceSelected: { color: COLORS.secondary },
 
-  // Add-ons
-  addonsSection: { gap: 8 },
-  addonRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: COLORS.surface, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border,
+  // Add-ons hint
+  addonHint: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: COLORS.secondaryGlow, borderRadius: 12,
     paddingHorizontal: 14, paddingVertical: 12,
+    borderWidth: 1, borderColor: COLORS.secondaryBorder,
   },
-  addonRowSelected: { borderColor: COLORS.secondary, backgroundColor: COLORS.secondaryGlow },
-  addonName: { flex: 1, fontSize: 14, fontWeight: '600', color: COLORS.white },
-  addonPrice: { fontSize: 13, fontWeight: '700', color: COLORS.secondary },
+  addonHintText: { flex: 1, fontSize: 14, fontWeight: '600', color: COLORS.secondary },
 
   // Prep time badge
   prepBadge: {

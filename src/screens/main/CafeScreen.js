@@ -9,6 +9,7 @@ import { COLORS } from '../../constants/colors';
 import { fetchMenu } from '../../services/cafeService';
 import { subscribeMenuAvailability } from '../../services/cafeSupabase';
 import { useCartStore, cartQty, cartTotal } from '../../store/cartStore';
+import AddonPickerModal from '../../components/AddonPickerModal';
 
 const { width } = Dimensions.get('window');
 const HORIZONTAL_PAD = 14;
@@ -31,6 +32,7 @@ export default function CafeScreen({ navigation }) {
   const [search,          setSearch]          = useState('');
   const [loading,         setLoading]         = useState(true);
   const [refreshing,      setRefreshing]      = useState(false);
+  const [addonTarget,     setAddonTarget]     = useState(null);
 
 
   // Use stable individual selectors — prevents socket effect from re-running on cart changes
@@ -119,18 +121,45 @@ export default function CafeScreen({ navigation }) {
   });
 
   const handleAddToCart = useCallback((item) => {
+    const currentQty = cartItems.find((c) => c.id === item.id)?.qty ?? 0;
+    if (currentQty > 0) {
+      // Already in cart — just increment without re-asking for add-ons
+      addItem({
+        id: item.id, menuItemId: item.id, name: item.name,
+        category: item.category, imageUrl: item.imageUrl,
+        price: Number(item.price ?? 0), isAvailable: item.isAvailable,
+        modifiers: [], maxOrderQty: item.maxOrderQty,
+      });
+      return;
+    }
+    const availableMods = (item.modifiers ?? []).filter((m) => m.isAvailable !== false);
+    if (availableMods.length > 0) {
+      setAddonTarget(item);
+    } else {
+      addItem({
+        id: item.id, menuItemId: item.id, name: item.name,
+        category: item.category, imageUrl: item.imageUrl,
+        price: Number(item.price ?? 0), isAvailable: item.isAvailable,
+        modifiers: [], maxOrderQty: item.maxOrderQty,
+      });
+    }
+  }, [addItem, cartItems]);
+
+  const handleAddonConfirm = useCallback((selectedAddons) => {
+    const item = addonTarget;
+    setAddonTarget(null);
     addItem({
-      id:           item.id,
-      menuItemId:   item.id,
-      name:         item.name,
-      category:     item.category,
-      imageUrl:     item.imageUrl,
-      price:        Number(item.price ?? 0),
-      isAvailable:  item.isAvailable,
-      modifiers:    [],
-      maxOrderQty:  item.maxOrderQty,
+      id:          item.id,
+      menuItemId:  item.id,
+      name:        item.name,
+      category:    item.category,
+      imageUrl:    item.imageUrl,
+      price:       Number(item.price ?? 0),
+      isAvailable: item.isAvailable,
+      modifiers:   selectedAddons.map((a) => ({ name: a.name, price: a.price })),
+      maxOrderQty: item.maxOrderQty,
     });
-  }, [addItem]);
+  }, [addonTarget, addItem]);
 
   const handleRemoveFromCart = useCallback((itemId) => {
     removeItem(itemId);
@@ -334,6 +363,17 @@ export default function CafeScreen({ navigation }) {
           </TouchableOpacity>
         </View>
       )}
+
+      <AddonPickerModal
+        visible={addonTarget !== null}
+        itemName={addonTarget?.name ?? ''}
+        basePrice={Number(addonTarget?.price ?? 0)}
+        addons={(addonTarget?.modifiers ?? [])
+          .filter((m) => m.isAvailable !== false)
+          .map((m) => ({ id: m.id ?? m.name, name: m.name, price: Number(m.price ?? 0) }))}
+        onConfirm={handleAddonConfirm}
+        onDismiss={() => setAddonTarget(null)}
+      />
     </View>
   );
 }

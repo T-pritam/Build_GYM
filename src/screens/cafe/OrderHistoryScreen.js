@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
-import { fetchMyOrders } from '../../services/cafeService';
+import { fetchMyOrders, fetchRewardBalance, fetchRewardTransactions } from '../../services/cafeService';
 import { useActiveOrderStore } from '../../store/activeOrderStore';
 import SafeBottomBar from '../../components/SafeBottomBar';
 import { mapCafeStatus, STATUS_COLOR } from '../../utils/cafeStatus';
@@ -17,6 +17,13 @@ const STATUS_LABELS = {
   ready:     'Ready',
   complete:  'Delivered',
   cancelled: 'Cancelled',
+};
+
+const REWARD_REASON_LABELS = {
+  EARNED:           'Earned',
+  REDEEMED:         'Redeemed',
+  ADMIN_ADJUSTMENT: 'Adjustment',
+  EXPIRY:           'Expired',
 };
 
 function timeAgo(createdAt) {
@@ -62,6 +69,9 @@ export default function OrderHistoryScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore]       = useState(false);
+  const [rewardBalance, setRewardBalance] = useState(0);
+  const [rewardWorth, setRewardWorth]     = useState(0);
+  const [recentTxns, setRecentTxns]       = useState([]);
   const offsetRef = useRef(0);
   const loadingMoreRef = useRef(false);
 
@@ -77,15 +87,29 @@ export default function OrderHistoryScreen({ navigation }) {
     }
   }, []);
 
+  const loadRewards = useCallback(async () => {
+    try {
+      const [balRes, txnRes] = await Promise.all([
+        fetchRewardBalance(),
+        fetchRewardTransactions({ limit: 3, offset: 0 }),
+      ]);
+      setRewardBalance(balRes.data?.points ?? 0);
+      setRewardWorth(balRes.data?.worthInRupees ?? 0);
+      setRecentTxns(txnRes.data?.transactions ?? []);
+    } catch {
+      // silently fail
+    }
+  }, []);
+
   useEffect(() => {
-    loadOrders().finally(() => setLoading(false));
+    Promise.all([loadOrders(), loadRewards()]).finally(() => setLoading(false));
   }, []);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await loadOrders();
+    await Promise.all([loadOrders(), loadRewards()]);
     setRefreshing(false);
-  }, [loadOrders]);
+  }, [loadOrders, loadRewards]);
 
   const onEndReached = useCallback(async () => {
     if (!hasMore || loadingMoreRef.current) return;
@@ -122,6 +146,47 @@ export default function OrderHistoryScreen({ navigation }) {
     return null;
   };
 
+  const renderRewardHeader = () => (
+    <View style={styles.rewardCard}>
+      <View style={styles.rewardTop}>
+        <View style={styles.rewardTitleRow}>
+          <Ionicons name="star" size={16} color={COLORS.secondary} />
+          <Text style={styles.rewardCardTitle}>Reward Points</Text>
+        </View>
+        <TouchableOpacity onPress={() => navigation.navigate('CafeRewards')} activeOpacity={0.7}>
+          <Text style={styles.rewardViewAll}>View all ›</Text>
+        </TouchableOpacity>
+      </View>
+      <Text style={styles.rewardBalance}>{rewardBalance}</Text>
+      <Text style={styles.rewardWorth}>points · worth ₹{Number(rewardWorth).toFixed(0)}</Text>
+      {recentTxns.length > 0 && (
+        <View style={styles.rewardLogList}>
+          {recentTxns.map((t) => {
+            const positive = t.delta >= 0;
+            const orderRef = t.order ? `#${String(t.order.id).slice(-6).toUpperCase()}` : null;
+            return (
+              <TouchableOpacity
+                key={t.id}
+                style={styles.rewardLogRow}
+                disabled={!t.order}
+                onPress={() => t.order && navigation.navigate('OrderTracking', { orderId: t.order.id })}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.rewardLogLabel} numberOfLines={1}>
+                  {REWARD_REASON_LABELS[t.reason] ?? t.reason}
+                  {orderRef ? ` · ${orderRef}` : ''}
+                </Text>
+                <Text style={[styles.rewardLogDelta, { color: positive ? '#22C55E' : '#EF4444' }]}>
+                  {positive ? '+' : ''}{t.delta} pts
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
+    </View>
+  );
+
   return (
     <SafeBottomBar style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
@@ -150,6 +215,7 @@ export default function OrderHistoryScreen({ navigation }) {
           }
           onEndReached={onEndReached}
           onEndReachedThreshold={0.3}
+          ListHeaderComponent={renderRewardHeader}
           ListFooterComponent={renderFooter}
           ListEmptyComponent={
             <View style={styles.empty}>
@@ -179,6 +245,27 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 18, fontWeight: '800', color: COLORS.white },
 
   list: { paddingHorizontal: 16, paddingBottom: 40, gap: 10 },
+
+  // Reward header card
+  rewardCard: {
+    backgroundColor: COLORS.surface, borderRadius: 14,
+    borderWidth: 1, borderColor: COLORS.secondaryBorder, padding: 16, marginBottom: 4,
+  },
+  rewardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  rewardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  rewardCardTitle: { fontSize: 13, fontWeight: '800', color: COLORS.white, letterSpacing: 0.5 },
+  rewardViewAll: { fontSize: 12, fontWeight: '700', color: COLORS.secondary },
+  rewardBalance: { fontSize: 32, fontWeight: '900', color: COLORS.white, marginTop: 8 },
+  rewardWorth: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
+  rewardLogList: {
+    marginTop: 12, borderTopWidth: 1, borderTopColor: COLORS.border, paddingTop: 6,
+  },
+  rewardLogRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingVertical: 6,
+  },
+  rewardLogLabel: { fontSize: 12, color: COLORS.textSecondary, flex: 1, marginRight: 8 },
+  rewardLogDelta: { fontSize: 12, fontWeight: '800' },
 
   card: {
     backgroundColor: COLORS.surface, borderRadius: 14, borderWidth: 1, borderColor: '#333',

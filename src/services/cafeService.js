@@ -26,7 +26,8 @@ export const fetchMenu = (category) =>
 /**
  * POST /orders — place an order from the gym app (always TAKEAWAY, GYM_APP source).
  *
- * Caller passes `items: [{ menuItemId, quantity, unitPrice, modifiers?: [{name,price}], specialNote? }]`.
+ * Caller passes `items: [{ menuItemId, quantity, unitPrice, modifiers?: [{name,price}], specialNote? }]`
+ * and an optional `rewardPointsToRedeem` count.
  * Returns { orderId, razorpayOrderId, amountPaise, keyId, deliveryPin }.
  */
 export const placeOrder = (body) =>
@@ -34,6 +35,7 @@ export const placeOrder = (body) =>
     orderSource: 'GYM_APP',
     orderType: 'TAKEAWAY',
     items: body.items,
+    rewardPointsRedeem: body.rewardPointsToRedeem ?? 0,
   }));
 
 /** POST /orders/:id/retry-payment — for PAYMENT_PENDING orders. */
@@ -46,3 +48,10 @@ export const fetchMyOrders = ({ limit = 15, offset = 0 } = {}) =>
 
 /** GET /orders/:id — enriched order detail. */
 export const fetchOrderById = (id) => withAuth(() => cafeApi.get(`/orders/${id}`));
+
+/** GET /rewards/balance — current customer's reward balance + active reward config. */
+export const fetchRewardBalance = () => withAuth(() => cafeApi.get('/rewards/balance'));
+
+/** GET /rewards/transactions — current customer's reward ledger (paginated). */
+export const fetchRewardTransactions = ({ limit = 50, offset = 0 } = {}) =>
+  withAuth(() => cafeApi.get('/rewards/transactions', { params: { limit, offset } }));

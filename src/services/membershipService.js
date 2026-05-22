@@ -19,11 +19,13 @@ export const fetchMembershipPlans = async () => {
 /**
  * GET /api/memberships/my
  * Returns the calling member's active membership + plan + perks with usage.
+ * Also includes a `pause` block: { isPaused, pausesUsed, permittedPauseCount,
+ * pausesRemaining, maxPauseDays, currentPause, history }.
  * Returns null if no active membership.
  */
 export const fetchMyMembership = async () => {
   const { data } = await api.get('/memberships/my');
-  return data.data; // { membership, plan, totalDays, daysLeft } | null
+  return data.data; // { membership, plan, totalDays, daysLeft, pause } | null
 };
 
 /**
@@ -48,4 +50,32 @@ export const verifyMembershipPayment = async ({ razorpayOrderId, razorpayPayment
     razorpaySignature,
   });
   return data.data; // { membership }
+};
+
+/**
+ * POST /api/memberships/pause
+ * Body: { startDate, endDate, reason? }  (dates as YYYY-MM-DD)
+ * Schedules / starts a membership pause for the calling member.
+ */
+export const pauseMembership = async ({ startDate, endDate, reason }) => {
+  const { data } = await api.post('/memberships/pause', { startDate, endDate, reason });
+  return data.data; // { pause }
+};
+
+/**
+ * POST /api/memberships/pauses/:pauseId/resume
+ * Ends an active pause immediately.
+ */
+export const resumeMembershipPause = async (pauseId) => {
+  const { data } = await api.post(`/memberships/pauses/${pauseId}/resume`);
+  return data.data; // { pause, membership }
+};
+
+/**
+ * POST /api/memberships/pauses/:pauseId/cancel
+ * Cancels a scheduled (not-yet-started) pause.
+ */
+export const cancelMembershipPause = async (pauseId) => {
+  const { data } = await api.post(`/memberships/pauses/${pauseId}/cancel`);
+  return data.data; // { pause }
 };

@@ -8,7 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import SafeBottomBar from '../../components/SafeBottomBar';
 import { useCartStore, cartTotal, hasUnavailableItems } from '../../store/cartStore';
-import { placeOrder } from '../../services/cafeService';
+import { placeOrder, fetchRewardBalance } from '../../services/cafeService';
 import { subscribeMenuAvailability } from '../../services/cafeSupabase';
 import { useActiveOrderStore } from '../../store/activeOrderStore';
 import { useAuthStore } from '../../store/authStore';
@@ -21,9 +21,18 @@ export default function CartScreen({ navigation }) {
   const setActiveOrder = useActiveOrderStore(s => s.setActiveOrder);
   const user = useAuthStore(s => s.user);
 
+  const [rewardBalance, setRewardBalance]   = useState(0);
+  const [pointValue, setPointValue]         = useState(1);
+  const [redeemPercent, setRedeemPercent]   = useState(20);
+  const [rewardPointsApplied, setRewardPointsApplied] = useState(0);
+
   const totalRupees = cartTotal(items);
   const anyUnavailable = hasUnavailableItems(items);
   const totalQty = items.reduce((s, c) => s + c.qty, 0);
+
+  const maxRedeemablePoints = Math.floor((totalRupees * redeemPercent / 100) / pointValue);
+  const rewardDiscount = Math.min(rewardPointsApplied * pointValue, totalRupees);
+  const payableTotal   = Math.max(0, totalRupees - rewardDiscount);
 
   // Keep cart in sync with live availability while on this screen
   useEffect(() => {
@@ -34,6 +43,18 @@ export default function CartScreen({ navigation }) {
     });
     return () => unsub?.();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load the customer's reward balance + active reward config
+  useEffect(() => {
+    fetchRewardBalance()
+      .then((res) => {
+        const d = res.data || {};
+        setRewardBalance(d.points ?? 0);
+        setPointValue(d.pointValue || 1);
+        setRedeemPercent(d.redeemPercent ?? 20);
+      })
+      .catch(() => {});
+  }, []);
 
   const finalizeAndNavigate = (orderPayload) => {
     setActiveOrder(orderPayload);
@@ -61,7 +82,7 @@ export default function CartScreen({ navigation }) {
         specialNote: i.specialInstructions || undefined,
       }));
 
-      const res = await placeOrder({ items: orderItems });
+      const res = await placeOrder({ items: orderItems, rewardPointsToRedeem: rewardPointsApplied });
       const data = res.data || {};
       const {
         orderId,
@@ -75,7 +96,7 @@ export default function CartScreen({ navigation }) {
       // Cafe backend always creates Razorpay order for INR > 0 GYM_APP flow.
       if (!razorpayOrderId || !keyId) {
         // Should never happen for gym-source orders, but fall back gracefully.
-        finalizeAndNavigate({ orderId, deliveryPin, orderSource, totalAmount: totalRupees });
+        finalizeAndNavigate({ orderId, deliveryPin, orderSource, totalAmount: payableTotal });
         return;
       }
 
@@ -96,14 +117,14 @@ export default function CartScreen({ navigation }) {
 
       try {
         await RazorpayCheckout.open(checkoutOpts);
-        finalizeAndNavigate({ orderId, deliveryPin, orderSource, totalAmount: totalRupees });
+        finalizeAndNavigate({ orderId, deliveryPin, orderSource, totalAmount: payableTotal });
       } catch (rzpErr) {
         // User dismissed or payment failed — order is in PAYMENT_PENDING and can
         // be retried from OrderTracking. Surface gentle message, keep the cart.
         const msg = rzpErr?.description || rzpErr?.message || 'Payment was cancelled.';
         Alert.alert('Payment not completed', msg + ' You can retry from Order History.');
         // Persist the pending order so tracking screen can show retry option
-        setActiveOrder({ orderId, deliveryPin, orderSource, status: 'PAYMENT_PENDING', totalAmount: totalRupees });
+        setActiveOrder({ orderId, deliveryPin, orderSource, status: 'PAYMENT_PENDING', totalAmount: payableTotal });
       }
     } catch (e) {
       const msg = e?.response?.data?.error || e?.response?.data?.message || 'Failed to place order. Please try again.';
@@ -221,6 +242,40 @@ export default function CartScreen({ navigation }) {
           )}
         </View>
 
+        {/* Reward points redemption */}
+        {items.length > 0 && rewardBalance > 0 && (
+          <View style={styles.rewardCard}>
+            <View style={styles.rewardHeader}>
+              <Ionicons name="star" size={18} color={COLORS.secondary} />
+              <Text style={styles.rewardTitle}>{rewardBalance} reward points available</Text>
+            </View>
+            {rewardPointsApplied === 0 ? (
+              <TouchableOpacity
+                style={[styles.rewardBtn, maxRedeemablePoints <= 0 && styles.rewardBtnDisabled]}
+                onPress={() => setRewardPointsApplied(Math.min(rewardBalance, maxRedeemablePoints))}
+                disabled={maxRedeemablePoints <= 0}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.rewardBtnText}>
+                  {maxRedeemablePoints > 0
+                    ? `Apply — save ₹${(Math.min(rewardBalance, maxRedeemablePoints) * pointValue).toFixed(0)}`
+                    : 'Not enough to redeem on this order'}
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={[styles.rewardBtn, styles.rewardBtnRemove]}
+                onPress={() => setRewardPointsApplied(0)}
+                activeOpacity={0.85}
+              >
+                <Text style={[styles.rewardBtnText, { color: COLORS.secondary }]}>
+                  Remove — −₹{rewardDiscount.toFixed(0)} ({rewardPointsApplied} pts)
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+
         {/* Info banner */}
         <View style={styles.infoBanner}>
           <Ionicons name="information-circle-outline" size={20} color={COLORS.secondary} />
@@ -236,8 +291,10 @@ export default function CartScreen({ navigation }) {
       {items.length > 0 && (
         <SafeBottomBar style={styles.footer}>
           <View style={styles.footerTotal}>
-            <Text style={styles.footerTotalLabel}>Total:</Text>
-            <Text style={styles.footerTotalValue}>₹{totalRupees}</Text>
+            <Text style={styles.footerTotalLabel}>
+              {rewardPointsApplied > 0 ? `Total (−₹${rewardDiscount.toFixed(0)} rewards)` : 'Total:'}
+            </Text>
+            <Text style={styles.footerTotalValue}>₹{payableTotal}</Text>
           </View>
           <TouchableOpacity
             style={[styles.placeOrderBtn, (anyUnavailable || placing) && styles.placeOrderBtnDisabled]}
@@ -296,6 +353,23 @@ const styles = StyleSheet.create({
     borderRadius: 10, padding: 12,
   },
   warnText: { flex: 1, fontSize: 12, color: '#EAB308', lineHeight: 18 },
+
+  // Reward card
+  rewardCard: {
+    backgroundColor: COLORS.surface, borderRadius: 14,
+    borderWidth: 1, borderColor: COLORS.secondaryBorder, padding: 14, gap: 12,
+  },
+  rewardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  rewardTitle: { fontSize: 14, fontWeight: '700', color: COLORS.white },
+  rewardBtn: {
+    backgroundColor: COLORS.secondary, borderRadius: 10,
+    paddingVertical: 10, paddingHorizontal: 14, alignItems: 'center',
+  },
+  rewardBtnRemove: {
+    backgroundColor: 'transparent', borderWidth: 1, borderColor: COLORS.secondaryBorder,
+  },
+  rewardBtnDisabled: { backgroundColor: COLORS.textMuted },
+  rewardBtnText: { fontSize: 13, fontWeight: '800', color: COLORS.white },
 
   // Section
   section: { gap: 10 },

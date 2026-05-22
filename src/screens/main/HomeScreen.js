@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAnnouncementStore } from '../../store/announcementStore';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
@@ -13,9 +13,13 @@ import { useWalletStore } from '../../store/walletStore';
 import { fetchAnnouncements } from '../../services/announcementService';
 import { fetchTrainers, fetchMyTrainer, fetchTrialSessions, confirmTrialSession, rejectTrialSession } from '../../services/trainerService';
 import { getSocket } from '../../services/socketService';
-import { fetchMyMembership } from '../../services/membershipService';
+import { fetchMyMembership, resumeMembershipPause } from '../../services/membershipService';
+import { fetchGymOccupancy } from '../../services/gymService';
 import { fetchTodaysPlan, fetchStreak } from '../../services/workoutService';
 import { getMyLeaderboardStats } from '../../services/leaderboardService';
+
+// How often the homepage refreshes the live gym occupancy count.
+const OCCUPANCY_POLL_MS = 10 * 60 * 1000; // 10 minutes
 
 const RECEPTION_PHONE = '+919876543210';
 
@@ -48,6 +52,9 @@ export default function HomeScreen({ navigation }) {
   const [todaysPlan, setTodaysPlan] = useState(null);
   const [streakData, setStreakData] = useState(null);
   const [leaderboardStats, setLeaderboardStats] = useState(null);
+  const [occupancy, setOccupancy] = useState(null);
+  const [resumingPause, setResumingPause] = useState(false);
+  const occupancyTimer = useRef(null);
 
   useEffect(() => {
     // Load wallet balance + recent transactions on mount
@@ -96,10 +103,38 @@ export default function HomeScreen({ navigation }) {
       getMyLeaderboardStats()
         .then((data) => setLeaderboardStats(data || null))
         .catch(() => setLeaderboardStats(null)),
+      fetchGymOccupancy()
+        .then((data) => setOccupancy(data || null))
+        .catch(() => setOccupancy(null)),
     ]);
   }, []);
 
   useEffect(() => { loadContent(); }, [loadContent]);
+
+  // Poll the live gym occupancy count every 10 minutes
+  useEffect(() => {
+    occupancyTimer.current = setInterval(() => {
+      fetchGymOccupancy()
+        .then((data) => setOccupancy(data || null))
+        .catch(() => {});
+    }, OCCUPANCY_POLL_MS);
+    return () => {
+      if (occupancyTimer.current) clearInterval(occupancyTimer.current);
+    };
+  }, []);
+
+  const handleResumePause = useCallback(async (pauseId) => {
+    if (!pauseId) return;
+    setResumingPause(true);
+    try {
+      await resumeMembershipPause(pauseId);
+      await loadContent();
+    } catch (err) {
+      Alert.alert('Error', err?.response?.data?.message ?? 'Failed to resume membership.');
+    } finally {
+      setResumingPause(false);
+    }
+  }, [loadContent]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -184,13 +219,16 @@ export default function HomeScreen({ navigation }) {
               end={{ x: 1, y: 1 }}
             >
               {membershipData ? (() => {
-                const { membership: mem, plan, totalDays, daysLeft } = membershipData;
+                const { membership: mem, plan, totalDays, daysLeft, pause } = membershipData;
                 const tierLabel  = plan.tier.charAt(0).toUpperCase() + plan.tier.slice(1);
                 const tierColors = { basic: '#6B7280', pro: '#3B82F6', elite: COLORS.secondary };
                 const tierColor  = tierColors[plan.tier] ?? COLORS.secondary;
                 const dayColor   = daysLeft > 30 ? '#22C55E' : daysLeft > 7 ? '#F59E0B' : '#EF4444';
                 const progress   = Math.max(0.03, Math.min(1, daysLeft / totalDays));
                 const validTill  = new Date(mem.endDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+                const isPaused     = !!pause?.isPaused;
+                const currentPause = pause?.currentPause ?? null;
+                const fmtShort = (d) => new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
                 return (
                   <>
                     {/* Row 1 */}
@@ -199,9 +237,11 @@ export default function HomeScreen({ navigation }) {
                         <Text style={styles.memLabel}>MEMBERSHIP TYPE</Text>
                         <View style={styles.memTypeRow}>
                           <Text style={[styles.memType, { color: tierColor }]}>{tierLabel.toUpperCase()}</Text>
-                          <View style={styles.activeBadge}>
-                            <View style={styles.activeDot} />
-                            <Text style={styles.activeText}>ACTIVE</Text>
+                          <View style={isPaused ? styles.pausedBadge : styles.activeBadge}>
+                            <View style={[styles.activeDot, isPaused && styles.pausedDot]} />
+                            <Text style={isPaused ? styles.pausedText : styles.activeText}>
+                              {isPaused ? 'PAUSED' : 'ACTIVE'}
+                            </Text>
                           </View>
                         </View>
                       </View>
@@ -228,6 +268,28 @@ export default function HomeScreen({ navigation }) {
                     <View style={styles.memProgressBg}>
                       <View style={[styles.memProgressFill, { width: `${progress * 100}%`, backgroundColor: dayColor }]} />
                     </View>
+
+                    {/* Paused banner + Resume */}
+                    {isPaused && currentPause && (
+                      <View style={styles.pausedBanner}>
+                        <Ionicons name="pause-circle" size={22} color="#F59E0B" />
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.pausedBannerTitle}>Membership Paused</Text>
+                          <Text style={styles.pausedBannerSub}>
+                            {fmtShort(currentPause.startDate)} → {fmtShort(currentPause.endDate)}
+                          </Text>
+                        </View>
+                        <TouchableOpacity
+                          style={[styles.resumeBtn, resumingPause && { opacity: 0.6 }]}
+                          onPress={() => handleResumePause(currentPause.id)}
+                          disabled={resumingPause}
+                        >
+                          {resumingPause
+                            ? <ActivityIndicator size="small" color="#000" />
+                            : <Text style={styles.resumeBtnText}>Resume</Text>}
+                        </TouchableOpacity>
+                      </View>
+                    )}
                   </>
                 );
               })() : (
@@ -267,6 +329,29 @@ export default function HomeScreen({ navigation }) {
             </LinearGradient>
           </View>
         </View>
+
+        {/* ── LIVE GYM OCCUPANCY ───────────────────── */}
+        {occupancy && (
+          <View style={styles.section}>
+            <View style={styles.occupancyCard}>
+              <View style={styles.occupancyIconWrap}>
+                <Ionicons name="people" size={22} color={COLORS.secondary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <View style={styles.occupancyLabelRow}>
+                  <View style={styles.liveDot} />
+                  <Text style={styles.occupancyLabel}>IN THE GYM NOW</Text>
+                </View>
+                <View style={styles.occupancyValueRow}>
+                  <Text style={styles.occupancyValue}>{occupancy.count}</Text>
+                  <Text style={styles.occupancyUnit}>
+                    {occupancy.capacity ? `of ${occupancy.capacity} capacity` : 'members'}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </View>
+        )}
 
         {/* ── BUILD COINS CARD ─────────────────────── */}
         <View style={styles.section}>
@@ -804,6 +889,44 @@ const styles = StyleSheet.create({
   },
   waBtn: { borderColor: 'rgba(37,211,102,0.35)', backgroundColor: 'rgba(37,211,102,0.06)' },
   contactBtnText: { fontSize: 13, fontWeight: '600', color: COLORS.white },
+
+  // Paused state
+  pausedBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: 'rgba(245,158,11,0.12)', borderWidth: 1, borderColor: 'rgba(245,158,11,0.3)',
+    borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3,
+  },
+  pausedDot: { backgroundColor: '#F59E0B' },
+  pausedText: { fontSize: 9, fontWeight: '900', color: '#F59E0B', letterSpacing: 1.5 },
+  pausedBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: 'rgba(245,158,11,0.08)', borderWidth: 1, borderColor: 'rgba(245,158,11,0.25)',
+    borderRadius: 12, padding: 12, marginBottom: 16,
+  },
+  pausedBannerTitle: { fontSize: 13, fontWeight: '800', color: COLORS.white },
+  pausedBannerSub: { fontSize: 11, color: COLORS.textSecondary, marginTop: 2 },
+  resumeBtn: {
+    minWidth: 78, height: 34, borderRadius: 8, backgroundColor: '#F59E0B',
+    alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12,
+  },
+  resumeBtnText: { fontSize: 12, fontWeight: '800', color: '#000' },
+
+  // Live gym occupancy
+  occupancyCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    backgroundColor: COLORS.surface, borderRadius: 16, borderWidth: 1,
+    borderColor: COLORS.secondaryBorder, padding: 16,
+  },
+  occupancyIconWrap: {
+    width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.secondaryGlow,
+    alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.secondaryBorder,
+  },
+  occupancyLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 3 },
+  liveDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#22C55E' },
+  occupancyLabel: { fontSize: 9, fontWeight: '700', color: COLORS.textMuted, letterSpacing: 2 },
+  occupancyValueRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6 },
+  occupancyValue: { fontSize: 24, fontWeight: '900', color: COLORS.white },
+  occupancyUnit: { fontSize: 12, fontWeight: '500', color: COLORS.textSecondary },
 
   // Coins card
   coinsCard: {

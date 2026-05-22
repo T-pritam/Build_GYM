@@ -23,11 +23,13 @@ import CartScreen from '../screens/cafe/CartScreen';
 import OrderConfirmationScreen from '../screens/cafe/OrderConfirmationScreen';
 import OrderTrackingScreen from '../screens/cafe/OrderTrackingScreen';
 import OrderHistoryScreen from '../screens/cafe/OrderHistoryScreen';
+import CafeRewardsScreen from '../screens/cafe/RewardsScreen';
 
 // Profile screens
 import ProfileScreen from '../screens/profile/ProfileScreen';
 import MembershipScreen from '../screens/profile/MembershipScreen';
 import MembershipPlansScreen from '../screens/profile/MembershipPlansScreen';
+import PauseSubscriptionScreen from '../screens/profile/PauseSubscriptionScreen';
 import BuildCoinTransactionsScreen from '../screens/profile/BuildCoinTransactionsScreen';
 import TransactionDetailScreen from '../screens/profile/TransactionDetailScreen';
 import ActivityDashboardScreen from '../screens/profile/ActivityDashboardScreen';
@@ -170,11 +172,21 @@ export default function AppNavigator() {
           component={OrderHistoryScreen}
           options={{ animation: 'slide_from_right' }}
         />
+        <Stack.Screen
+          name="CafeRewards"
+          component={CafeRewardsScreen}
+          options={{ animation: 'slide_from_right' }}
+        />
 
         {/* Profile sub screens */}
         <Stack.Screen name="Profile" component={ProfileScreen} />
         <Stack.Screen name="Membership" component={MembershipScreen} />
         <Stack.Screen name="MembershipPlans" component={MembershipPlansScreen} />
+        <Stack.Screen
+          name="PauseSubscription"
+          component={PauseSubscriptionScreen}
+          options={{ animation: 'slide_from_bottom' }}
+        />
         <Stack.Screen name="BuildCoinTransactions" component={BuildCoinTransactionsScreen} />
         <Stack.Screen
           name="TransactionDetail"
