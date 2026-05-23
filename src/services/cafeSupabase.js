@@ -43,3 +43,39 @@ export function subscribeMenuAvailability(onEvent) {
     .subscribe();
   return () => { try { supa.removeChannel(channel); } catch (_) {} };
 }
+
+/**
+ * Subscribe to a specific order's status updates (used by the persistent
+ * ActiveOrderBar once we know the orderId).
+ * Callback: ({ status, cancelled?: true, reason? }) => void
+ * Returns an unsubscribe function.
+ */
+export function subscribeOrderById(orderId, onEvent) {
+  const supa = getCafeSupabase();
+  if (!supa || !orderId) return () => {};
+  const channel = supa
+    .channel(`orders:order:${orderId}`)
+    .on('broadcast', { event: 'ORDER_STATUS' }, ({ payload }) =>
+      onEvent?.({ status: payload?.status }))
+    .on('broadcast', { event: 'ORDER_CANCELLED' }, ({ payload }) =>
+      onEvent?.({ status: 'CANCELLED', cancelled: true, reason: payload?.reason }))
+    .subscribe();
+  return () => { try { supa.removeChannel(channel); } catch (_) {} };
+}
+
+/**
+ * Discovery channel — fires for ANY order of this customer. Used by the
+ * ActiveOrderBar only when no local active order is known (e.g. user placed
+ * an order on another device). Once the bar learns an orderId from this
+ * channel it should switch to subscribeOrderById.
+ */
+export function subscribeOrderCustomer(customerId, onEvent) {
+  const supa = getCafeSupabase();
+  if (!supa || !customerId) return () => {};
+  const channel = supa
+    .channel(`orders:customer:${customerId}`)
+    .on('broadcast', { event: 'ORDER_STATUS' }, ({ payload }) =>
+      onEvent?.({ orderId: payload?.orderId, status: payload?.status }))
+    .subscribe();
+  return () => { try { supa.removeChannel(channel); } catch (_) {} };
+}

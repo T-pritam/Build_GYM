@@ -1,103 +1,142 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useActiveOrderStore } from '../store/activeOrderStore';
-import { getSocket } from '../services/socketService';
-import { fetchMyOrders } from '../services/cafeService';
+import {
+  subscribeOrderById,
+  subscribeOrderCustomer,
+} from '../services/cafeSupabase';
+import { fetchActiveOrder } from '../services/cafeService';
+import { mapCafeStatus, isTerminalCafeStatus } from '../utils/cafeStatus';
 import { COLORS } from '../constants/colors';
 
-const STATUS_LABELS = {
-  received:  'Order Placed',
-  preparing: 'Preparing your order...',
-  ready:     'Ready for Pickup!',
-};
+// Statuses that should still surface the bar. Mirrors the plan's ACTIVE set;
+// DELIVERED is intentionally excluded here to match the gym app's existing
+// convention in cafeStatus.isTerminalCafeStatus (the auto-complete cron will
+// move DELIVERED → COMPLETED within 10 minutes anyway).
+const ACTIVE_STATUSES = [
+  'KOT_GENERATED', 'NEW', 'PREPARING', 'READY',
+  'PICKUP_CLAIMED', 'OUT_FOR_DELIVERY',
+];
 
-const ACTIVE_STATUSES = ['received', 'preparing', 'ready'];
+function shortRef(order) {
+  if (order?.shortRef) return order.shortRef;
+  const id = order?.id || order?.orderId;
+  return id ? String(id).slice(-6).toUpperCase() : '';
+}
 
 export default function ActiveOrderBar({ navigation }) {
-  const { activeOrder, setActiveOrder, updateOrderStatus, clearActiveOrder } = useActiveOrderStore();
+  const activeOrder = useActiveOrderStore(s => s.activeOrder);
+  const customerId  = useActiveOrderStore(s => s.customerId);
+  const setActiveOrder   = useActiveOrderStore(s => s.setActiveOrder);
+  const updateOrderStatus = useActiveOrderStore(s => s.updateOrderStatus);
+  const clearActiveOrder  = useActiveOrderStore(s => s.clearActiveOrder);
+  const setCustomerId     = useActiveOrderStore(s => s.setCustomerId);
 
-  // On mount (after store hydration): fetch latest orders from API.
-  // - If an active order exists → sync status.
-  // - If nothing active → clear any stale persisted order (e.g. from a previous day).
+  // Reconcile against the server on mount (and whenever the store hydrates).
+  // - server has active order → adopt it (covers cross-device discovery + status drift)
+  // - server has no active order → clear any stale local entry
+  // - server returns customerId → cache it for the discovery channel
+  // - network error → keep whatever we have locally (don't clear on failure)
   useEffect(() => {
-    const checkApi = async () => {
+    const reconcile = async () => {
       try {
-        const res = await fetchMyOrders({ limit: 5 });
-        const active = (res.data.data ?? []).find(o =>
-          ['received', 'preparing', 'ready'].includes(o.status)
-        );
-        if (active) {
-          const stored = useActiveOrderStore.getState().activeOrder;
-          if (stored?.id === active.id) {
-            updateOrderStatus(active.status);
-          } else {
-            setActiveOrder(active);
+        const { data } = await fetchActiveOrder();
+        if (data?.customerId) setCustomerId(data.customerId);
+
+        const server = data?.order ?? null;
+        const local  = useActiveOrderStore.getState().activeOrder;
+
+        if (server) {
+          const localId = local?.id || local?.orderId;
+          if (!local || localId !== server.id) {
+            setActiveOrder(server);
+          } else if (local.status !== server.status) {
+            updateOrderStatus(server.status);
           }
-        } else {
-          // No active order on server — clear any stale persisted order
+        } else if (local) {
           clearActiveOrder();
         }
-      } catch {}
+      } catch (_) { /* offline — keep local */ }
     };
 
     if (useActiveOrderStore.persist.hasHydrated()) {
-      checkApi();
+      reconcile();
     } else {
-      const unsub = useActiveOrderStore.persist.onFinishHydration(checkApi);
+      const unsub = useActiveOrderStore.persist.onFinishHydration(reconcile);
       return () => unsub?.();
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Join the order room on the singleton socket whenever activeOrder changes.
-  // Re-join on reconnect so we never miss events after a network drop.
+  // Per-order Realtime subscription — precise and the primary signal once we
+  // know the orderId. Tears down + re-subscribes whenever the active order
+  // identity changes.
+  const orderKey = activeOrder?.id || activeOrder?.orderId || null;
   useEffect(() => {
-    if (!activeOrder?.id) return;
-    const socket = getSocket();
-
-    const joinRoom = () => socket.emit('join:order', activeOrder.id);
-
-    if (socket.connected) joinRoom();
-    socket.on('connect', joinRoom);
-
-    const handler = ({ orderId, status }) => {
-      if (orderId !== activeOrder.id) return;
-      if (status === 'done' || status === 'cancelled') {
+    if (!orderKey) return undefined;
+    const unsub = subscribeOrderById(orderKey, ({ status, cancelled }) => {
+      if (!status) return;
+      if (cancelled || isTerminalCafeStatus(status)) {
         clearActiveOrder();
       } else {
         updateOrderStatus(status);
       }
-    };
+    });
+    return () => unsub?.();
+  }, [orderKey]);
 
-    socket.on('order:status_updated', handler);
-    return () => {
-      socket.off('connect', joinRoom);
-      socket.off('order:status_updated', handler);
-    };
-  }, [activeOrder?.id]);
+  // Per-customer discovery channel — only active when we DON'T have a local
+  // order. Once a status event arrives, hydrate via the API which will fill in
+  // the active order; the effect above then takes over.
+  // Use a ref to refetch only once per discovery event burst.
+  const discoveryFetching = useRef(false);
+  useEffect(() => {
+    if (orderKey || !customerId) return undefined;
+    const unsub = subscribeOrderCustomer(customerId, async ({ status }) => {
+      if (!status || isTerminalCafeStatus(status)) return;
+      if (discoveryFetching.current) return;
+      discoveryFetching.current = true;
+      try {
+        const { data } = await fetchActiveOrder();
+        if (data?.order) setActiveOrder(data.order);
+      } catch (_) { /* ignore */ }
+      finally { discoveryFetching.current = false; }
+    });
+    return () => unsub?.();
+  }, [orderKey, customerId]);
 
-  // Hide bar if no active order, terminal status, or order was placed before today
-  if (!activeOrder || !ACTIVE_STATUSES.includes(activeOrder.status)) return null;
-  const today = new Date().toDateString();
-  if (activeOrder.createdAt && new Date(activeOrder.createdAt).toDateString() !== today) {
-    clearActiveOrder();
-    return null;
-  }
+  // ── Render gate ───────────────────────────────────────────────────────────
+  if (!activeOrder) return null;
+  const status = activeOrder.status;
+  if (!status || !ACTIVE_STATUSES.includes(status)) return null;
 
-  const isReady = activeOrder.status === 'ready';
+  const isReady = status === 'READY';
+  const { label } = mapCafeStatus(status);
 
   return (
     <TouchableOpacity
       style={[styles.bar, isReady && styles.barReady]}
       activeOpacity={0.85}
-      onPress={() => navigation.navigate('OrderTracking', { orderId: activeOrder.id, order: activeOrder })}
+      onPress={() => navigation.navigate('OrderTracking', {
+        orderId: activeOrder.id || activeOrder.orderId,
+        order:   activeOrder,
+      })}
     >
-      <Ionicons name="restaurant-outline" size={15} color={isReady ? '#22C55E' : COLORS.secondary} />
-      <Text style={styles.ref}>{activeOrder.ref}</Text>
+      <Ionicons
+        name="restaurant-outline"
+        size={15}
+        color={isReady ? '#22C55E' : COLORS.secondary}
+      />
+      <Text style={styles.ref}>#{shortRef(activeOrder)}</Text>
       <Text style={[styles.status, isReady && styles.statusReady]}>
-        {STATUS_LABELS[activeOrder.status]}
+        {label}
       </Text>
-      <Ionicons name="chevron-forward" size={15} color={isReady ? '#22C55E' : COLORS.secondary} style={styles.chevron} />
+      <Ionicons
+        name="chevron-forward"
+        size={15}
+        color={isReady ? '#22C55E' : COLORS.secondary}
+        style={styles.chevron}
+      />
     </TouchableOpacity>
   );
 }

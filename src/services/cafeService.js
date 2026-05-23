@@ -46,6 +46,12 @@ export const retryPayment = (orderId) =>
 export const fetchMyOrders = ({ limit = 15, offset = 0 } = {}) =>
   withAuth(() => cafeApi.get('/orders/mine', { params: { limit, offset } }));
 
+/**
+ * GET /orders/active — most-recent in-flight order, or { order: null }.
+ * Powers the persistent ActiveOrderBar.
+ */
+export const fetchActiveOrder = () => withAuth(() => cafeApi.get('/orders/active'));
+
 /** GET /orders/:id — enriched order detail. */
 export const fetchOrderById = (id) => withAuth(() => cafeApi.get(`/orders/${id}`));
 
