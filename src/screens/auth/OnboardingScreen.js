@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -86,7 +86,7 @@ function Field({ label, optional, children }) {
 }
 
 // ─── Input ────────────────────────────────────────────────────────────────────
-function Input({ value, onChangeText, placeholder, keyboardType, secureTextEntry, trailing }) {
+function Input({ value, onChangeText, placeholder, keyboardType, secureTextEntry, trailing, ...rest }) {
   return (
     <View style={{ position: 'relative' }}>
       <TextInput
@@ -97,6 +97,7 @@ function Input({ value, onChangeText, placeholder, keyboardType, secureTextEntry
         placeholderTextColor={COLORS.textMuted}
         keyboardType={keyboardType || 'default'}
         secureTextEntry={secureTextEntry}
+        {...rest}
       />
       {trailing && (
         <View style={{ position: 'absolute', right: 14, top: 0, bottom: 0, justifyContent: 'center' }}>
@@ -169,6 +170,13 @@ function InfoBanner({ text, icon = 'information-circle-outline' }) {
   );
 }
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function sanitizeName(text) {
+  return text.replace(/  +/g, ' ').slice(0, 30);
+}
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 // ─────────────────────────────────────────────────────────────────────────────
 export default function OnboardingScreen({ route, navigation }) {
   const mobile = route?.params?.mobile || '+91 86494 65959';
@@ -181,35 +189,49 @@ export default function OnboardingScreen({ route, navigation }) {
   const [relationModal, setRelationModal] = useState(false);
 
   // Step 1 – Personal Info
-  const [firstName, setFirstName]     = useState('');
-  const [lastName, setLastName]       = useState('');
+  const [firstName, setFirstName]     = useState(user?.firstName || '');
+  const [lastName, setLastName]       = useState(user?.lastName  || '');
   const [email, setEmail]             = useState('');
+  const [emailStatus, setEmailStatus] = useState('idle'); // 'idle'|'checking'|'valid'|'taken'|'invalid'
+  const [emailVerified,  setEmailVerified]  = useState(false);
+  const [emailOtpSent,   setEmailOtpSent]   = useState(false);
+  const [emailOtpCode,   setEmailOtpCode]   = useState('');
+  const [emailVerifying, setEmailVerifying] = useState(false);
+  const [emailSending,   setEmailSending]   = useState(false);
   const [dob, setDob]                 = useState('');
 
   // Step 2 – Health Profile
   const [fitnessLevel, setFitnessLevel]         = useState('');
   const [healthConditions, setHealthConditions] = useState([]);
+  const [customHealthOptions, setCustomHealthOptions] = useState([]);
   const [hasMeds, setHasMeds]                   = useState(false);
   const [medsText, setMedsText]                 = useState('');
   const [dietary, setDietary]                   = useState('');
   const [sleep, setSleep]                       = useState('');
 
   // Step 3 – Injury History
-  const [injuries, setInjuries]           = useState([]);
-  const [injuryStatus, setInjuryStatus]   = useState({});
-  const [physiotherapy, setPhysiotherapy] = useState(false);
-  const [doctorClear, setDoctorClear]     = useState('');
+  const [injuries, setInjuries]                         = useState([]);
+  const [customInjuryOptions, setCustomInjuryOptions]   = useState([]);
+  const [injuryStatus, setInjuryStatus]                 = useState({});
+  const [physiotherapy, setPhysiotherapy]               = useState(false);
+  const [physiotherapyDetails, setPhysiotherapyDetails] = useState('');
+  const [doctorClear, setDoctorClear]                   = useState('');
 
   // Step 4 – Activity Goals
-  const [goals, setGoals]         = useState([]);
-  const [frequency, setFrequency] = useState('');
+  const [goals, setGoals]               = useState([]);
+  const [customGoalOptions, setCustomGoalOptions] = useState([]);
+  const [showCustomGoal, setShowCustomGoal]       = useState(false);
+  const [customGoalText, setCustomGoalText]       = useState('');
+  const [frequency, setFrequency]       = useState('');
   const [workoutTime, setWorkoutTime]   = useState([]);
   const [activities, setActivities]     = useState([]);
+  const [customActivityOptions, setCustomActivityOptions] = useState([]);
 
   // Step 5 – Emergency Contact
-  const [ecName, setEcName]         = useState('');
-  const [ecRelation, setEcRelation] = useState('');
-  const [ecPhone, setEcPhone]       = useState('');
+  const [ecName, setEcName]               = useState('');
+  const [ecRelation, setEcRelation]       = useState('');
+  const [ecCustomRelation, setEcCustomRelation] = useState('');
+  const [ecPhone, setEcPhone]             = useState('');
 
   // Date picker (Step 1)
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -230,12 +252,63 @@ export default function OnboardingScreen({ route, navigation }) {
   const [optCommunity, setOptCommunity]     = useState(false);
   const [optPromo, setOptPromo]             = useState(false);
 
+  // Validation feedback
+  const [tried, setTried] = useState(false);
+
   const scrollRef = useRef(null);
+
+  // ── Email validation + uniqueness debounce ────────────────────────────────
+  // Format check is INSIDE the timer so no red-X flashes while still typing.
+  useEffect(() => {
+    if (!email) { setEmailStatus('idle'); return; }
+    const timer = setTimeout(async () => {
+      if (!EMAIL_REGEX.test(email)) { setEmailStatus('invalid'); return; }
+      setEmailStatus('checking');
+      try {
+        await api.get('/members/check-email', { params: { email } });
+        setEmailStatus('valid');
+      } catch (err) {
+        setEmailStatus(err.response?.status === 409 ? 'taken' : 'invalid');
+      }
+    }, 700);
+    return () => clearTimeout(timer);
+  }, [email]);
+
+  // Reset verification state whenever the email address changes
+  useEffect(() => {
+    setEmailVerified(false);
+    setEmailOtpSent(false);
+    setEmailOtpCode('');
+  }, [email]);
+
+  // Reset "tried" when user moves to a different step
+  useEffect(() => { setTried(false); }, [step]);
 
   const canNext = () => {
     if (step === 0) {
-      if (!firstName.trim()) return false;
-      if (dob && !isAtLeast16(dob)) return false;
+      if (!firstName.trim() || !lastName.trim()) return false;
+      if (!dob || !isAtLeast16(dob)) return false;
+      return true;
+    }
+    if (step === 1) {
+      return !!(fitnessLevel && dietary && sleep);
+    }
+    if (step === 2) {
+      if (injuries.length === 0) return false;
+      if (!doctorClear) return false;
+      if (physiotherapy && !physiotherapyDetails.trim()) return false;
+      return true;
+    }
+    if (step === 3) {
+      return !!(goals.length > 0 && frequency);
+    }
+    if (step === 4) {
+      const userDigits = mobile.replace(/\D/g, '').slice(-10);
+      if (!ecName.trim()) return false;
+      if (!ecRelation) return false;
+      if (ecRelation === 'Other' && !ecCustomRelation.trim()) return false;
+      if (ecPhone.length !== 10) return false;
+      if (ecPhone === userDigits) return false;
       return true;
     }
     if (step === 5) return consentTerms && consentPrivacy && consentFit;
@@ -276,6 +349,7 @@ export default function OnboardingScreen({ route, navigation }) {
         pastInjuries: injuries,
         injuryStatusMap: injuryStatus,
         hasPhysiotherapy: physiotherapy,
+        physiotherapyDetails: physiotherapy ? physiotherapyDetails : '',
         doctorClearance: doctorClear,
         // Step 4
         fitnessGoals: goals,
@@ -284,8 +358,8 @@ export default function OnboardingScreen({ route, navigation }) {
         activityInterests: activities,
         // Step 5
         ecName,
-        ecRelationship: ecRelation,
-        ecPhone : '+91' + ecPhone,
+        ecRelationship: ecRelation === 'Other' ? ecCustomRelation.trim() || 'Other' : ecRelation,
+        ecPhone: '+91' + ecPhone,
         // Step 6
         consentTerms,
         consentPrivacy,
@@ -308,13 +382,38 @@ export default function OnboardingScreen({ route, navigation }) {
   };
 
   const goBack = () => {
-    if (step > 0) { setStep((s) => s - 1); }
-    else { navigation.goBack(); }
+    if (step > 0) { setStep((s) => s - 1); return; }
+    if (navigation.canGoBack()) { navigation.goBack(); }
+    else { navigation.replace('Login'); }
   };
 
   const toggleChip = (arr, setArr, val) => {
     if (arr.includes(val)) setArr(arr.filter((x) => x !== val));
     else setArr([...arr, val]);
+  };
+
+  const sendOtp = async () => {
+    setEmailSending(true);
+    try {
+      await api.post('/members/send-email-verification', { email });
+      setEmailOtpSent(true);
+    } catch (err) {
+      Alert.alert('Error', err.response?.data?.message || 'Failed to send verification email.');
+    } finally {
+      setEmailSending(false);
+    }
+  };
+
+  const verifyOtp = async () => {
+    setEmailVerifying(true);
+    try {
+      await api.post('/members/verify-email', { email, code: emailOtpCode });
+      setEmailVerified(true);
+    } catch (err) {
+      Alert.alert('Invalid Code', err.response?.data?.message || 'Incorrect or expired code. Please try again.');
+    } finally {
+      setEmailVerifying(false);
+    }
   };
 
   // ── STEP RENDERS ──────────────────────────────────────────────────────────
@@ -325,20 +424,91 @@ export default function OnboardingScreen({ route, navigation }) {
       <Text style={s.stepSub}>Tell us about yourself.</Text>
 
       <Field label="FIRST NAME *">
-        <Input value={firstName} onChangeText={setFirstName} placeholder="e.g. Arjun" />
+        <Input value={firstName} onChangeText={(t) => setFirstName(sanitizeName(t))} placeholder="e.g. Arjun" />
       </Field>
       <Field label="LAST NAME *">
-        <Input value={lastName} onChangeText={setLastName} placeholder="e.g. Sharma" />
+        <Input value={lastName} onChangeText={(t) => setLastName(sanitizeName(t))} placeholder="e.g. Sharma" />
       </Field>
       <Field label="EMAIL ADDRESS">
         <Input
           value={email}
-          onChangeText={setEmail}
+          onChangeText={(t) => setEmail(t.toLowerCase())}
           placeholder="e.g. arjun@email.com"
           keyboardType="email-address"
-          trailing={email.includes('@') && <Ionicons name="checkmark-circle" size={18} color="#22C55E" />}
+          autoCapitalize="none"
+          autoCorrect={false}
+          autoComplete="email"
+          textContentType="emailAddress"
+          trailing={
+            emailStatus === 'checking' ? (
+              <ActivityIndicator size="small" color={COLORS.textMuted} />
+            ) : emailStatus === 'valid' ? (
+              <Ionicons name="checkmark-circle" size={18} color="#22C55E" />
+            ) : (emailStatus === 'taken' || emailStatus === 'invalid') && email.length > 0 ? (
+              <Ionicons name="close-circle" size={18} color="#EF4444" />
+            ) : null
+          }
         />
+        {emailStatus === 'taken' && (
+          <Text style={{ fontSize: 11, color: '#EF4444', marginTop: 6 }}>This email is already registered.</Text>
+        )}
       </Field>
+
+      {/* Email verification — Verify button */}
+      {emailStatus === 'valid' && !emailVerified && !emailOtpSent && (
+        <TouchableOpacity
+          style={[s.ctaBtn, { height: 44, marginTop: -8, marginBottom: 20 }, emailSending && { opacity: 0.6 }]}
+          onPress={sendOtp}
+          disabled={emailSending}
+          activeOpacity={0.85}
+        >
+          {emailSending ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={s.ctaText}>VERIFY EMAIL</Text>
+          )}
+        </TouchableOpacity>
+      )}
+
+      {/* Email verification — OTP entry */}
+      {emailOtpSent && !emailVerified && (
+        <View style={{ marginBottom: 20 }}>
+          <TextInput
+            style={[s.input, { marginBottom: 10 }]}
+            value={emailOtpCode}
+            onChangeText={(t) => setEmailOtpCode(t.replace(/\D/g, '').slice(0, 6))}
+            placeholder="Enter 6-digit code"
+            placeholderTextColor={COLORS.textMuted}
+            keyboardType="number-pad"
+            maxLength={6}
+          />
+          <TouchableOpacity
+            style={[s.ctaBtn, { height: 44, marginBottom: 8 }, (emailVerifying || emailOtpCode.length < 6) && { opacity: 0.4 }]}
+            onPress={verifyOtp}
+            disabled={emailVerifying || emailOtpCode.length < 6}
+            activeOpacity={0.85}
+          >
+            {emailVerifying ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={s.ctaText}>CONFIRM CODE</Text>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity onPress={sendOtp} disabled={emailSending} style={{ alignItems: 'center' }}>
+            <Text style={{ color: emailSending ? COLORS.textMuted : O, fontSize: 13 }}>
+              {emailSending ? 'Sending…' : 'Resend Code'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Email verification — confirmed */}
+      {emailVerified && (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 20, marginTop: -8 }}>
+          <Ionicons name="checkmark-circle" size={20} color="#22C55E" />
+          <Text style={{ color: '#22C55E', fontSize: 14, fontWeight: '700' }}>Email Verified</Text>
+        </View>
+      )}
       <Field label="DATE OF BIRTH *">
         <TouchableOpacity
           style={[s.input, { flexDirection: 'row', alignItems: 'center' }]}
@@ -403,29 +573,53 @@ export default function OnboardingScreen({ route, navigation }) {
       <View style={{ marginBottom: 24 }}>
         <SectionHeader title="PRIMARY HEALTH CONDITIONS" sub="(Select all that apply)" />
         <View style={s.chips}>
-          {HEALTH_CONDITIONS.filter((o) => o !== '+ Custom').map((opt) => {
+          {/* "None" chip — clears all others when selected */}
+          {['None'].concat(HEALTH_CONDITIONS.filter((o) => o !== 'None' && o !== '+ Custom')).map((opt) => {
             const active = healthConditions.includes(opt);
             return (
               <TouchableOpacity
                 key={opt}
                 style={[s.chip, active && s.chipActive]}
-                onPress={() => toggleChip(healthConditions, setHealthConditions, opt)}
+                onPress={() => {
+                  if (opt === 'None') {
+                    setHealthConditions(active ? [] : ['None']);
+                    setCustomHealthOptions([]);
+                  } else {
+                    const withoutNone = healthConditions.filter((x) => x !== 'None');
+                    if (withoutNone.includes(opt)) {
+                      setHealthConditions(withoutNone.filter((x) => x !== opt));
+                    } else {
+                      setHealthConditions([...withoutNone, opt]);
+                    }
+                  }
+                }}
                 activeOpacity={0.8}
               >
                 <Text style={[s.chipText, active && s.chipTextActive]}>{opt}</Text>
               </TouchableOpacity>
             );
           })}
-          {healthConditions.filter((o) => !HEALTH_CONDITIONS.includes(o)).map((custom) => (
-            <TouchableOpacity
-              key={custom}
-              style={[s.chip, s.chipActive]}
-              onPress={() => setHealthConditions(healthConditions.filter((x) => x !== custom))}
-              activeOpacity={0.8}
-            >
-              <Text style={[s.chipText, s.chipTextActive]}>{custom}  ✕</Text>
-            </TouchableOpacity>
-          ))}
+          {/* Custom options — toggle like regular chips */}
+          {customHealthOptions.map((custom) => {
+            const active = healthConditions.includes(custom);
+            return (
+              <TouchableOpacity
+                key={custom}
+                style={[s.chip, active && s.chipActive]}
+                onPress={() => {
+                  const withoutNone = healthConditions.filter((x) => x !== 'None');
+                  if (withoutNone.includes(custom)) {
+                    setHealthConditions(withoutNone.filter((x) => x !== custom));
+                  } else {
+                    setHealthConditions([...withoutNone, custom]);
+                  }
+                }}
+                activeOpacity={0.8}
+              >
+                <Text style={[s.chipText, active && s.chipTextActive]}>{custom}</Text>
+              </TouchableOpacity>
+            );
+          })}
           <TouchableOpacity
             style={[s.chip, showCustomHealth && s.chipActive]}
             onPress={() => { setShowCustomHealth((v) => !v); setCustomHealthText(''); }}
@@ -439,7 +633,7 @@ export default function OnboardingScreen({ route, navigation }) {
             <TextInput
               style={[s.input, { flex: 1, paddingVertical: 10 }]}
               value={customHealthText}
-              onChangeText={setCustomHealthText}
+              onChangeText={(t) => setCustomHealthText(sanitizeName(t))}
               placeholder="e.g. Thyroid, PCOS…"
               placeholderTextColor={COLORS.textMuted}
               autoFocus
@@ -448,8 +642,10 @@ export default function OnboardingScreen({ route, navigation }) {
               style={[s.chip, s.chipActive, { paddingHorizontal: 18, alignSelf: 'center' }]}
               onPress={() => {
                 const t = customHealthText.trim();
-                if (t && !healthConditions.includes(t)) {
-                  setHealthConditions([...healthConditions, t]);
+                if (t && !customHealthOptions.includes(t)) {
+                  setCustomHealthOptions([...customHealthOptions, t]);
+                  const withoutNone = healthConditions.filter((x) => x !== 'None');
+                  setHealthConditions([...withoutNone, t]);
                 }
                 setCustomHealthText('');
                 setShowCustomHealth(false);
@@ -526,32 +722,58 @@ export default function OnboardingScreen({ route, navigation }) {
       <View style={{ marginBottom: 24 }}>
         <Text style={[s.label, { marginBottom: 12 }]}>PAST INJURIES</Text>
         <View style={s.chips}>
-          {PAST_INJURIES.filter((o) => o !== '+ Custom').map((opt) => {
+          {/* "None" first, then regular options */}
+          {['None'].concat(PAST_INJURIES.filter((o) => o !== 'None' && o !== '+ Custom')).map((opt) => {
             const active = injuries.includes(opt);
             return (
               <TouchableOpacity
                 key={opt}
                 style={[s.chip, active && s.chipActive]}
-                onPress={() => toggleChip(injuries, setInjuries, opt)}
+                onPress={() => {
+                  if (opt === 'None') {
+                    if (active) {
+                      setInjuries([]);
+                    } else {
+                      setInjuries(['None']);
+                      setInjuryStatus({});
+                      setCustomInjuryOptions([]);
+                    }
+                  } else {
+                    const withoutNone = injuries.filter((x) => x !== 'None');
+                    if (withoutNone.includes(opt)) {
+                      setInjuries(withoutNone.filter((x) => x !== opt));
+                    } else {
+                      setInjuries([...withoutNone, opt]);
+                    }
+                  }
+                }}
                 activeOpacity={0.8}
               >
                 <Text style={[s.chipText, active && s.chipTextActive]}>{opt}</Text>
               </TouchableOpacity>
             );
           })}
-          {injuries.filter((o) => !PAST_INJURIES.includes(o)).map((custom) => (
-            <TouchableOpacity
-              key={custom}
-              style={[s.chip, s.chipActive]}
-              onPress={() => {
-                setInjuries(injuries.filter((x) => x !== custom));
-                setInjuryStatus((prev) => { const n = { ...prev }; delete n[custom]; return n; });
-              }}
-              activeOpacity={0.8}
-            >
-              <Text style={[s.chipText, s.chipTextActive]}>{custom}  ✕</Text>
-            </TouchableOpacity>
-          ))}
+          {/* Custom injury chips — toggle like regular chips */}
+          {customInjuryOptions.map((custom) => {
+            const active = injuries.includes(custom);
+            return (
+              <TouchableOpacity
+                key={custom}
+                style={[s.chip, active && s.chipActive]}
+                onPress={() => {
+                  const withoutNone = injuries.filter((x) => x !== 'None');
+                  if (withoutNone.includes(custom)) {
+                    setInjuries(withoutNone.filter((x) => x !== custom));
+                  } else {
+                    setInjuries([...withoutNone, custom]);
+                  }
+                }}
+                activeOpacity={0.8}
+              >
+                <Text style={[s.chipText, active && s.chipTextActive]}>{custom}</Text>
+              </TouchableOpacity>
+            );
+          })}
           <TouchableOpacity
             style={[s.chip, showCustomInjury && s.chipActive]}
             onPress={() => { setShowCustomInjury((v) => !v); setCustomInjuryText(''); }}
@@ -565,7 +787,7 @@ export default function OnboardingScreen({ route, navigation }) {
             <TextInput
               style={[s.input, { flex: 1, paddingVertical: 10 }]}
               value={customInjuryText}
-              onChangeText={setCustomInjuryText}
+              onChangeText={(t) => setCustomInjuryText(sanitizeName(t))}
               placeholder="e.g. Torn ACL, Rotator Cuff…"
               placeholderTextColor={COLORS.textMuted}
               autoFocus
@@ -574,8 +796,10 @@ export default function OnboardingScreen({ route, navigation }) {
               style={[s.chip, s.chipActive, { paddingHorizontal: 18, alignSelf: 'center' }]}
               onPress={() => {
                 const t = customInjuryText.trim();
-                if (t && !injuries.includes(t)) {
-                  setInjuries([...injuries, t]);
+                if (t && !customInjuryOptions.includes(t)) {
+                  setCustomInjuryOptions([...customInjuryOptions, t]);
+                  const withoutNone = injuries.filter((x) => x !== 'None');
+                  setInjuries([...withoutNone, t]);
                 }
                 setCustomInjuryText('');
                 setShowCustomInjury(false);
@@ -626,6 +850,16 @@ export default function OnboardingScreen({ route, navigation }) {
             trackColor={{ false: B, true: COLORS.orangeLight }}
           />
         </View>
+        {physiotherapy && (
+          <TextInput
+            style={[s.input, { height: 80, textAlignVertical: 'top', marginTop: 10 }]}
+            value={physiotherapyDetails}
+            onChangeText={setPhysiotherapyDetails}
+            placeholder="Describe your physiotherapy / rehabilitation details…"
+            placeholderTextColor={COLORS.textMuted}
+            multiline
+          />
+        )}
       </View>
 
       <View style={{ marginBottom: 24 }}>
@@ -656,7 +890,7 @@ export default function OnboardingScreen({ route, navigation }) {
       <View style={{ marginBottom: 24 }}>
         <Text style={s.sectionTitle}>PRIMARY FITNESS GOALS</Text>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 12 }}>
-          {FITNESS_GOALS.map((goal) => {
+          {FITNESS_GOALS.filter((g) => g.id !== 'custom').map((goal) => {
             const active = goals.includes(goal.id);
             return (
               <TouchableOpacity
@@ -675,7 +909,62 @@ export default function OnboardingScreen({ route, navigation }) {
               </TouchableOpacity>
             );
           })}
+          {/* Custom goal cards — toggle like regular cards */}
+          {customGoalOptions.map((customLabel) => {
+            const active = goals.includes(customLabel);
+            return (
+              <TouchableOpacity
+                key={customLabel}
+                style={[s.goalCard, active && s.goalCardActive]}
+                onPress={() => toggleChip(goals, setGoals, customLabel)}
+                activeOpacity={0.8}
+              >
+                {active && (
+                  <View style={s.goalCheck}>
+                    <Ionicons name="checkmark" size={10} color="#fff" />
+                  </View>
+                )}
+                <Text style={{ fontSize: 22, marginBottom: 6 }}>✏️</Text>
+                <Text style={s.goalLabel}>{customLabel}</Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
+        {/* "+ Custom" toggle button */}
+        <TouchableOpacity
+          style={[s.chip, showCustomGoal && s.chipActive, { marginTop: 12, alignSelf: 'flex-start' }]}
+          onPress={() => { setShowCustomGoal((v) => !v); setCustomGoalText(''); }}
+          activeOpacity={0.8}
+        >
+          <Text style={[s.chipText, showCustomGoal && s.chipTextActive]}>+ Custom Goal</Text>
+        </TouchableOpacity>
+        {showCustomGoal && (
+          <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+            <TextInput
+              style={[s.input, { flex: 1, paddingVertical: 10 }]}
+              value={customGoalText}
+              onChangeText={(t) => setCustomGoalText(sanitizeName(t))}
+              placeholder="e.g. Marathon prep, Rehabilitation…"
+              placeholderTextColor={COLORS.textMuted}
+              autoFocus
+            />
+            <TouchableOpacity
+              style={[s.chip, s.chipActive, { paddingHorizontal: 18, alignSelf: 'center' }]}
+              onPress={() => {
+                const t = customGoalText.trim();
+                if (t && !customGoalOptions.includes(t)) {
+                  setCustomGoalOptions([...customGoalOptions, t]);
+                  setGoals([...goals, t]);
+                }
+                setCustomGoalText('');
+                setShowCustomGoal(false);
+              }}
+              activeOpacity={0.8}
+            >
+              <Text style={[s.chipText, s.chipTextActive]}>Add</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
 
       <View style={{ marginBottom: 24 }}>
@@ -699,15 +988,22 @@ export default function OnboardingScreen({ route, navigation }) {
       </View>
 
       <View style={{ marginBottom: 24 }}>
-        <Text style={s.sectionTitle}>PREFERRED WORKOUT TIME</Text>
-        <View style={[s.chips, { marginTop: 12 }]}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <Text style={s.sectionTitle}>PREFERRED WORKOUT TIME</Text>
+          <Text style={{ fontSize: 10, color: COLORS.textMuted }}>Max 3</Text>
+        </View>
+        <View style={s.chips}>
           {WORKOUT_TIMES.map((wt) => {
             const active = workoutTime.includes(wt.id);
+            const maxed = !active && workoutTime.length >= 3;
             return (
               <TouchableOpacity
                 key={wt.id}
-                style={[s.chip, active && s.chipActive]}
-                onPress={() => toggleChip(workoutTime, setWorkoutTime, wt.id)}
+                style={[s.chip, active && s.chipActive, maxed && { opacity: 0.4 }]}
+                onPress={() => {
+                  if (maxed) return;
+                  toggleChip(workoutTime, setWorkoutTime, wt.id);
+                }}
                 activeOpacity={0.8}
               >
                 <Text style={[s.chipText, active && s.chipTextActive]}>{wt.label}</Text>
@@ -733,18 +1029,20 @@ export default function OnboardingScreen({ route, navigation }) {
               </TouchableOpacity>
             );
           })}
-          {activities
-            .filter((id) => !ACTIVITY_INTERESTS.find((a) => a.id === id))
-            .map((custom) => (
+          {/* Custom activity chips — toggle like regular chips */}
+          {customActivityOptions.map((custom) => {
+            const active = activities.includes(custom);
+            return (
               <TouchableOpacity
                 key={custom}
-                style={[s.chip, s.chipActive]}
-                onPress={() => setActivities(activities.filter((x) => x !== custom))}
+                style={[s.chip, active && s.chipActive]}
+                onPress={() => toggleChip(activities, setActivities, custom)}
                 activeOpacity={0.8}
               >
-                <Text style={[s.chipText, s.chipTextActive]}>{custom}  ✕</Text>
+                <Text style={[s.chipText, active && s.chipTextActive]}>{custom}</Text>
               </TouchableOpacity>
-            ))}
+            );
+          })}
           <TouchableOpacity
             style={[s.chip, showCustomActivity && s.chipActive]}
             onPress={() => { setShowCustomActivity((v) => !v); setCustomActivityText(''); }}
@@ -758,7 +1056,7 @@ export default function OnboardingScreen({ route, navigation }) {
             <TextInput
               style={[s.input, { flex: 1, paddingVertical: 10 }]}
               value={customActivityText}
-              onChangeText={setCustomActivityText}
+              onChangeText={(t) => setCustomActivityText(sanitizeName(t))}
               placeholder="e.g. Calisthenics, Swimming…"
               placeholderTextColor={COLORS.textMuted}
               autoFocus
@@ -767,7 +1065,8 @@ export default function OnboardingScreen({ route, navigation }) {
               style={[s.chip, s.chipActive, { paddingHorizontal: 18, alignSelf: 'center' }]}
               onPress={() => {
                 const t = customActivityText.trim();
-                if (t && !activities.includes(t)) {
+                if (t && !customActivityOptions.includes(t)) {
+                  setCustomActivityOptions([...customActivityOptions, t]);
                   setActivities([...activities, t]);
                 }
                 setCustomActivityText('');
@@ -783,64 +1082,88 @@ export default function OnboardingScreen({ route, navigation }) {
     </View>
   );
 
-  const renderStep5 = () => (
-    <View>
-      <Text style={s.stepTitle}>Emergency Contact</Text>
-      <Text style={s.stepSub}>In case we need to reach someone for you.</Text>
+  const renderStep5 = () => {
+    const userDigits = mobile.replace(/\D/g, '').slice(-10);
+    const phoneMatchesUser = ecPhone.length === 10 && ecPhone === userDigits;
+    return (
+      <View>
+        <Text style={s.stepTitle}>Emergency Contact</Text>
+        <Text style={s.stepSub}>In case we need to reach someone for you.</Text>
 
-      <Field label="CONTACT NAME *">
-        <Input value={ecName} onChangeText={setEcName} placeholder="e.g. Priya Sharma" />
-      </Field>
+        <Field label="CONTACT NAME *">
+          <Input value={ecName} onChangeText={(t) => setEcName(sanitizeName(t))} placeholder="e.g. Priya Sharma" />
+        </Field>
 
-      <Field label="RELATIONSHIP *">
-        <TouchableOpacity style={[s.input, { flexDirection: 'row', alignItems: 'center' }]} onPress={() => setRelationModal(true)}>
-          <Text style={{ flex: 1, color: ecRelation ? COLORS.white : COLORS.textMuted, fontSize: 15 }}>
-            {ecRelation || 'Select relationship'}
-          </Text>
-          <Ionicons name="chevron-down" size={18} color={COLORS.textMuted} />
-        </TouchableOpacity>
-      </Field>
+        <Field label="RELATIONSHIP *">
+          <TouchableOpacity style={[s.input, { flexDirection: 'row', alignItems: 'center' }]} onPress={() => setRelationModal(true)}>
+            <Text style={{ flex: 1, color: ecRelation ? COLORS.white : COLORS.textMuted, fontSize: 15 }}>
+              {ecRelation === 'Other' && ecCustomRelation.trim()
+                ? ecCustomRelation.trim()
+                : ecRelation || 'Select relationship'}
+            </Text>
+            <Ionicons name="chevron-down" size={18} color={COLORS.textMuted} />
+          </TouchableOpacity>
+          {ecRelation === 'Other' && (
+            <TextInput
+              style={[s.input, { marginTop: 10 }]}
+              value={ecCustomRelation}
+              onChangeText={(t) => setEcCustomRelation(sanitizeName(t))}
+              placeholder="Specify relationship…"
+              placeholderTextColor={COLORS.textMuted}
+              autoFocus
+            />
+          )}
+        </Field>
 
-      <Field label="CONTACT PHONE *">
-        <View style={{ flexDirection: 'row', gap: 10 }}>
-          <View style={[s.input, { width: 64, alignItems: 'center', justifyContent: 'center' }]}>
-            <Text style={{ color: COLORS.white, fontWeight: '600' }}>+91</Text>
+        <Field label="CONTACT PHONE *">
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            <View style={[s.input, { width: 64, alignItems: 'center', justifyContent: 'center' }]}>
+              <Text style={{ color: COLORS.white, fontWeight: '600' }}>+91</Text>
+            </View>
+            <TextInput
+              style={[s.input, { flex: 1, borderColor: phoneMatchesUser ? '#EF4444' : COLORS.border }]}
+              value={ecPhone}
+              onChangeText={setEcPhone}
+              placeholder="Enter 10-digit"
+              placeholderTextColor={COLORS.textMuted}
+              keyboardType="phone-pad"
+              maxLength={10}
+            />
           </View>
-          <TextInput
-            style={[s.input, { flex: 1 }]}
-            value={ecPhone}
-            onChangeText={setEcPhone}
-            placeholder="Enter 10-digit"
-            placeholderTextColor={COLORS.textMuted}
-            keyboardType="phone-pad"
-            maxLength={10}
-          />
-        </View>
-      </Field>
+          {phoneMatchesUser && (
+            <Text style={{ fontSize: 11, color: '#EF4444', marginTop: 6 }}>
+              Emergency contact cannot be your own number.
+            </Text>
+          )}
+        </Field>
 
+        <InfoBanner text="This is only used in case of a medical emergency at the gym." />
 
-      <InfoBanner text="This is only used in case of a medical emergency at the gym." />
-
-      {/* Relationship Modal */}
-      <Modal visible={relationModal} transparent animationType="slide">
-        <TouchableOpacity style={s.modalOverlay} onPress={() => setRelationModal(false)}>
-          <View style={s.modalSheet}>
-            <Text style={s.modalTitle}>Select Relationship</Text>
-            {RELATIONSHIPS.map((r) => (
-              <TouchableOpacity
-                key={r}
-                style={s.modalOption}
-                onPress={() => { setEcRelation(r); setRelationModal(false); }}
-              >
-                <Text style={{ color: '#fff', fontSize: 16 }}>{r}</Text>
-                {ecRelation === r && <Ionicons name="checkmark" size={18} color={O} />}
-              </TouchableOpacity>
-            ))}
-          </View>
-        </TouchableOpacity>
-      </Modal>
-    </View>
-  );
+        {/* Relationship Modal */}
+        <Modal visible={relationModal} transparent animationType="slide">
+          <TouchableOpacity style={s.modalOverlay} onPress={() => setRelationModal(false)}>
+            <View style={s.modalSheet}>
+              <Text style={s.modalTitle}>Select Relationship</Text>
+              {RELATIONSHIPS.map((r) => (
+                <TouchableOpacity
+                  key={r}
+                  style={s.modalOption}
+                  onPress={() => {
+                    setEcRelation(r);
+                    if (r !== 'Other') setEcCustomRelation('');
+                    setRelationModal(false);
+                  }}
+                >
+                  <Text style={{ color: '#fff', fontSize: 16 }}>{r}</Text>
+                  {ecRelation === r && <Ionicons name="checkmark" size={18} color={O} />}
+                </TouchableOpacity>
+              ))}
+            </View>
+          </TouchableOpacity>
+        </Modal>
+      </View>
+    );
+  };
 
   const renderStep6 = () => (
     <View>
@@ -960,8 +1283,12 @@ export default function OnboardingScreen({ route, navigation }) {
       <View style={s.bottomBar}>
         <TouchableOpacity
           style={[s.ctaBtn, (!canNext() || submitting) && { opacity: 0.4 }]}
-          onPress={goNext}
-          disabled={!canNext() || submitting}
+          onPress={() => {
+            if (!canNext()) { setTried(true); return; }
+            setTried(false);
+            goNext();
+          }}
+          disabled={submitting}
           activeOpacity={0.85}
         >
           {submitting ? (
@@ -975,6 +1302,11 @@ export default function OnboardingScreen({ route, navigation }) {
             </>
           )}
         </TouchableOpacity>
+        {tried && !canNext() && (
+          <Text style={{ color: '#EF4444', fontSize: 12, textAlign: 'center', marginTop: 8 }}>
+            Please fill in all required fields before continuing.
+          </Text>
+        )}
       </View>
     </SafeBottomBar>
   );

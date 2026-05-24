@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   StatusBar, Linking, LayoutAnimation, UIManager, Platform,
-  ActivityIndicator, FlatList, RefreshControl,
+  ActivityIndicator, FlatList, RefreshControl, TextInput,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -15,6 +15,31 @@ import { fetchCommunityPosts, votePost } from '../../services/communityService';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
+// ── Smart search bar ──────────────────────────────────────────────────────────
+function SearchBar({ value, onChangeText, onClear, placeholder }) {
+  return (
+    <View style={styles.searchBar}>
+      <Ionicons name="search-outline" size={15} color={COLORS.textMuted} />
+      <TextInput
+        style={styles.searchInput}
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder || 'Search...'}
+        placeholderTextColor={COLORS.textMuted}
+        autoCapitalize="none"
+        autoCorrect={false}
+        returnKeyType="search"
+        autoFocus
+      />
+      {value.length > 0 && (
+        <TouchableOpacity onPress={onClear} hitSlop={8}>
+          <Ionicons name="close-circle" size={17} color={COLORS.textMuted} />
+        </TouchableOpacity>
+      )}
+    </View>
+  );
 }
 
 const TABS = [
@@ -77,6 +102,24 @@ function CommunityFeedTab({ navigation }) {
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchActive, setSearchActive] = useState(false);
+
+  const filteredPosts = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return posts;
+    const tokens = q.split(/\s+/);
+    return posts.filter((post) => {
+      const hay = [post.body || '', post.author_name || '', post.category || ''].join(' ').toLowerCase();
+      return tokens.every((t) => hay.includes(t));
+    });
+  }, [posts, searchQuery]);
+
+  const toggleSearch = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    if (searchActive) setSearchQuery('');
+    setSearchActive((v) => !v);
+  };
 
   const loadPosts = useCallback(async (pageNum = 1, isRefresh = false) => {
     try {
@@ -275,26 +318,56 @@ function CommunityFeedTab({ navigation }) {
   return (
     <View style={styles.communityFeedContainer}>
       <View style={styles.communitySortRow}>
-        {COMMUNITY_SORT_TABS.map((tab) => (
-          <TouchableOpacity
-            key={tab.key}
-            style={[styles.communitySortTab, sort === tab.key && styles.communitySortTabActive]}
-            onPress={() => setSort(tab.key)}
-          >
-            <Ionicons
-              name={tab.icon}
-              size={15}
-              color={sort === tab.key ? COLORS.secondary : COLORS.textMuted}
-            />
-            <Text style={[styles.communitySortLabel, sort === tab.key && styles.communitySortLabelActive]}>
-              {tab.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          {COMMUNITY_SORT_TABS.map((tab) => (
+            <TouchableOpacity
+              key={tab.key}
+              style={[styles.communitySortTab, sort === tab.key && styles.communitySortTabActive]}
+              onPress={() => setSort(tab.key)}
+            >
+              <Ionicons
+                name={tab.icon}
+                size={15}
+                color={sort === tab.key ? COLORS.secondary : COLORS.textMuted}
+              />
+              <Text style={[styles.communitySortLabel, sort === tab.key && styles.communitySortLabelActive]}>
+                {tab.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        <TouchableOpacity
+          style={[styles.searchIconBtn, searchActive && styles.searchIconBtnActive]}
+          onPress={toggleSearch}
+          hitSlop={8}
+        >
+          <Ionicons
+            name={searchActive ? 'close' : 'search-outline'}
+            size={18}
+            color={searchActive ? COLORS.secondary : COLORS.textMuted}
+          />
+        </TouchableOpacity>
       </View>
 
+      {searchActive && (
+        <View style={{ paddingHorizontal: 20, paddingBottom: 6 }}>
+          <SearchBar
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            onClear={() => setSearchQuery('')}
+            placeholder="Search posts, authors, categories…"
+          />
+          {searchQuery.trim().length > 0 && (
+            <Text style={styles.searchResultCount}>
+              {filteredPosts.length} result{filteredPosts.length !== 1 ? 's' : ''}{' '}
+              for <Text style={{ color: COLORS.secondary }}>"{searchQuery.trim()}"</Text>
+            </Text>
+          )}
+        </View>
+      )}
+
       <FlatList
-        data={posts}
+        data={filteredPosts}
         keyExtractor={(item) => item.id}
         renderItem={renderPost}
         contentContainerStyle={styles.communityListContent}
@@ -327,8 +400,16 @@ function CommunityFeedTab({ navigation }) {
         }
         ListEmptyComponent={
           <View style={styles.communityEmptyState}>
-            <Ionicons name="chatbubbles-outline" size={48} color={COLORS.textMuted} />
-            <Text style={styles.emptyText}>Be the first to post in the community</Text>
+            <Ionicons
+              name={searchQuery.trim() ? 'search-outline' : 'chatbubbles-outline'}
+              size={48}
+              color={COLORS.textMuted}
+            />
+            <Text style={styles.emptyText}>
+              {searchQuery.trim()
+                ? `No posts match "${searchQuery.trim()}"`
+                : 'Be the first to post in the community'}
+            </Text>
           </View>
         }
       />
@@ -455,6 +536,28 @@ function BlogTab({ navigation }) {
   const [nextCursor, setNextCursor] = useState(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchActive, setSearchActive] = useState(false);
+
+  const filteredPosts = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return posts;
+    const tokens = q.split(/\s+/);
+    return posts.filter((post) => {
+      const hay = [
+        post.title || '',
+        (post.tags || []).join(' '),
+        post.authorName || '',
+      ].join(' ').toLowerCase();
+      return tokens.every((t) => hay.includes(t));
+    });
+  }, [posts, searchQuery]);
+
+  const toggleSearch = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    if (searchActive) setSearchQuery('');
+    setSearchActive((v) => !v);
+  };
 
   const loadBlogs = useCallback(async (cursor = null, isRefresh = false) => {
     try {
@@ -554,31 +657,78 @@ function BlogTab({ navigation }) {
   };
 
   return (
-    <FlatList
-      data={posts}
-      keyExtractor={(p) => p.id}
-      renderItem={renderBlogCard}
-      contentContainerStyle={styles.blogListContent}
-      showsVerticalScrollIndicator={false}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={COLORS.secondary} colors={[COLORS.secondary]} />
-      }
-      onEndReached={handleLoadMore}
-      onEndReachedThreshold={0.5}
-      ListHeaderComponent={
-        <TouchableOpacity style={styles.blogViewAllBtn} activeOpacity={0.85} onPress={() => navigation.navigate('BlogList')}>
-          <Text style={styles.blogViewAllText}>View All with Filters</Text>
-          <Ionicons name="arrow-forward" size={14} color={COLORS.secondary} />
+    <View style={{ flex: 1 }}>
+      {/* Blog search row */}
+      <View style={styles.blogSearchRow}>
+        <Text style={styles.blogSearchLabel}>
+          {searchActive && searchQuery.trim()
+            ? `${filteredPosts.length} result${filteredPosts.length !== 1 ? 's' : ''}`
+            : 'Latest Articles'}
+        </Text>
+        <TouchableOpacity
+          style={[styles.searchIconBtn, searchActive && styles.searchIconBtnActive]}
+          onPress={toggleSearch}
+          hitSlop={8}
+        >
+          <Ionicons
+            name={searchActive ? 'close' : 'search-outline'}
+            size={18}
+            color={searchActive ? COLORS.secondary : COLORS.textMuted}
+          />
         </TouchableOpacity>
-      }
-      ListFooterComponent={loadingMore ? <ActivityIndicator size="small" color={COLORS.secondary} style={{ paddingVertical: 16 }} /> : null}
-      ListEmptyComponent={
-        <View style={styles.emptyState}>
-          <Ionicons name="newspaper-outline" size={40} color={COLORS.textMuted} />
-          <Text style={styles.emptyText}>No blog posts yet.</Text>
+      </View>
+
+      {searchActive && (
+        <View style={{ paddingHorizontal: 20, paddingBottom: 6 }}>
+          <SearchBar
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            onClear={() => setSearchQuery('')}
+            placeholder="Search articles, topics, authors…"
+          />
+          {searchQuery.trim().length > 0 && (
+            <Text style={styles.searchResultCount}>
+              {filteredPosts.length} result{filteredPosts.length !== 1 ? 's' : ''}{' '}
+              for <Text style={{ color: COLORS.secondary }}>"{searchQuery.trim()}"</Text>
+            </Text>
+          )}
         </View>
-      }
-    />
+      )}
+
+      <FlatList
+        data={filteredPosts}
+        keyExtractor={(p) => p.id}
+        renderItem={renderBlogCard}
+        contentContainerStyle={styles.blogListContent}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={COLORS.secondary} colors={[COLORS.secondary]} />
+        }
+        onEndReached={!searchQuery.trim() ? handleLoadMore : undefined}
+        onEndReachedThreshold={0.5}
+        ListHeaderComponent={
+          !searchActive ? (
+            <TouchableOpacity style={styles.blogViewAllBtn} activeOpacity={0.85} onPress={() => navigation.navigate('BlogList')}>
+              <Text style={styles.blogViewAllText}>View All with Filters</Text>
+              <Ionicons name="arrow-forward" size={14} color={COLORS.secondary} />
+            </TouchableOpacity>
+          ) : null
+        }
+        ListFooterComponent={loadingMore && !searchQuery.trim() ? <ActivityIndicator size="small" color={COLORS.secondary} style={{ paddingVertical: 16 }} /> : null}
+        ListEmptyComponent={
+          <View style={styles.emptyState}>
+            <Ionicons
+              name={searchQuery.trim() ? 'search-outline' : 'newspaper-outline'}
+              size={40}
+              color={COLORS.textMuted}
+            />
+            <Text style={styles.emptyText}>
+              {searchQuery.trim() ? `No articles match "${searchQuery.trim()}"` : 'No blog posts yet.'}
+            </Text>
+          </View>
+        }
+      />
+    </View>
   );
 }
 
@@ -652,8 +802,32 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   communityFeedContainer: { flex: 1 },
   communitySortRow: {
-    flexDirection: 'row', gap: 8, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8,
   },
+
+  // Search
+  searchIconBtn: {
+    width: 34, height: 34, borderRadius: 17,
+    backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  searchIconBtnActive: { borderColor: COLORS.secondary, backgroundColor: COLORS.secondaryGlow },
+  searchBar: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: COLORS.surface, borderRadius: 12,
+    borderWidth: 1, borderColor: COLORS.secondaryBorder,
+    paddingHorizontal: 12, paddingVertical: 10,
+  },
+  searchInput: { flex: 1, fontSize: 14, color: COLORS.white, padding: 0 },
+  searchResultCount: { fontSize: 11, color: COLORS.textMuted, marginTop: 6, marginLeft: 2 },
+
+  // Blog search row
+  blogSearchRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 20, paddingTop: 10, paddingBottom: 6,
+  },
+  blogSearchLabel: { fontSize: 13, fontWeight: '700', color: COLORS.textSecondary },
   communitySortTab: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     paddingHorizontal: 12, paddingVertical: 7,

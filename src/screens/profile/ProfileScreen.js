@@ -6,8 +6,8 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
-import { membership } from '../../constants/dummyData';
 import SafeBottomBar from '../../components/SafeBottomBar';
+import { fetchMyMembership } from '../../services/membershipService';
 import { useAuthStore } from '../../store/authStore';
 import { useWalletStore } from '../../store/walletStore';
 import { uploadProfilePhoto, removeProfilePhoto } from '../../services/profileService';
@@ -50,10 +50,13 @@ export default function ProfileScreen({ navigation }) {
 
   const { balance, transactions, fetchBalance, fetchTransactions } = useWalletStore();
 
+  const [membershipData, setMembershipData] = useState(null);
+
   useEffect(() => {
     fetchBalance();
     fetchTransactions();
     refreshUser(); // ensure latest profilePhotoUrl + name from server
+    fetchMyMembership().then(setMembershipData).catch(() => setMembershipData(null));
   }, []);
 
   const earned = transactions.reduce((sum, t) =>
@@ -165,8 +168,6 @@ export default function ProfileScreen({ navigation }) {
     );
   };
 
-  console.log('[ProfileScreen] Render' , profilePhoto, { profilePhoto, balance, earned, spent, membership });
-
   return (
     <SafeBottomBar style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#000" />
@@ -207,10 +208,25 @@ export default function ProfileScreen({ navigation }) {
             )}
           </TouchableOpacity>
           <Text style={styles.name}>{user?.fullName || firstName}</Text>
+          {user?.displayId && (
+            <View style={styles.displayIdBadge}>
+              <Text style={styles.displayIdText}>{user.displayId}</Text>
+            </View>
+          )}
           <Text style={styles.phone}>{user?.phone || ''}</Text>
-          <View style={styles.memberBadge}>
-            <Text style={styles.memberBadgeText}>★ Member since {user?.createdAt ? new Date(user.createdAt).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }) : 'BuildGym'}</Text>
-          </View>
+          {membershipData?.membership?.status === 'active' && (() => {
+            const raw = membershipData.membership.startDate ?? membershipData.membership.createdAt;
+            const label = raw
+              ? new Date(raw).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })
+              : null;
+            return (
+              <View style={styles.memberBadge}>
+                <Text style={styles.memberBadgeText}>
+                  ★ Valid from{label ? ` ${label}` : ''}
+                </Text>
+              </View>
+            );
+          })()}
         </View>
 
         {/* Build Coins card */}
@@ -244,16 +260,18 @@ export default function ProfileScreen({ navigation }) {
           </View>
         </View>
 
-        {/* Membership active */}
-        <View style={styles.memActive}>
-          <View style={styles.memActiveLeft}>
-            <View style={styles.greenDot} />
-            <Text style={styles.memActiveText}>
-              {membership?.type || 'ELITE'} membership — Active
-            </Text>
+        {/* Membership active — only rendered when subscription is active */}
+        {membershipData?.membership?.status === 'active' && (
+          <View style={styles.memActive}>
+            <View style={styles.memActiveLeft}>
+              <View style={styles.greenDot} />
+              <Text style={styles.memActiveText}>
+                {(membershipData.plan?.name ?? membershipData.plan?.tier ?? 'Membership').toUpperCase()} — Active
+              </Text>
+            </View>
+            <Text style={styles.memDaysLeft}>{membershipData.daysLeft ?? 0} days left</Text>
           </View>
-          <Text style={styles.memDaysLeft}>{membership?.daysLeft || 128} days left</Text>
-        </View>
+        )}
 
         {/* Menu items */}
         <View style={styles.menuList}>
@@ -399,6 +417,12 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   name: { fontSize: 22, fontWeight: '900', color: '#fff', marginBottom: 4 },
+  displayIdBadge: {
+    borderRadius: 999, paddingHorizontal: 12, paddingVertical: 3,
+    backgroundColor: 'rgba(200,255,0,0.12)', borderWidth: 1, borderColor: 'rgba(200,255,0,0.35)',
+    marginBottom: 6,
+  },
+  displayIdText: { color: COLORS.secondary, fontSize: 11, fontWeight: '800', letterSpacing: 1.5 },
   phone: { fontSize: 13, color: COLORS.textMuted, marginBottom: 10 },
   memberBadge: {
     borderWidth: 1, borderColor: COLORS.secondary + '66', borderRadius: 20,

@@ -178,7 +178,7 @@ export default function HomeScreen({ navigation }) {
         <View style={styles.topBar}>
           <View>
             <Text style={styles.greeting}>{getGreeting()}</Text>
-            <Text style={styles.userName}>{firstName} 💪</Text>
+            <Text style={styles.userName}>{firstName}</Text>
           </View>
           <View style={styles.topActions}>
             <TouchableOpacity

@@ -125,6 +125,7 @@ export const useAuthStore = create((set, get) => ({
       if (!fresh) return;
       const updatedUser = {
         ...user,
+        displayId:       fresh.displayId       ?? user.displayId       ?? null,
         firstName:       fresh.firstName       ?? user.firstName,
         lastName:        fresh.lastName        ?? user.lastName,
         fullName:        fresh.fullName        ?? user.fullName,

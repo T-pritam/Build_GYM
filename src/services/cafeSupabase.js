@@ -21,6 +21,10 @@ export function getCafeSupabase() {
     auth: { persistSession: false, autoRefreshToken: false },
     realtime: { params: { eventsPerSecond: 5 } },
   });
+  // Realtime Authorization is enabled on the cafe project; private channels
+  // require a JWT on the websocket. The anon key is itself a valid anon-role
+  // JWT and matches the RLS policy on realtime.messages (see backend SQL).
+  _client.realtime.setAuth(CAFE_SUPABASE_ANON_KEY);
   return _client;
 }
 
@@ -33,14 +37,18 @@ export function subscribeMenuAvailability(onEvent) {
   const supa = getCafeSupabase();
   if (!supa) return () => {};
   const channel = supa
-    .channel('menu:availability')
+    .channel('menu:availability', { config: { private: true } })
     .on('broadcast', { event: 'ITEM_AVAILABLE' }, ({ payload }) =>
       onEvent?.({ type: 'AVAILABLE', itemId: payload?.itemId, itemIds: payload?.itemIds }))
     .on('broadcast', { event: 'ITEMS_UNAVAILABLE' }, ({ payload }) =>
       onEvent?.({ type: 'UNAVAILABLE', itemIds: payload?.itemIds }))
     .on('broadcast', { event: 'MENU_UPDATED' }, () =>
       onEvent?.({ type: 'REFRESH' }))
-    .subscribe();
+    .subscribe((status, err) => {
+      if (status !== 'SUBSCRIBED') {
+        console.warn('[realtime] menu:availability status:', status, err);
+      }
+    });
   return () => { try { supa.removeChannel(channel); } catch (_) {} };
 }
 
@@ -54,12 +62,16 @@ export function subscribeOrderById(orderId, onEvent) {
   const supa = getCafeSupabase();
   if (!supa || !orderId) return () => {};
   const channel = supa
-    .channel(`orders:order:${orderId}`)
+    .channel(`orders:order:${orderId}`, { config: { private: true } })
     .on('broadcast', { event: 'ORDER_STATUS' }, ({ payload }) =>
       onEvent?.({ status: payload?.status }))
     .on('broadcast', { event: 'ORDER_CANCELLED' }, ({ payload }) =>
       onEvent?.({ status: 'CANCELLED', cancelled: true, reason: payload?.reason }))
-    .subscribe();
+    .subscribe((status, err) => {
+      if (status !== 'SUBSCRIBED') {
+        console.warn('[realtime] orderById status:', status, err);
+      }
+    });
   return () => { try { supa.removeChannel(channel); } catch (_) {} };
 }
 
@@ -73,9 +85,13 @@ export function subscribeOrderCustomer(customerId, onEvent) {
   const supa = getCafeSupabase();
   if (!supa || !customerId) return () => {};
   const channel = supa
-    .channel(`orders:customer:${customerId}`)
+    .channel(`orders:customer:${customerId}`, { config: { private: true } })
     .on('broadcast', { event: 'ORDER_STATUS' }, ({ payload }) =>
       onEvent?.({ orderId: payload?.orderId, status: payload?.status }))
-    .subscribe();
+    .subscribe((status, err) => {
+      if (status !== 'SUBSCRIBED') {
+        console.warn('[realtime] orderCustomer status:', status, err);
+      }
+    });
   return () => { try { supa.removeChannel(channel); } catch (_) {} };
 }

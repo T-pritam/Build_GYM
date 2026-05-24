@@ -51,6 +51,12 @@ export default function HealthEmergencyScreen({ navigation }) {
   const [ecPhone,        setEcPhone]        = useState('');
   const [relPickerOpen,  setRelPickerOpen]  = useState(false);
 
+  // ── "None" for injuries ─────────────────────────────────────────────────
+  const [noInjuries, setNoInjuries] = useState(false);
+
+  // ── Errors ──────────────────────────────────────────────────────────────
+  const [errors, setErrors] = useState({});
+
   // ── Meta ────────────────────────────────────────────────────────────────
   const [original,  setOriginal]  = useState(null);
   const [loading,   setLoading]   = useState(true);
@@ -69,6 +75,7 @@ export default function HealthEmergencyScreen({ navigation }) {
         const en  = data.ecName || '';
         const er  = data.ecRelationship || '';
         const ep  = data.ecPhone || '';
+        const ni  = pi.length === 0 && !!(data.noInjuries ?? false);
 
         setFitnessLevel(fl);
         setHealthConditions(hc);
@@ -76,10 +83,11 @@ export default function HealthEmergencyScreen({ navigation }) {
         setMedicationsText(mt);
         setPastInjuries(pi);
         setInjuryStatusMap(ism);
+        setNoInjuries(ni);
         setEcName(en);
         setEcRelationship(er);
         setEcPhone(ep);
-        setOriginal({ fl, hc: JSON.stringify(hc), hm, mt, pi: JSON.stringify(pi), ism: JSON.stringify(ism), en, er, ep });
+        setOriginal({ fl, hc: JSON.stringify(hc), hm, mt, pi: JSON.stringify(pi), ism: JSON.stringify(ism), ni, en, er, ep });
       })
       .catch(() => setOriginal({}))
       .finally(() => setLoading(false));
@@ -93,6 +101,7 @@ export default function HealthEmergencyScreen({ navigation }) {
       medicationsText           !== original.mt  ||
       JSON.stringify(pastInjuries)     !== original.pi  ||
       JSON.stringify(injuryStatusMap)  !== original.ism ||
+      noInjuries                !== original.ni  ||
       ecName                    !== original.en  ||
       ecRelationship            !== original.er  ||
       ecPhone                   !== original.ep
@@ -135,10 +144,22 @@ export default function HealthEmergencyScreen({ navigation }) {
 
   // ── Save ──────────────────────────────────────────────────────────────────
   const handleSave = useCallback(async () => {
-    if (ecPhone && !/^\+?[\d\s\-()]{7,15}$/.test(ecPhone.trim())) {
-      Alert.alert('Invalid phone', 'Please enter a valid emergency contact phone number.');
+    const errs = {};
+    if (!fitnessLevel) errs.fitnessLevel = 'Please select your fitness level.';
+    if (healthConditions.length === 0) errs.healthConditions = 'Please select at least one option (or "None").';
+    if (!noInjuries && pastInjuries.length === 0) errs.injuries = 'Select "None" if you have no injuries, or add at least one.';
+    if (!ecName.trim()) errs.ecName = 'Emergency contact name is required.';
+    if (!ecRelationship.trim()) errs.ecRelationship = 'Please select a relationship.';
+    if (!ecPhone.trim()) {
+      errs.ecPhone = 'Emergency contact phone is required.';
+    } else if (!/^\d{10}$/.test(ecPhone.trim().replace(/[\s\-+]/g, ''))) {
+      errs.ecPhone = 'Enter a valid 10-digit phone number.';
+    }
+    if (Object.keys(errs).length > 0) {
+      setErrors(errs);
       return;
     }
+    setErrors({});
     setSaving(true);
     try {
       await updateHealthEmergency({
@@ -146,8 +167,9 @@ export default function HealthEmergencyScreen({ navigation }) {
         healthConditions,
         hasMedications,
         medicationsText: hasMedications ? medicationsText : '',
-        pastInjuries,
-        injuryStatusMap,
+        pastInjuries: noInjuries ? [] : pastInjuries,
+        injuryStatusMap: noInjuries ? {} : injuryStatusMap,
+        noInjuries,
         ecName:         ecName.trim(),
         ecRelationship: ecRelationship.trim(),
         ecPhone:        ecPhone.trim(),
@@ -157,8 +179,9 @@ export default function HealthEmergencyScreen({ navigation }) {
         hc: JSON.stringify(healthConditions),
         hm: hasMedications,
         mt: medicationsText,
-        pi: JSON.stringify(pastInjuries),
-        ism: JSON.stringify(injuryStatusMap),
+        pi: JSON.stringify(noInjuries ? [] : pastInjuries),
+        ism: JSON.stringify(noInjuries ? {} : injuryStatusMap),
+        ni: noInjuries,
         en: ecName.trim(),
         er: ecRelationship.trim(),
         ep: ecPhone.trim(),
@@ -169,7 +192,7 @@ export default function HealthEmergencyScreen({ navigation }) {
     } finally {
       setSaving(false);
     }
-  }, [fitnessLevel, healthConditions, hasMedications, medicationsText, pastInjuries, injuryStatusMap, ecName, ecRelationship, ecPhone]);
+  }, [fitnessLevel, healthConditions, hasMedications, medicationsText, pastInjuries, injuryStatusMap, noInjuries, ecName, ecRelationship, ecPhone]);
 
   if (loading) {
     return (
@@ -208,15 +231,15 @@ export default function HealthEmergencyScreen({ navigation }) {
 
         {/* Fitness Level */}
         <View style={s.fieldBlock}>
-          <FieldLabel>FITNESS LEVEL</FieldLabel>
+          <FieldLabel>FITNESS LEVEL <Text style={s.req}>*</Text></FieldLabel>
           <View style={s.chipRow}>
             {FITNESS_LEVELS.map((lvl) => {
               const active = fitnessLevel === lvl;
               return (
                 <TouchableOpacity
                   key={lvl}
-                  style={[s.chip, active && s.chipActive]}
-                  onPress={() => setFitnessLevel(lvl)}
+                  style={[s.chip, active && s.chipActive, errors.fitnessLevel && s.chipError]}
+                  onPress={() => { setFitnessLevel(lvl); setErrors((e) => ({ ...e, fitnessLevel: undefined })); }}
                   activeOpacity={0.75}
                 >
                   <Text style={[s.chipText, active && s.chipTextActive]}>{lvl}</Text>
@@ -224,11 +247,12 @@ export default function HealthEmergencyScreen({ navigation }) {
               );
             })}
           </View>
+          {errors.fitnessLevel && <Text style={s.errorText}>{errors.fitnessLevel}</Text>}
         </View>
 
         {/* Health Conditions */}
         <View style={s.fieldBlock}>
-          <FieldLabel>HEALTH CONDITIONS</FieldLabel>
+          <FieldLabel>HEALTH CONDITIONS <Text style={s.req}>*</Text></FieldLabel>
           <View style={s.chipRow}>
             {HEALTH_CONDITIONS_PRESET.map((cond) => {
               const active = healthConditions.includes(cond);
@@ -261,6 +285,7 @@ export default function HealthEmergencyScreen({ navigation }) {
               <Text style={[s.chipText, { color: COLORS.textMuted }]}> Custom</Text>
             </TouchableOpacity>
           </View>
+          {errors.healthConditions && <Text style={s.errorText}>{errors.healthConditions}</Text>}
         </View>
 
         {/* Medications */}
@@ -301,26 +326,44 @@ export default function HealthEmergencyScreen({ navigation }) {
 
         <View style={s.fieldBlock}>
           <View style={s.injuryHeader}>
-            <FieldLabel>ACTIVE CONCERNS</FieldLabel>
-            <TouchableOpacity
-              style={s.addInjuryBtn}
-              onPress={() =>
-                Alert.prompt('Add Injury', 'Describe the injury or concern', (text) => {
-                  if (text?.trim()) {
-                    setPastInjuries((prev) => [...prev, text.trim()]);
-                    setInjuryStatusMap((prev) => ({ ...prev, [text.trim()]: 'recovering' }));
-                  }
-                }, 'plain-text')
-              }
-            >
-              <Ionicons name="add-circle-outline" size={18} color={COLORS.secondary} />
-              <Text style={s.addInjuryText}>Add</Text>
-            </TouchableOpacity>
+            <FieldLabel>ACTIVE CONCERNS <Text style={s.req}>*</Text></FieldLabel>
+            {!noInjuries && (
+              <TouchableOpacity
+                style={s.addInjuryBtn}
+                onPress={() =>
+                  Alert.prompt('Add Injury', 'Describe the injury or concern', (text) => {
+                    if (text?.trim()) {
+                      setPastInjuries((prev) => [...prev, text.trim()]);
+                      setInjuryStatusMap((prev) => ({ ...prev, [text.trim()]: 'recovering' }));
+                      setErrors((e) => ({ ...e, injuries: undefined }));
+                    }
+                  }, 'plain-text')
+                }
+              >
+                <Ionicons name="add-circle-outline" size={18} color={COLORS.secondary} />
+                <Text style={s.addInjuryText}>Add</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
-          {pastInjuries.length === 0 ? (
-            <Text style={s.emptyNote}>No active concerns added yet.</Text>
-          ) : (
+          {/* None toggle */}
+          <TouchableOpacity
+            style={[s.chip, noInjuries && s.chipActive, { alignSelf: 'flex-start', marginBottom: 10 }]}
+            onPress={() => {
+              const next = !noInjuries;
+              setNoInjuries(next);
+              if (next) { setPastInjuries([]); setInjuryStatusMap({}); }
+              setErrors((e) => ({ ...e, injuries: undefined }));
+            }}
+            activeOpacity={0.75}
+          >
+            <Text style={[s.chipText, noInjuries && s.chipTextActive]}>None</Text>
+            {noInjuries && <Ionicons name="checkmark-circle" size={13} color={COLORS.secondary} style={{ marginLeft: 4 }} />}
+          </TouchableOpacity>
+
+          {!noInjuries && pastInjuries.length === 0 ? (
+            <Text style={s.emptyNote}>No active concerns added yet. Tap "Add" or select "None".</Text>
+          ) : !noInjuries && (
             <View style={s.injuryGrid}>
               {pastInjuries.map((injury) => {
                 const status = injuryStatusMap[injury] || 'recovering';
@@ -366,6 +409,7 @@ export default function HealthEmergencyScreen({ navigation }) {
               })}
             </View>
           )}
+          {errors.injuries && <Text style={s.errorText}>{errors.injuries}</Text>}
         </View>
 
         {/* ══ SECTION 3 — EMERGENCY PROTOCOL ═════════════════════════ */}
@@ -378,22 +422,23 @@ export default function HealthEmergencyScreen({ navigation }) {
         </View>
 
         <View style={s.fieldBlock}>
-          <FieldLabel>CONTACT NAME</FieldLabel>
+          <FieldLabel>CONTACT NAME <Text style={s.req}>*</Text></FieldLabel>
           <TextInput
-            style={s.underlineInput}
+            style={[s.underlineInput, errors.ecName && s.inputError]}
             value={ecName}
-            onChangeText={setEcName}
+            onChangeText={(v) => { setEcName(v); setErrors((e) => ({ ...e, ecName: undefined })); }}
             placeholder="Full name"
             placeholderTextColor={COLORS.textMuted}
             returnKeyType="next"
           />
+          {errors.ecName && <Text style={s.errorText}>{errors.ecName}</Text>}
         </View>
 
         <View style={s.fieldBlock}>
-          <FieldLabel>RELATIONSHIP</FieldLabel>
+          <FieldLabel>RELATIONSHIP <Text style={s.req}>*</Text></FieldLabel>
           <TouchableOpacity
-            style={s.selectRow}
-            onPress={() => setRelPickerOpen(true)}
+            style={[s.selectRow, errors.ecRelationship && s.inputError]}
+            onPress={() => { setRelPickerOpen(true); setErrors((e) => ({ ...e, ecRelationship: undefined })); }}
             activeOpacity={0.8}
           >
             <Text style={[s.selectText, !ecRelationship && { color: COLORS.textMuted }]}>
@@ -401,19 +446,22 @@ export default function HealthEmergencyScreen({ navigation }) {
             </Text>
             <Ionicons name="chevron-down" size={18} color={COLORS.textMuted} />
           </TouchableOpacity>
+          {errors.ecRelationship && <Text style={s.errorText}>{errors.ecRelationship}</Text>}
         </View>
 
         <View style={s.fieldBlock}>
-          <FieldLabel>CONTACT PHONE</FieldLabel>
+          <FieldLabel>CONTACT PHONE <Text style={s.req}>*</Text></FieldLabel>
           <TextInput
-            style={s.underlineInput}
+            style={[s.underlineInput, errors.ecPhone && s.inputError]}
             value={ecPhone}
-            onChangeText={setEcPhone}
-            placeholder="+91 98765 00000"
+            onChangeText={(v) => { setEcPhone(v); setErrors((e) => ({ ...e, ecPhone: undefined })); }}
+            placeholder="10-digit phone number"
             placeholderTextColor={COLORS.textMuted}
             keyboardType="phone-pad"
+            maxLength={10}
             returnKeyType="done"
           />
+          {errors.ecPhone && <Text style={s.errorText}>{errors.ecPhone}</Text>}
         </View>
       </ScrollView>
 
@@ -492,6 +540,10 @@ const s = StyleSheet.create({
   // Field
   fieldBlock: { marginBottom: 24 },
   fieldLabel: { fontSize: 10, fontWeight: '800', color: COLORS.secondary, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 12 },
+  req: { color: '#EF4444' },
+  errorText: { fontSize: 11, color: '#EF4444', marginTop: 4 },
+  chipError: { borderColor: 'rgba(239,68,68,0.5)' },
+  inputError: { borderBottomColor: '#EF4444' },
 
   // Chips
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },

@@ -101,8 +101,12 @@ export default function PersonalDetailsScreen({ navigation }) {
       Alert.alert('Required', 'First and last name cannot be empty.');
       return;
     }
-    if (dob.trim() && !isAtLeast16(dob.trim())) {
-      setDobError('You must be at least 16 years old to register.');
+    if (!dob.trim()) {
+      setDobError('Date of birth is required.');
+      return;
+    }
+    if (!isAtLeast16(dob.trim())) {
+      setDobError('You must be at least 16 years old.');
       return;
     }
     if (isPasswordDirty) {
@@ -222,7 +226,7 @@ export default function PersonalDetailsScreen({ navigation }) {
           </View>
         </Field>
 
-        <Field label="DATE OF BIRTH">
+        <Field label="DATE OF BIRTH" required>
           <View style={s.inputWrap}>
             <TextInput
               style={[s.input, s.inputWithIcon, dobError ? { borderColor: '#EF4444' } : null]}

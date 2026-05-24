@@ -27,10 +27,17 @@ const MONTHS = MONTHS_SHORT;
 // ─── PickerColumn ─────────────────────────────────────────────────────────────
 function PickerColumn({ data, selectedIndex, onIndexChange, width }) {
   const ref = useRef(null);
+  // Prevents the useEffect from firing a second scroll when the user just
+  // tapped an item (the press handler already scrolled).
+  const justPressedRef = useRef(false);
 
   // Scroll to the correct item any time selectedIndex changes (initial mount
   // OR when it is clamped externally, e.g. day 31 → 28 after picking Feb).
   useEffect(() => {
+    if (justPressedRef.current) {
+      justPressedRef.current = false;
+      return;
+    }
     const safe = Math.max(0, Math.min(selectedIndex, data.length - 1));
     if (ref.current && safe >= 0) {
       setTimeout(() => {
@@ -56,6 +63,7 @@ function PickerColumn({ data, selectedIndex, onIndexChange, width }) {
         <TouchableOpacity
           style={{ height: ITEM_H, alignItems: 'center', justifyContent: 'center' }}
           onPress={() => {
+            justPressedRef.current = true;
             try { ref.current?.scrollToIndex({ index, animated: true }); } catch (_) {}
             onIndexChange(index);
           }}
