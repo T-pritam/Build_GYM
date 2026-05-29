@@ -27,3 +27,27 @@ export const requestAccountDeletion = async () => {
   const { data } = await api.post('/customer/request-deletion');
   return data;
 };
+
+/** POST /api/customer/profile/email-change/request — send OTP to new email */
+export const requestEmailChange = async (newEmail) => {
+  const { data } = await api.post('/customer/profile/email-change/request', { newEmail });
+  return data;
+};
+
+/** POST /api/customer/profile/email-change/verify — verify OTP and commit email change */
+export const verifyEmailChange = async (code) => {
+  const { data } = await api.post('/customer/profile/email-change/verify', { code });
+  return data;
+};
+
+/** POST /api/auth/set-password — first-time password set (no current password needed) */
+export const setPassword = async (newPassword, confirmPassword) => {
+  const { data } = await api.post('/auth/set-password', { newPassword, confirmPassword });
+  return data;
+};
+
+/** POST /api/auth/change-password — change existing password */
+export const changePassword = async (currentPassword, newPassword, confirmPassword) => {
+  const { data } = await api.post('/auth/change-password', { currentPassword, newPassword, confirmPassword });
+  return data;
+};

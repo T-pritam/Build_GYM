@@ -67,3 +67,36 @@ export const resendOTP = async (phone, context = 'member') => {
   const { data } = await publicClient.post('/otp/resend', { phone, context });
   return data;
 };
+
+/**
+ * POST /api/auth/password-login
+ * Login with phone/email + password. Returns same shape as verifyOTP.
+ * @param {string} identifier - 10-digit phone or email address
+ * @param {string} password
+ */
+export const passwordLogin = async (identifier, password) => {
+  const { data } = await publicClient.post('/auth/password-login', { identifier, password });
+  return data.data; // { accessToken, refreshToken, user }
+};
+
+/**
+ * POST /api/auth/forgot-password/send
+ * Sends a password-reset OTP to the user's registered phone + email.
+ * @param {string} identifier - phone or email
+ */
+export const forgotPasswordSend = async (identifier) => {
+  const { data } = await publicClient.post('/auth/forgot-password/send', { identifier });
+  return data;
+};
+
+/**
+ * POST /api/auth/forgot-password/verify
+ * Verifies OTP and sets the new password.
+ * @param {string} identifier - same phone/email used in send
+ * @param {string} code       - 6-digit OTP
+ * @param {string} newPassword
+ */
+export const forgotPasswordVerify = async (identifier, code, newPassword) => {
+  const { data } = await publicClient.post('/auth/forgot-password/verify', { identifier, code, newPassword });
+  return data;
+};

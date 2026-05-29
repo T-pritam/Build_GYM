@@ -99,6 +99,17 @@ export default function OTPScreen({ navigation, route }) {
           .catch(() => { });
       }).catch(() => { });
 
+      // If user has no password yet, require them to set one first (mandatory)
+      if (!user.hasPassword) {
+        navigation.dispatch(
+          CommonActions.reset({
+            index: 0,
+            routes: [{ name: 'SetPassword', params: { user: userWithPhone } }],
+          })
+        );
+        return;
+      }
+
       // Route based on onboarding status
       if (user.onboardingCompleted) {
         navigation.dispatch(
