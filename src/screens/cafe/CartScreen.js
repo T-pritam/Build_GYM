@@ -13,6 +13,8 @@ import { subscribeMenuAvailability } from '../../services/cafeSupabase';
 import { useActiveOrderStore } from '../../store/activeOrderStore';
 import { useAuthStore } from '../../store/authStore';
 
+const fmtPrice = (v) => { const n = Number(v) || 0; return n % 1 === 0 ? String(n) : n.toFixed(2); };
+
 export default function CartScreen({ navigation }) {
   const { items, addItem, removeItem, clearCart } = useCartStore();
   const markUnavailable = useCartStore(s => s.markUnavailable);
@@ -24,15 +26,18 @@ export default function CartScreen({ navigation }) {
   const [rewardBalance, setRewardBalance]   = useState(0);
   const [pointValue, setPointValue]         = useState(1);
   const [redeemPercent, setRedeemPercent]   = useState(20);
+  const [gstRate, setGstRate]               = useState(0);
   const [rewardPointsApplied, setRewardPointsApplied] = useState(0);
 
   const totalRupees = cartTotal(items);
   const anyUnavailable = hasUnavailableItems(items);
   const totalQty = items.reduce((s, c) => s + c.qty, 0);
 
-  const maxRedeemablePoints = Math.floor((totalRupees * redeemPercent / 100) / pointValue);
-  const rewardDiscount = Math.min(rewardPointsApplied * pointValue, totalRupees);
-  const payableTotal   = Math.max(0, totalRupees - rewardDiscount);
+  const gstAmount   = Math.round(totalRupees * gstRate * 100) / 100;
+  const billWithGst = totalRupees + gstAmount;
+  const maxRedeemablePoints = Math.floor((billWithGst * redeemPercent / 100) / pointValue);
+  const rewardDiscount = Math.min(rewardPointsApplied * pointValue, billWithGst);
+  const payableTotal   = Math.max(0, billWithGst - rewardDiscount);
 
   // Keep cart in sync with live availability while on this screen
   useEffect(() => {
@@ -52,6 +57,7 @@ export default function CartScreen({ navigation }) {
         setRewardBalance(d.points ?? 0);
         setPointValue(d.pointValue || 1);
         setRedeemPercent(d.redeemPercent ?? 20);
+        setGstRate(d.gstRate ?? 0);
       })
       .catch(() => {});
   }, []);
@@ -162,7 +168,7 @@ export default function CartScreen({ navigation }) {
         <View style={styles.balanceDivider} />
         <View style={styles.balanceCol}>
           <Text style={styles.balanceLabel}>Subtotal</Text>
-          <Text style={[styles.balanceValue, { color: COLORS.secondary }]}>₹{totalRupees}</Text>
+          <Text style={[styles.balanceValue, { color: COLORS.secondary }]}>₹{fmtPrice(totalRupees)}</Text>
         </View>
         <View style={styles.balanceDivider} />
         <View style={styles.balanceCol}>
@@ -208,11 +214,11 @@ export default function CartScreen({ navigation }) {
                   {item.variationName ? (
                     <Text style={styles.cartItemVariation}>{item.variationName}</Text>
                   ) : null}
-                  {item.modifiers?.length > 0 ? (
-                    <Text style={styles.cartItemAddons}>
-                      {item.modifiers.map((a) => a.name).join(', ')}
+                  {item.modifiers?.length > 0 ? item.modifiers.map((a, idx) => (
+                    <Text key={idx} style={styles.cartItemAddons}>
+                      {a.name}{a.price > 0 ? ` +₹${fmtPrice(a.price)}` : ''}
                     </Text>
-                  ) : null}
+                  )) : null}
                   <Text style={styles.cartItemPrice}>
                     ₹{Number(item.price ?? 0)} × {item.qty} ={' '}
                     <Text style={{ color: COLORS.secondary }}>₹{Number(item.price ?? 0) * item.qty}</Text>

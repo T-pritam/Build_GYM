@@ -14,12 +14,12 @@ import { fetchAnnouncements } from '../../services/announcementService';
 import { fetchTrainers, fetchMyTrainer, fetchTrialSessions, confirmTrialSession, rejectTrialSession } from '../../services/trainerService';
 import { getSocket } from '../../services/socketService';
 import { fetchMyMembership, resumeMembershipPause } from '../../services/membershipService';
-import { fetchGymOccupancy } from '../../services/gymService';
+import { fetchGymPresence } from '../../services/gymService';
 import { fetchTodaysPlan, fetchStreak } from '../../services/workoutService';
 import { getMyLeaderboardStats } from '../../services/leaderboardService';
 
-// How often the homepage refreshes the live gym occupancy count.
-const OCCUPANCY_POLL_MS = 10 * 60 * 1000; // 10 minutes
+// Fallback poll interval for gym presence count (socket is the primary update path).
+const OCCUPANCY_POLL_MS = 60 * 1000; // 60 seconds
 
 const RECEPTION_PHONE = '+919876543210';
 
@@ -103,7 +103,7 @@ export default function HomeScreen({ navigation }) {
       getMyLeaderboardStats()
         .then((data) => setLeaderboardStats(data || null))
         .catch(() => setLeaderboardStats(null)),
-      fetchGymOccupancy()
+      fetchGymPresence()
         .then((data) => setOccupancy(data || null))
         .catch(() => setOccupancy(null)),
     ]);
@@ -111,14 +111,20 @@ export default function HomeScreen({ navigation }) {
 
   useEffect(() => { loadContent(); }, [loadContent]);
 
-  // Poll the live gym occupancy count every 10 minutes
+  // Real-time gym presence updates via socket; poll every 60s as fallback.
   useEffect(() => {
+    const socket = getSocket();
+    const handler = ({ count }) => setOccupancy((prev) => ({ ...prev, count }));
+    socket.on('gym:presence_updated', handler);
+
     occupancyTimer.current = setInterval(() => {
-      fetchGymOccupancy()
+      fetchGymPresence()
         .then((data) => setOccupancy(data || null))
         .catch(() => {});
     }, OCCUPANCY_POLL_MS);
+
     return () => {
+      socket.off('gym:presence_updated', handler);
       if (occupancyTimer.current) clearInterval(occupancyTimer.current);
     };
   }, []);

@@ -10,6 +10,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../constants/colors';
 
+const fmtPrice = (v) => { const n = Number(v) || 0; return n % 1 === 0 ? String(n) : n.toFixed(2); };
+
 export default function AddonPickerModal({
   visible,
   itemName,
@@ -90,7 +92,7 @@ export default function AddonPickerModal({
                   color={isOn ? COLORS.secondary : COLORS.textMuted}
                 />
                 <Text style={styles.addonName}>{addon.name}</Text>
-                <Text style={styles.addonPrice}>+₹{addon.price.toFixed(0)}</Text>
+                <Text style={styles.addonPrice}>+₹{fmtPrice(addon.price)}</Text>
               </TouchableOpacity>
             );
           })}
@@ -101,7 +103,7 @@ export default function AddonPickerModal({
             <Text style={styles.skipText}>No extras</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.addBtn} onPress={handleConfirm}>
-            <Text style={styles.addText}>Add · ₹{total.toFixed(0)}</Text>
+            <Text style={styles.addText}>Add · ₹{fmtPrice(total)}</Text>
           </TouchableOpacity>
         </View>
       </View>

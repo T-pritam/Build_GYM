@@ -96,13 +96,20 @@ export default function CommunityFeedScreen({ navigation }) {
     setLoadingMore(false);
   };
 
-  const handleVote = async (postId, type) => {
+  const voteTimersRef = useRef({});
+  const prevPostsRef = useRef({});
+
+  const handleVote = (postId, type) => {
     const idx = posts.findIndex((p) => p.id === postId);
     if (idx === -1) return;
     const post = posts[idx];
-    const prev = { upvotes: post.upvotes, downvotes: post.downvotes, user_vote: post.user_vote };
 
-    // Optimistic update
+    // Capture pre-optimistic state only at start of each debounce sequence
+    if (!voteTimersRef.current[postId]) {
+      prevPostsRef.current[postId] = { upvotes: post.upvotes, downvotes: post.downvotes, user_vote: post.user_vote };
+    }
+
+    // Optimistic update (immediate)
     const updated = [...posts];
     if (post.user_vote === type) {
       updated[idx] = {
@@ -115,23 +122,26 @@ export default function CommunityFeedScreen({ navigation }) {
       updated[idx] = {
         ...post,
         user_vote: type,
-        upvotes: type === 'up' ? post.upvotes + 1 + (post.user_vote === 'down' ? 0 : 0) : post.upvotes - (post.user_vote === 'up' ? 1 : 0),
+        upvotes: type === 'up' ? post.upvotes + 1 : post.upvotes - (post.user_vote === 'up' ? 1 : 0),
         downvotes: type === 'down' ? post.downvotes + 1 : post.downvotes - (post.user_vote === 'down' ? 1 : 0),
       };
     }
     setPosts(updated);
 
-    try {
-      const result = await votePost(postId, type);
-      const refreshed = [...posts];
-      refreshed[idx] = { ...posts[idx], ...result, user_vote: result.upvotes > prev.upvotes ? type : (result.downvotes > prev.downvotes ? type : null) };
-      // Simplify: just re-fetch to get accurate state
-    } catch {
-      // Revert on error
-      const reverted = [...posts];
-      reverted[idx] = { ...posts[idx], ...prev };
-      setPosts(reverted);
-    }
+    // Debounce the API call — only the last click within 1 s fires
+    clearTimeout(voteTimersRef.current[postId]);
+    voteTimersRef.current[postId] = setTimeout(async () => {
+      delete voteTimersRef.current[postId];
+      try {
+        await votePost(postId, type);
+      } catch {
+        const prev = prevPostsRef.current[postId];
+        if (prev) {
+          setPosts((cur) => cur.map((p) => (p.id === postId ? { ...p, ...prev } : p)));
+        }
+      }
+      delete prevPostsRef.current[postId];
+    }, 1000);
   };
 
   const renderPost = ({ item: post }) => {

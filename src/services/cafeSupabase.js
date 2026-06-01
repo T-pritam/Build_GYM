@@ -95,3 +95,24 @@ export function subscribeOrderCustomer(customerId, onEvent) {
     });
   return () => { try { supa.removeChannel(channel); } catch (_) {} };
 }
+
+/**
+ * Subscribe to cafe open/close status changes.
+ * Callback: ({ isOpen: boolean }) => void
+ * Returns an unsubscribe function.
+ */
+export function subscribeCafeStatus(onEvent) {
+  const supa = getCafeSupabase();
+  if (!supa) return () => {};
+  const channel = supa
+    .channel('cafe:status', { config: { private: true } })
+    .on('broadcast', { event: 'CAFE_STATUS_CHANGED' }, ({ payload }) => {
+      if (typeof payload?.isOpen === 'boolean') onEvent?.({ isOpen: payload.isOpen });
+    })
+    .subscribe((status, err) => {
+      if (status !== 'SUBSCRIBED') {
+        console.warn('[realtime] cafe:status status:', status, err);
+      }
+    });
+  return () => { try { supa.removeChannel(channel); } catch (_) {} };
+}

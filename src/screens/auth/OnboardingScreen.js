@@ -424,10 +424,10 @@ export default function OnboardingScreen({ route, navigation }) {
       <Text style={s.stepSub}>Tell us about yourself.</Text>
 
       <Field label="FIRST NAME *">
-        <Input value={firstName} onChangeText={(t) => setFirstName(sanitizeName(t))} placeholder="e.g. Arjun" />
+        <Input value={firstName} onChangeText={(t) => setFirstName(t.replace(/\s/g, '').slice(0, 30))} placeholder="e.g. Arjun" />
       </Field>
       <Field label="LAST NAME *">
-        <Input value={lastName} onChangeText={(t) => setLastName(sanitizeName(t))} placeholder="e.g. Sharma" />
+        <Input value={lastName} onChangeText={(t) => setLastName(t.replace(/\s/g, '').slice(0, 30))} placeholder="e.g. Sharma" />
       </Field>
       <Field label="EMAIL ADDRESS">
         <Input

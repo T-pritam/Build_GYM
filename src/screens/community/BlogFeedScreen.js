@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   ActivityIndicator,
   ScrollView,
@@ -108,21 +108,23 @@ export default function BlogFeedScreen({ navigation, route }) {
     loadBlog();
   }, [loadBlog]);
 
-  async function handleVote(type) {
+  const voteTimerRef = useRef(null);
+  const prevVoteStateRef = useRef(null);
+
+  function handleVote(type) {
     if (!blog) return;
 
-    // Optimistic update
-    const prevUpvotes = upvotes;
-    const prevDownvotes = downvotes;
-    const prevUserVote = userVote;
+    // Capture pre-optimistic state only at the start of each debounce sequence
+    if (!voteTimerRef.current) {
+      prevVoteStateRef.current = { upvotes, downvotes, userVote };
+    }
 
+    // Optimistic update (immediate)
     if (userVote === type) {
-      // Toggle off
       setUserVote(null);
       if (type === 'upvote') setUpvotes((c) => c - 1);
       else setDownvotes((c) => c - 1);
     } else {
-      // Switch or new vote
       setUserVote(type);
       if (type === 'upvote') {
         setUpvotes((c) => c + 1);
@@ -133,17 +135,25 @@ export default function BlogFeedScreen({ navigation, route }) {
       }
     }
 
-    try {
-      const result = await voteBlog(blog.id, type);
-      setUpvotes(result.upvotes);
-      setDownvotes(result.downvotes);
-      setUserVote(result.userVote);
-    } catch {
-      // Revert on error
-      setUpvotes(prevUpvotes);
-      setDownvotes(prevDownvotes);
-      setUserVote(prevUserVote);
-    }
+    // Debounce the API call — only the last click within 1 s fires
+    clearTimeout(voteTimerRef.current);
+    voteTimerRef.current = setTimeout(async () => {
+      voteTimerRef.current = null;
+      try {
+        const result = await voteBlog(blog.id, type);
+        setUpvotes(result.upvotes);
+        setDownvotes(result.downvotes);
+        setUserVote(result.userVote);
+      } catch {
+        const prev = prevVoteStateRef.current;
+        if (prev) {
+          setUpvotes(prev.upvotes);
+          setDownvotes(prev.downvotes);
+          setUserVote(prev.userVote);
+        }
+      }
+      prevVoteStateRef.current = null;
+    }, 1000);
   }
 
   async function handleSendComment() {

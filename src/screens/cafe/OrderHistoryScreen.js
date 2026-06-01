@@ -10,6 +10,8 @@ import { useActiveOrderStore } from '../../store/activeOrderStore';
 import SafeBottomBar from '../../components/SafeBottomBar';
 import { mapCafeStatus, STATUS_COLOR } from '../../utils/cafeStatus';
 
+const fmtPrice = (v) => { const n = Number(v) || 0; return n % 1 === 0 ? String(n) : n.toFixed(2); };
+
 const STATUS_LABELS = {
   placed:    'Placed',
   accepted:  'Accepted',
@@ -158,7 +160,7 @@ export default function OrderHistoryScreen({ navigation }) {
         </TouchableOpacity>
       </View>
       <Text style={styles.rewardBalance}>{rewardBalance}</Text>
-      <Text style={styles.rewardWorth}>points · worth ₹{Number(rewardWorth).toFixed(0)}</Text>
+      <Text style={styles.rewardWorth}>points · worth ₹{fmtPrice(rewardWorth)}</Text>
       {recentTxns.length > 0 && (
         <View style={styles.rewardLogList}>
           {recentTxns.map((t) => {

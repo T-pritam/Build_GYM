@@ -13,7 +13,7 @@ import { useAuthStore } from '../../store/authStore';
 import { fetchPackages } from '../../services/walletService';
 import SafeBottomBar from '../../components/SafeBottomBar';
 
-export default function BuildCoinTransactionsScreen({ navigation }) {
+export default function BuildCoinTransactionsScreen({ navigation, route }) {
   const {
     balance,
     transactions,
@@ -66,12 +66,21 @@ export default function BuildCoinTransactionsScreen({ navigation }) {
       Alert.alert(
         'Payment Successful!',
         `${result.coinsAdded.toLocaleString()} Build Coins have been added to your wallet.`,
+        [{
+          text: 'OK',
+          onPress: () => { if (route?.params?.returnTo) navigation.goBack(); },
+        }],
       );
     } catch (err) {
-      if (err?.code === 'PAYMENT_CANCELLED') return; // user dismissed checkout — no alert
+      // Silent on user-initiated cancellation (Razorpay SDK may use code 0 or the string)
+      if (
+        err?.code === 'PAYMENT_CANCELLED' ||
+        err?.code === 0 ||
+        err?.description?.toLowerCase?.().includes('cancel')
+      ) return;
       Alert.alert(
-        'Payment Failed',
-        err?.response?.data?.message ?? err?.description ?? 'Something went wrong. Please try again.',
+        'Payment Unsuccessful',
+        'Your payment could not be completed. Please try a different payment method or try again later.',
       );
     } finally {
       setPurchasingId(null);

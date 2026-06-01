@@ -1,9 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar,
   TextInput, Alert, ActivityIndicator, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import dayjs from 'dayjs';
+import { useFocusEffect } from '@react-navigation/native';
 import { COLORS } from '../../constants/colors';
 import SafeBottomBar from '../../components/SafeBottomBar';
 import { useAuthStore } from '../../store/authStore';
@@ -12,7 +15,6 @@ import {
   requestEmailChange, verifyEmailChange,
   setPassword, changePassword,
 } from '../../services/customerProfileService';
-import { isAtLeast16 } from '../../utils/ageValidator';
 import { passwordStrength, STRENGTH_COLORS, STRENGTH_LABELS } from '../../utils/passwordUtils';
 
 function Field({ label, required, children }) {
@@ -43,14 +45,16 @@ export default function PersonalDetailsScreen({ navigation }) {
   const [firstName, setFirstName] = useState('');
   const [lastName,  setLastName]  = useState('');
   const [email,     setEmail]     = useState('');
-  const [dob,       setDob]       = useState('');
+  const [dobDate,   setDobDate]   = useState(null);
+  const [showDobPicker, setShowDobPicker] = useState(false);
   const [original,  setOriginal]  = useState(null);
   const [dobError,  setDobError]  = useState('');
+  const [nameError, setNameError] = useState('');
   const [loading,   setLoading]   = useState(true);
   const [saving,    setSaving]    = useState(false);
 
   // ── email change state ────────────────────────────────────────────────────
-  const [emailChangeMode, setEmailChangeMode] = useState(false); // show OTP section
+  const [emailChangeMode, setEmailChangeMode] = useState(false);
   const [emailOtp,        setEmailOtp]        = useState(['', '', '', '', '', '']);
   const [emailOtpRefs]    = useState(() => Array(6).fill(null).map(() => React.createRef()));
   const [emailOtpSending, setEmailOtpSending] = useState(false);
@@ -70,16 +74,18 @@ export default function PersonalDetailsScreen({ navigation }) {
   const pwStrength    = passwordStrength(newPw);
   const isPwDirty     = (hasPassword ? currentPw.length > 0 : false) || newPw.length > 0 || confirmPw.length > 0;
 
-  // ── load profile on mount ─────────────────────────────────────────────────
-  useEffect(() => {
+  // ── load profile (on focus for data sync) ────────────────────────────────
+  useFocusEffect(useCallback(() => {
+    setLoading(true);
     fetchMyProfile()
       .then((data) => {
         const fn = data.firstName || user?.firstName || '';
         const ln = data.lastName  || user?.lastName  || '';
         const em = data.email     || user?.email     || '';
-        const db = data.dob       || '';
-        setFirstName(fn); setLastName(ln); setEmail(em); setDob(db);
-        setOriginal({ firstName: fn, lastName: ln, email: em, dob: db });
+        const rawDob = data.dob || '';
+        const parsedDob = rawDob ? dayjs(rawDob).toDate() : null;
+        setFirstName(fn); setLastName(ln); setEmail(em); setDobDate(parsedDob);
+        setOriginal({ firstName: fn, lastName: ln, email: em, dob: rawDob });
       })
       .catch(() => {
         const fn = user?.firstName || '';
@@ -89,28 +95,41 @@ export default function PersonalDetailsScreen({ navigation }) {
         setOriginal({ firstName: fn, lastName: ln, email: em, dob: '' });
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, []));
 
   // ── dirty detection ───────────────────────────────────────────────────────
+  const currentDobStr = dobDate ? dayjs(dobDate).format('YYYY-MM-DD') : '';
   const isProfileDirty = original
     ? firstName !== original.firstName ||
       lastName  !== original.lastName  ||
-      dob       !== original.dob
+      currentDobStr !== original.dob
     : false;
   const isDirty = isProfileDirty;
 
-  // ── save personal details (name + dob only — email handled separately) ────
+  // ── save personal details ─────────────────────────────────────────────────
   const handleSave = useCallback(async () => {
     if (!firstName.trim() || !lastName.trim()) {
       Alert.alert('Required', 'First and last name cannot be empty.');
       return;
     }
-    if (!dob.trim()) { setDobError('Date of birth is required.'); return; }
-    if (!isAtLeast16(dob.trim())) { setDobError('You must be at least 16 years old.'); return; }
+    if (/\s/.test(firstName.trim())) {
+      setNameError('First name must not contain spaces.');
+      return;
+    }
+    if (/\s/.test(lastName.trim())) {
+      setNameError('Last name must not contain spaces.');
+      return;
+    }
+    setNameError('');
+    setDobError('');
 
     setSaving(true);
     try {
-      const payload = { firstName: firstName.trim(), lastName: lastName.trim(), dob: dob.trim() };
+      const payload = {
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        dob: dobDate ? dayjs(dobDate).format('YYYY-MM-DD') : undefined,
+      };
       const updated = await updatePersonalDetails(payload);
 
       if (updateUser) {
@@ -120,14 +139,14 @@ export default function PersonalDetailsScreen({ navigation }) {
           fullName:  updated?.fullName  ?? `${payload.firstName} ${payload.lastName}`,
         });
       }
-      setOriginal((o) => ({ ...o, firstName: firstName.trim(), lastName: lastName.trim(), dob: dob.trim() }));
+      setOriginal((o) => ({ ...o, firstName: firstName.trim(), lastName: lastName.trim(), dob: currentDobStr }));
       navigation.goBack();
     } catch (err) {
       Alert.alert('Error', err?.response?.data?.message || 'Could not save. Please try again.');
     } finally {
       setSaving(false);
     }
-  }, [firstName, lastName, dob]);
+  }, [firstName, lastName, dobDate, currentDobStr]);
 
   // ── email change: send OTP ────────────────────────────────────────────────
   const handleRequestEmailChange = async () => {
@@ -244,18 +263,20 @@ export default function PersonalDetailsScreen({ navigation }) {
           <TextInput
             style={s.input}
             value={firstName}
-            onChangeText={setFirstName}
+            onChangeText={(v) => { setFirstName(v.replace(/\s/g, '')); setNameError(''); }}
             placeholder="First name"
             placeholderTextColor={COLORS.textMuted}
             returnKeyType="next"
           />
         </Field>
 
+        {nameError ? <Text style={s.fieldError}>{nameError}</Text> : null}
+
         <Field label="LAST NAME" required>
           <TextInput
             style={s.input}
             value={lastName}
-            onChangeText={setLastName}
+            onChangeText={(v) => { setLastName(v.replace(/\s/g, '')); setNameError(''); }}
             placeholder="Last name"
             placeholderTextColor={COLORS.textMuted}
             returnKeyType="next"
@@ -333,20 +354,31 @@ export default function PersonalDetailsScreen({ navigation }) {
           )}
         </Field>
 
+        {/* ── Date of Birth — date picker ── */}
         <Field label="DATE OF BIRTH" required>
-          <View style={s.inputWrap}>
-            <TextInput
-              style={[s.input, s.inputWithIcon, dobError ? { borderColor: '#EF4444' } : null]}
-              value={dob}
-              onChangeText={(v) => { setDob(v); setDobError(''); }}
-              placeholder="YYYY-MM-DD"
-              placeholderTextColor={COLORS.textMuted}
-              returnKeyType="done"
-            />
-            <Ionicons name="calendar-outline" size={20} color={COLORS.textMuted} style={s.inputIcon} />
-          </View>
+          <TouchableOpacity
+            style={[s.input, s.datePickerBtn]}
+            onPress={() => setShowDobPicker(true)}
+          >
+            <Text style={dobDate ? s.datePickerText : s.datePickerPlaceholder}>
+              {dobDate ? dayjs(dobDate).format('DD MMM YYYY') : 'Select date of birth'}
+            </Text>
+            <Ionicons name="calendar-outline" size={20} color={COLORS.textMuted} />
+          </TouchableOpacity>
           {dobError ? <Text style={s.fieldError}>{dobError}</Text> : null}
         </Field>
+        {showDobPicker && (
+          <DateTimePicker
+            value={dobDate ?? new Date(2000, 0, 1)}
+            mode="date"
+            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            maximumDate={new Date()}
+            onChange={(_, date) => {
+              if (Platform.OS === 'android') setShowDobPicker(false);
+              if (date) { setDobDate(date); setDobError(''); }
+            }}
+          />
+        )}
 
         <Field label="PHONE NUMBER">
           <View style={[s.input, s.lockedRow]}>
@@ -512,9 +544,12 @@ const s = StyleSheet.create({
     borderRadius: 12, paddingHorizontal: 16, paddingVertical: 15,
     fontSize: 14, color: '#fff', fontWeight: '500',
   },
-  inputWrap: { position: 'relative' },
-  inputWithIcon: { paddingRight: 48 },
-  inputIcon: { position: 'absolute', right: 14, top: '50%', marginTop: -10 },
+
+  datePickerBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+  },
+  datePickerText:        { fontSize: 14, color: '#fff', fontWeight: '500' },
+  datePickerPlaceholder: { fontSize: 14, color: COLORS.textMuted, fontWeight: '500' },
 
   lockedRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', opacity: 0.5 },
   lockedText: { fontSize: 14, color: COLORS.textMuted },

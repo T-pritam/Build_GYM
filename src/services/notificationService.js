@@ -11,17 +11,25 @@ export const FCM_TOKEN_KEY = '@fcm_token';
 
 /**
  * Parse a buildfitness:// deep link and navigate to the correct screen.
- * Supports: buildfitness://announcements/<id>
+ *
+ * Supported routes:
+ *   buildfitness://announcements/<id>  → AnnouncementDetail
+ *   buildfitness://mybookings          → MyBookings
+ *   buildfitness://bookings/<id>       → BookingQR (booking detail / QR code)
  */
 export const handleDeepLink = (deepLink) => {
   if (!deepLink) return;
   try {
-    // deepLink format: buildfitness://announcements/uuid
     const withoutScheme = deepLink.replace('buildfitness://', '');
     const [resource, id] = withoutScheme.split('/');
 
     if (resource === 'announcements' && id) {
       navigateTo('AnnouncementDetail', { id });
+    } else if (resource === 'mybookings') {
+      navigateTo('MyBookings');
+    } else if (resource === 'bookings' && id) {
+      // Navigate to the QR / booking detail screen — BookingQRScreen accepts bookingId
+      navigateTo('BookingQR', { bookingId: id });
     }
   } catch (err) {
     console.warn('handleDeepLink error:', err);

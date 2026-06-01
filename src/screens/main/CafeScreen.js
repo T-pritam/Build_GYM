@@ -1,13 +1,14 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  StatusBar, TextInput, Dimensions, Image, ActivityIndicator, RefreshControl,
+  StatusBar, TextInput, Dimensions, Image, ActivityIndicator, RefreshControl, AppState,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import { fetchMenu } from '../../services/cafeService';
-import { subscribeMenuAvailability } from '../../services/cafeSupabase';
+import { subscribeMenuAvailability, subscribeCafeStatus } from '../../services/cafeSupabase';
+import { fetchCafeStatus } from '../../services/cafeApiService';
 import { useCartStore, cartQty, cartTotal } from '../../store/cartStore';
 import AddonPickerModal from '../../components/AddonPickerModal';
 
@@ -33,6 +34,7 @@ export default function CafeScreen({ navigation }) {
   const [loading,         setLoading]         = useState(true);
   const [refreshing,      setRefreshing]      = useState(false);
   const [addonTarget,     setAddonTarget]     = useState(null);
+  const [cafeIsOpen,      setCafeIsOpen]      = useState(true);
 
 
   // Use stable individual selectors — prevents socket effect from re-running on cart changes
@@ -84,10 +86,33 @@ export default function CafeScreen({ navigation }) {
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     loadMenu({ isRefresh: true });
+    fetchCafeStatus().then((data) => {
+      if (typeof data?.isOpen === 'boolean') setCafeIsOpen(data.isOpen);
+    });
+  }, [loadMenu]);
+
+  const appStateRef = useRef(AppState.currentState);
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (next) => {
+      if (appStateRef.current.match(/inactive|background/) && next === 'active') {
+        fetchCafeStatus().then((d) => {
+          if (typeof d?.isOpen === 'boolean') setCafeIsOpen(d.isOpen);
+        });
+        loadMenu();
+      }
+      appStateRef.current = next;
+    });
+    return () => sub.remove();
   }, [loadMenu]);
 
   useEffect(() => {
     loadMenu();
+
+    // Fetch and subscribe to cafe open/close status
+    fetchCafeStatus().then((data) => {
+      if (typeof data?.isOpen === 'boolean') setCafeIsOpen(data.isOpen);
+    });
+    const unsubCafeStatus = subscribeCafeStatus(({ isOpen }) => setCafeIsOpen(isOpen));
 
     // Supabase realtime — mirrors the cafe customer app's `menu:availability` channel.
     const unsubscribe = subscribeMenuAvailability((evt) => {
@@ -107,7 +132,7 @@ export default function CafeScreen({ navigation }) {
       });
     });
 
-    return () => { unsubscribe?.(); };
+    return () => { unsubscribe?.(); unsubCafeStatus?.(); };
   }, [loadMenu]);
 
   const getQty = (itemId) => cartItems.find((c) => c.id === itemId)?.qty || 0;
@@ -116,7 +141,8 @@ export default function CafeScreen({ navigation }) {
 
   const filteredItems = menuItems.filter((item) => {
     const matchCat    = activeCategory === 'All' || item.category === activeCategory;
-    const matchSearch = search.trim() === '' || item.name.toLowerCase().includes(search.toLowerCase());
+    const q = search.trim().replace(/\s+/g, ' ').toLowerCase();
+    const matchSearch = q === '' || item.name.toLowerCase().includes(q);
     return matchCat && matchSearch;
   });
 
@@ -217,7 +243,7 @@ export default function CafeScreen({ navigation }) {
           {/* ADD button or qty stepper */}
           {item.isAvailable ? (
             qty === 0 ? (
-              <TouchableOpacity style={styles.addBtn} onPress={() => handleAddToCart(item)} activeOpacity={0.85}>
+              <TouchableOpacity style={[styles.addBtn, !cafeIsOpen && { opacity: 0.35 }]} onPress={() => cafeIsOpen ? handleAddToCart(item) : null} activeOpacity={0.85} disabled={!cafeIsOpen}>
                 <LinearGradient
                   colors={[COLORS.secondary, COLORS.secondaryDark]}
                   style={styles.addBtnGrad}
@@ -301,6 +327,17 @@ export default function CafeScreen({ navigation }) {
         </View>
       </LinearGradient>
 
+      {/* Cafe closed banner */}
+      {!cafeIsOpen && (
+        <View style={styles.cafeClosedBanner}>
+          <MaterialCommunityIcons name="store-off" size={16} color="#fff" />
+          <View style={{ flex: 1, marginLeft: 8 }}>
+            <Text style={styles.cafeClosedTitle}>Cafe is Currently Closed</Text>
+            <Text style={styles.cafeClosedSub}>Orders are not being accepted right now. Please check back later.</Text>
+          </View>
+        </View>
+      )}
+
       {/* 2-column item grid */}
       <FlatList
         style={{ flex: 1 }}
@@ -354,7 +391,7 @@ export default function CafeScreen({ navigation }) {
       />
 
       {/* Floating cart bar */}
-      {totalItems > 0 && (
+      {totalItems > 0 && cafeIsOpen && (
         <View style={styles.cartBar}>
           <Text style={styles.cartBarQty}>{totalItems} item{totalItems !== 1 ? 's' : ''}</Text>
           <TouchableOpacity style={styles.cartBarBtn} onPress={() => navigation.navigate('Cart')}>
@@ -506,4 +543,14 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.secondary, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10,
   },
   cartBarBtnText: { fontSize: 13, fontWeight: '900', color: COLORS.white },
+
+  cafeClosedBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#7f1d1d',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  cafeClosedTitle: { fontSize: 13, fontWeight: '800', color: '#fff' },
+  cafeClosedSub: { fontSize: 11, color: 'rgba(255,255,255,0.75)', marginTop: 2 },
 });

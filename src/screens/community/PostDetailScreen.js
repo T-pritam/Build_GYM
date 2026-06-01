@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity,
   ActivityIndicator, Alert, StatusBar, KeyboardAvoidingView, Platform,
@@ -106,10 +106,17 @@ export default function PostDetailScreen({ navigation, route }) {
 
   // ── Voting ─────────────────────────────────────────────────────────────────
 
-  const handleVote = async (type) => {
-    if (!post) return;
-    const prev = { upvotes: post.upvotes, downvotes: post.downvotes, user_vote: post.user_vote };
+  const postVoteTimerRef = useRef(null);
+  const prevPostVoteRef = useRef(null);
 
+  const handleVote = (type) => {
+    if (!post) return;
+
+    if (!postVoteTimerRef.current) {
+      prevPostVoteRef.current = { upvotes: post.upvotes, downvotes: post.downvotes, user_vote: post.user_vote };
+    }
+
+    // Optimistic update (immediate)
     if (post.user_vote === type) {
       setPost((p) => ({
         ...p,
@@ -126,22 +133,36 @@ export default function PostDetailScreen({ navigation, route }) {
       }));
     }
 
-    try {
-      await votePost(postId, type);
-    } catch {
-      setPost((p) => ({ ...p, ...prev }));
-    }
+    // Debounce the API call — only the last click within 1 s fires
+    clearTimeout(postVoteTimerRef.current);
+    postVoteTimerRef.current = setTimeout(async () => {
+      postVoteTimerRef.current = null;
+      try {
+        await votePost(postId, type);
+      } catch {
+        const prev = prevPostVoteRef.current;
+        if (prev) setPost((p) => ({ ...p, ...prev }));
+      }
+      prevPostVoteRef.current = null;
+    }, 1000);
   };
 
-  const handleCommentVote = async (commentId, type) => {
-    try {
-      const result = await voteComment(commentId, type);
-      setComments((prev) =>
-        prev.map((c) => (c.id === commentId ? { ...c, ...result } : c)),
-      );
-    } catch {
-      // silent
-    }
+  const commentVoteTimersRef = useRef({});
+
+  const handleCommentVote = (commentId, type) => {
+    // Debounce per-comment — only the last click within 1 s fires the API call
+    clearTimeout(commentVoteTimersRef.current[commentId]);
+    commentVoteTimersRef.current[commentId] = setTimeout(async () => {
+      delete commentVoteTimersRef.current[commentId];
+      try {
+        const result = await voteComment(commentId, type);
+        setComments((prev) =>
+          prev.map((c) => (c.id === commentId ? { ...c, ...result } : c)),
+        );
+      } catch {
+        // silent
+      }
+    }, 1000);
   };
 
   // ── Comments ───────────────────────────────────────────────────────────────

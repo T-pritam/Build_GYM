@@ -74,7 +74,8 @@ export default function HealthEmergencyScreen({ navigation }) {
         const ism = data.injuryStatusMap && typeof data.injuryStatusMap === 'object' ? data.injuryStatusMap : {};
         const en  = data.ecName || '';
         const er  = data.ecRelationship || '';
-        const ep  = data.ecPhone || '';
+        const rawEp = data.ecPhone || '';
+        const ep  = rawEp.startsWith('+91') ? rawEp.slice(3) : rawEp.replace(/\D/g, '');
         const ni  = pi.length === 0 && !!(data.noInjuries ?? false);
 
         setFitnessLevel(fl);

@@ -13,10 +13,10 @@ import { useWalletStore } from '../../store/walletStore';
 import { uploadProfilePhoto, removeProfilePhoto } from '../../services/profileService';
 import { requestAccountDeletion } from '../../services/customerProfileService';
 
-const MENU = [
+const BASE_MENU = [
   {
     id: 'membership', label: 'Membership Details', icon: 'card-outline',
-    sub: 'ELITE · 128 days left', nav: 'Membership', color: COLORS.secondary, bg: COLORS.secondaryGlow,
+    nav: 'Membership', color: COLORS.secondary, bg: COLORS.secondaryGlow,
   },
   {
     id: 'orderHistory', label: 'Order History', icon: 'receipt-outline',
@@ -51,6 +51,15 @@ export default function ProfileScreen({ navigation }) {
   const { balance, transactions, fetchBalance, fetchTransactions } = useWalletStore();
 
   const [membershipData, setMembershipData] = useState(null);
+
+  const isActivePlan = membershipData?.membership?.status === 'active';
+  const membershipSub = isActivePlan
+    ? `${(membershipData.plan?.name ?? membershipData.plan?.tier ?? 'Membership').toUpperCase()} · ${membershipData.daysLeft ?? 0} days left`
+    : 'View your membership';
+
+  const MENU = BASE_MENU.map((item) =>
+    item.id === 'membership' ? { ...item, sub: membershipSub } : item
+  );
 
   useEffect(() => {
     fetchBalance();

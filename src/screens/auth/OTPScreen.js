@@ -22,6 +22,9 @@ export default function OTPScreen({ navigation, route }) {
   const [timer, setTimer] = useState(30);
   const [canResend, setCanResend] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [attemptsLeft, setAttemptsLeft] = useState(null);
+  const [locked, setLocked] = useState(false);
+  const [resending, setResending] = useState(false);
   const inputRefs = useRef([]);
 
   const setAuth = useAuthStore((s) => s.setAuth);
@@ -55,12 +58,20 @@ export default function OTPScreen({ navigation, route }) {
   };
 
   const handleResend = async () => {
-    if (!canResend || !phone) return;
+    if (!canResend || !phone || resending) return;
+    setCanResend(false);
+    setResending(true);
     try {
       await resendOTP(phone);
       startTimer();
+      setAttemptsLeft(null);
+      setLocked(false);
+      setOtp(['', '', '', '', '', '']);
+      inputRefs.current[0]?.focus();
     } catch {
       Alert.alert('Error', 'Could not resend OTP. Please try again.');
+    } finally {
+      setResending(false);
     }
   };
 
@@ -132,11 +143,27 @@ export default function OTPScreen({ navigation, route }) {
         );
       }
     } catch (error) {
-      const msg = error.response?.data?.message || 'Invalid or expired OTP.';
-      Alert.alert('Verification Failed', msg);
-      // Reset OTP boxes
-      setOtp(['', '', '', '', '', '']);
-      inputRefs.current[0]?.focus();
+      const responseData = error.response?.data;
+      const remaining = responseData?.attemptsLeft ?? null;
+      const msg = responseData?.message || 'Invalid or expired OTP.';
+
+      if (remaining !== null && remaining !== undefined) {
+        setAttemptsLeft(remaining);
+      }
+
+      if (remaining === 0) {
+        setLocked(true);
+        setOtp(['', '', '', '', '', '']);
+        Alert.alert(
+          'Too Many Attempts',
+          msg,
+          [{ text: 'OK', onPress: () => navigation.goBack() }]
+        );
+      } else {
+        Alert.alert('Verification Failed', msg);
+        setOtp(['', '', '', '', '', '']);
+        inputRefs.current[0]?.focus();
+      }
     } finally {
       setLoading(false);
     }
@@ -191,15 +218,26 @@ export default function OTPScreen({ navigation, route }) {
                 maxLength={1}
                 selectTextOnFocus
                 caretHidden={false}
+                editable={!loading && !locked}
               />
             ))}
           </View>
 
+          {/* Attempts remaining indicator */}
+          {attemptsLeft !== null && attemptsLeft > 0 && (
+            <Text style={styles.attemptsText}>
+              {attemptsLeft} attempt{attemptsLeft === 1 ? '' : 's'} remaining
+            </Text>
+          )}
+
           {/* Timer */}
           <View style={styles.timerRow}>
             {canResend ? (
-              <TouchableOpacity onPress={handleResend}>
-                <Text style={styles.resendBtn}>Resend OTP</Text>
+              <TouchableOpacity onPress={handleResend} disabled={resending}>
+                {resending
+                  ? <ActivityIndicator color={COLORS.secondary} size="small" />
+                  : <Text style={styles.resendBtn}>Resend OTP</Text>
+                }
               </TouchableOpacity>
             ) : (
               <Text style={styles.timerText}>
@@ -264,6 +302,13 @@ const styles = StyleSheet.create({
   otpBoxEmpty: { backgroundColor: '#1C1C1E', borderColor: '#444' },
   otpBoxFilled: { backgroundColor: '#1C1C1E', borderColor: COLORS.secondary, color: COLORS.secondary },
   otpBoxActive: { borderColor: '#2DD4BF' },
+  attemptsText: {
+    color: COLORS.secondary,
+    fontSize: 12,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
 
   timerRow: { alignItems: 'center', marginBottom: 36 },
   timerText: { fontSize: 13, color: '#9A9A9A' },

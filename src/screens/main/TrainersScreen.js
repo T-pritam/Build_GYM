@@ -37,9 +37,11 @@ export default function TrainersScreen({ navigation }) {
   ];
 
   const filteredTrainers = trainers.filter((trainer) => {
+    const q = searchText.trim().toLowerCase();
     const matchesSearch =
-      trainer.name.toLowerCase().includes(searchText.toLowerCase()) ||
-      trainer.specialisation.toLowerCase().includes(searchText.toLowerCase());
+      !q ||
+      trainer.name.toLowerCase().includes(q) ||
+      trainer.specialisation.toLowerCase().includes(q);
 
     const matchesFilter =
       selectedFilter === 'all' ||

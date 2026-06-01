@@ -19,6 +19,7 @@ export default function ResetPasswordScreen({ navigation, route }) {
   const [showCon,   setShowCon]   = useState(false);
   const [timer,     setTimer]     = useState(30);
   const [canResend, setCanResend] = useState(false);
+  const [resending, setResending] = useState(false);
   const [loading,   setLoading]   = useState(false);
   const inputRefs = useRef([]);
 
@@ -53,12 +54,16 @@ export default function ResetPasswordScreen({ navigation, route }) {
   };
 
   const handleResend = async () => {
-    if (!canResend || !identifier) return;
+    if (!canResend || !identifier || resending) return;
+    setCanResend(false);
+    setResending(true);
     try {
       await forgotPasswordSend(identifier);
       startTimer();
     } catch {
       Alert.alert('Error', 'Could not resend OTP. Please try again.');
+    } finally {
+      setResending(false);
     }
   };
 
@@ -131,8 +136,11 @@ export default function ResetPasswordScreen({ navigation, route }) {
             <View style={s.resendRow}>
               {canResend
                 ? (
-                  <TouchableOpacity onPress={handleResend}>
-                    <Text style={s.resendLink}>Resend OTP</Text>
+                  <TouchableOpacity onPress={handleResend} disabled={resending}>
+                    {resending
+                      ? <ActivityIndicator color={COLORS.secondary} size="small" />
+                      : <Text style={s.resendLink}>Resend OTP</Text>
+                    }
                   </TouchableOpacity>
                 )
                 : (

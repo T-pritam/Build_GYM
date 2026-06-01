@@ -14,9 +14,11 @@ const STEP_LABELS = {
   placed:    'Order Placed',
   accepted:  'Accepted',
   preparing: 'Preparing',
-  ready:     'Ready / Out for delivery',
+  ready:     'Ready for pickup',
   complete:  'Delivered',
 };
+
+const fmtPrice = (v) => { const n = Number(v) || 0; return n % 1 === 0 ? String(n) : n.toFixed(2); };
 
 function fmtTs(iso) {
   if (!iso) return null;
@@ -72,6 +74,22 @@ export default function OrderTrackingScreen({ navigation, route }) {
       }
     } catch (_) { /* keep last */ }
   }, [orderId, storedActive?.orderId, storedActive?.id]);
+
+  // Sync status instantly from the activeOrderStore whenever ActiveOrderBar's
+  // realtime subscription updates it — avoids waiting for the 15s poll.
+  useEffect(() => {
+    const storeId = storedActive?.id || storedActive?.orderId;
+    if (!storeId || storeId !== orderId) return;
+    const newStatus = storedActive?.status;
+    if (!newStatus) return;
+    setOrder(prev => {
+      if (!prev || prev.status === newStatus) return prev;
+      return { ...prev, status: newStatus };
+    });
+    if (isTerminalCafeStatus(newStatus)) {
+      clearActiveOrder();
+    }
+  }, [storedActive?.status, orderId]);
 
   useFocusEffect(useCallback(() => {
     refresh();
@@ -235,19 +253,31 @@ export default function OrderTrackingScreen({ navigation, route }) {
                 <Text style={styles.detailsMetaLabel}>Order time:</Text>
                 <Text style={styles.detailsMetaValue}>{fmtTs(order.createdAt) ?? '—'}</Text>
               </View>
-              {order.totalAmount != null && (
+              {order.subtotal != null && (
                 <View style={styles.detailsMetaRow}>
-                  <Text style={styles.detailsMetaLabel}>Total:</Text>
-                  <Text style={[styles.detailsMetaValue, { color: COLORS.secondary }]}>
-                    ₹{order.totalAmount}
-                  </Text>
+                  <Text style={styles.detailsMetaLabel}>Subtotal:</Text>
+                  <Text style={styles.detailsMetaValue}>₹{fmtPrice(order.subtotal)}</Text>
+                </View>
+              )}
+              {Number(order.gstAmount) > 0 && (
+                <View style={styles.detailsMetaRow}>
+                  <Text style={styles.detailsMetaLabel}>GST:</Text>
+                  <Text style={styles.detailsMetaValue}>₹{fmtPrice(order.gstAmount)}</Text>
                 </View>
               )}
               {Number(order.discountAmount) > 0 && (
                 <View style={styles.detailsMetaRow}>
                   <Text style={styles.detailsMetaLabel}>Reward discount:</Text>
                   <Text style={[styles.detailsMetaValue, { color: '#22C55E' }]}>
-                    −₹{Number(order.discountAmount).toFixed(0)}
+                    −₹{fmtPrice(order.discountAmount)}
+                  </Text>
+                </View>
+              )}
+              {order.totalAmount != null && (
+                <View style={styles.detailsMetaRow}>
+                  <Text style={styles.detailsMetaLabel}>Total:</Text>
+                  <Text style={[styles.detailsMetaValue, { color: COLORS.secondary }]}>
+                    ₹{fmtPrice(order.totalAmount)}
                   </Text>
                 </View>
               )}
@@ -283,9 +313,12 @@ export default function OrderTrackingScreen({ navigation, route }) {
                       )}
                       <View style={styles.itemInfo}>
                         <Text style={styles.itemName}>{item.name ?? item.itemName}</Text>
+                        {item.modifiers?.map((m, mi) => (
+                          <Text key={mi} style={styles.itemAddon}>+₹{fmtPrice(m.price)} {m.name}</Text>
+                        ))}
                         <Text style={styles.itemQty}>×{qty}</Text>
                       </View>
-                      <Text style={styles.itemPrice}>₹{unit * qty}</Text>
+                      <Text style={styles.itemPrice}>₹{fmtPrice(unit * qty)}</Text>
                     </View>
                   );
                 })}
@@ -389,6 +422,7 @@ const styles = StyleSheet.create({
   },
   itemInfo: { flex: 1 },
   itemName: { fontSize: 14, fontWeight: '600', color: COLORS.white },
+  itemAddon: { fontSize: 11, color: COLORS.textMuted, marginTop: 1 },
   itemQty:  { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
   itemPrice: { fontSize: 13, fontWeight: '700', color: COLORS.secondary },
 

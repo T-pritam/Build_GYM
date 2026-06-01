@@ -113,3 +113,16 @@ cafeApi.interceptors.response.use(
 );
 
 export default cafeApi;
+
+/**
+ * Fetch cafe open/close status — no auth required.
+ * Returns { isOpen: boolean }.
+ */
+export async function fetchCafeStatus() {
+  try {
+    const res = await cafeApi.get('/cafe/status');
+    return res.data;
+  } catch {
+    return { isOpen: true }; // fail-open: don't block ordering if status fetch fails
+  }
+}

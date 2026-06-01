@@ -70,11 +70,13 @@ export default function ActivityDetailScreen({ navigation, route }) {
       const todayStr = new Date().toISOString().split('T')[0];
       const now = new Date();
       const nowMinutes = now.getHours() * 60 + now.getMinutes();
-      const data = raw.filter((s) => {
-        if (selectedDate !== todayStr) return true;
-        const [h, m] = s.startTime.split(':').map(Number);
-        return h * 60 + m > nowMinutes;
-      });
+      const data = raw
+        .filter((s) => {
+          if (selectedDate !== todayStr) return true;
+          const [h, m] = s.startTime.split(':').map(Number);
+          return h * 60 + m > nowMinutes;
+        })
+        .sort((a, b) => a.startTime.localeCompare(b.startTime));
 
       setSlots(data);
       // Auto-select first available slot

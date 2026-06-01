@@ -19,6 +19,7 @@ import WelcomeScreen from '../screens/auth/WelcomeScreen';
 import HomeScreen from '../screens/main/HomeScreen';
 import CafeScreen from '../screens/main/CafeScreen';
 import AccessScreen from '../screens/main/AccessScreen';
+import PresenceScreen from '../screens/main/PresenceScreen';
 
 // Cafe sub-screens
 import ItemDetailScreen from '../screens/cafe/ItemDetailScreen';
@@ -95,7 +96,7 @@ function MainTabs() {
     >
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Cafe" component={CafeScreen} />
-      <Tab.Screen name="Access" component={AccessScreen} />
+      <Tab.Screen name="Access" component={PresenceScreen} />
       {/* Extra tabs handled by custom bar (navigated programmatically) */}
       <Tab.Screen name="NotificationsTab" component={NotificationsScreen} />
       <Tab.Screen name="ProfileTab" component={ProfileScreen} />

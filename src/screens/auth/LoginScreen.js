@@ -11,8 +11,11 @@ import { sendOTP, passwordLogin } from '../../services/authService';
 import { useAuthStore } from '../../store/authStore';
 import { CommonActions } from '@react-navigation/native';
 
+const EMAIL_RE = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/;
+const PHONE_RE = /^\d{10}$/;
+
 export default function LoginScreen({ navigation }) {
-  const [tab,        setTab]        = useState('otp');   // 'otp' | 'password'
+  const [tab,        setTab]        = useState('password');   // 'otp' | 'password'
   // OTP tab
   const [mobile,     setMobile]     = useState('');
   const [otpFocused, setOtpFocused] = useState(false);
@@ -55,6 +58,21 @@ export default function LoginScreen({ navigation }) {
 
   const handlePasswordLogin = async () => {
     if (!identifier.trim() || !password || loading) return;
+    const trimmedId = identifier.trim();
+    if (trimmedId.includes('@')) {
+      if (!EMAIL_RE.test(trimmedId)) {
+        Alert.alert('Invalid Email', 'Please enter a valid email address (e.g. name@domain.com).');
+        return;
+      }
+    } else if (/^\d+$/.test(trimmedId)) {
+      if (!PHONE_RE.test(trimmedId)) {
+        Alert.alert('Invalid Phone', 'Phone number must be exactly 10 digits.');
+        return;
+      }
+    } else {
+      Alert.alert('Invalid Input', 'Please enter a valid 10-digit phone number or email address.');
+      return;
+    }
     setLoading(true);
     try {
       const raw = identifier.includes('@')

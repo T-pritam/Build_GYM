@@ -1,17 +1,18 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   StatusBar, Linking, LayoutAnimation, UIManager, Platform,
-  ActivityIndicator, FlatList, RefreshControl, TextInput,
+  ActivityIndicator, FlatList, RefreshControl, TextInput, Modal,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import SafeBottomBar from '../../components/SafeBottomBar';
+import { useAuthStore } from '../../store/authStore';
 import { faqs, reviews } from '../../constants/dummyData';
 import { fetchPublishedBlogs } from '../../services/blogService';
-import { fetchCommunityPosts, votePost } from '../../services/communityService';
+import { fetchCommunityPosts, votePost, fetchCommunityMembers } from '../../services/communityService';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -94,7 +95,7 @@ function communityTimeAgo(dateStr) {
 }
 
 function CommunityFeedTab({ navigation }) {
-  const [sort, setSort] = useState('hot');
+  const [sort, setSort] = useState('new');
   const [posts, setPosts] = useState([]);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -156,13 +157,38 @@ function CommunityFeedTab({ navigation }) {
     setLoadingMore(false);
   }, [hasMore, loadingMore, loadPosts, page]);
 
-  const handleVote = useCallback(async (postId, type) => {
+  const [membersVisible, setMembersVisible] = useState(false);
+  const [members, setMembers] = useState([]);
+  const [membersLoading, setMembersLoading] = useState(false);
+
+  const handleOpenMembers = useCallback(async () => {
+    setMembersVisible(true);
+    if (members.length > 0) return;
+    setMembersLoading(true);
+    try {
+      const result = await fetchCommunityMembers();
+      setMembers(result || []);
+    } catch { /* silent fail */ } finally {
+      setMembersLoading(false);
+    }
+  }, [members.length]);
+
+  const voteTimersRef = useRef({});
+  const prevPostsRef = useRef({});
+
+  const handleVote = useCallback((postId, type) => {
     const prevPost = posts.find((post) => post.id === postId);
     if (!prevPost) return;
+
+    // Capture pre-optimistic state only at the start of each debounce sequence
+    if (!voteTimersRef.current[postId]) {
+      prevPostsRef.current[postId] = prevPost;
+    }
 
     const currentVote = prevPost.user_vote;
     const nextVote = currentVote === type ? null : type;
 
+    // Optimistic update (immediate)
     setPosts((prev) => prev.map((post) => {
       if (post.id !== postId) return post;
       const upvotes = post.upvotes || 0;
@@ -192,16 +218,23 @@ function CommunityFeedTab({ navigation }) {
       };
     }));
 
-    try {
-      const result = await votePost(postId, type);
-      setPosts((prev) => prev.map((post) => (
-        post.id === postId ? { ...post, ...result } : post
-      )));
-    } catch {
-      setPosts((prev) => prev.map((post) => (
-        post.id === postId ? prevPost : post
-      )));
-    }
+    // Debounce the API call — only the last click within 1 s fires
+    clearTimeout(voteTimersRef.current[postId]);
+    voteTimersRef.current[postId] = setTimeout(async () => {
+      delete voteTimersRef.current[postId];
+      try {
+        const result = await votePost(postId, type);
+        setPosts((prev) => prev.map((post) => (
+          post.id === postId ? { ...post, ...result } : post
+        )));
+      } catch {
+        const orig = prevPostsRef.current[postId];
+        if (orig) {
+          setPosts((prev) => prev.map((post) => (post.id === postId ? orig : post)));
+        }
+      }
+      delete prevPostsRef.current[postId];
+    }, 1000);
   }, [posts]);
 
   const renderPost = ({ item: post }) => {
@@ -336,17 +369,27 @@ function CommunityFeedTab({ navigation }) {
             </TouchableOpacity>
           ))}
         </View>
-        <TouchableOpacity
-          style={[styles.searchIconBtn, searchActive && styles.searchIconBtnActive]}
-          onPress={toggleSearch}
-          hitSlop={8}
-        >
-          <Ionicons
-            name={searchActive ? 'close' : 'search-outline'}
-            size={18}
-            color={searchActive ? COLORS.secondary : COLORS.textMuted}
-          />
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <TouchableOpacity
+            style={styles.membersBadge}
+            onPress={handleOpenMembers}
+            hitSlop={8}
+          >
+            <Ionicons name="people-outline" size={15} color={COLORS.textMuted} />
+            <Text style={styles.membersBadgeText}>Members</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.searchIconBtn, searchActive && styles.searchIconBtnActive]}
+            onPress={toggleSearch}
+            hitSlop={8}
+          >
+            <Ionicons
+              name={searchActive ? 'close' : 'search-outline'}
+              size={18}
+              color={searchActive ? COLORS.secondary : COLORS.textMuted}
+            />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {searchActive && (
@@ -413,6 +456,50 @@ function CommunityFeedTab({ navigation }) {
           </View>
         }
       />
+
+      <Modal
+        visible={membersVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setMembersVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setMembersVisible(false)}
+        >
+          <View style={styles.membersSheet}>
+            <View style={styles.membersSheetHandle} />
+            <Text style={styles.membersSheetTitle}>Community Members</Text>
+            {membersLoading ? (
+              <ActivityIndicator size="small" color={COLORS.secondary} style={{ marginTop: 20 }} />
+            ) : members.length === 0 ? (
+              <View style={styles.membersEmptyState}>
+                <Ionicons name="people-outline" size={36} color={COLORS.textMuted} />
+                <Text style={styles.emptyStateText}>No members yet</Text>
+              </View>
+            ) : (
+              <FlatList
+                data={members}
+                keyExtractor={(m) => m.id}
+                showsVerticalScrollIndicator={false}
+                renderItem={({ item: m }) => (
+                  <View style={styles.memberRow}>
+                    {m.profile_photo_url ? (
+                      <Image source={{ uri: m.profile_photo_url }} style={styles.memberAvatar} />
+                    ) : (
+                      <View style={[styles.memberAvatar, styles.memberAvatarPlaceholder]}>
+                        <Ionicons name="person" size={16} color={COLORS.textMuted} />
+                      </View>
+                    )}
+                    <Text style={styles.memberName}>{m.full_name || 'Member'}</Text>
+                  </View>
+                )}
+              />
+            )}
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -733,7 +820,10 @@ function BlogTab({ navigation }) {
 }
 
 export default function CommunityScreen({ navigation }) {
-  const [activeTab, setActiveTab] = useState('community');
+  const optCommunity = useAuthStore((s) => s.user?.optCommunity ?? false);
+  const visibleTabs = TABS.filter((t) => t.key !== 'community' || optCommunity);
+  const defaultTab = optCommunity ? 'community' : 'blog';
+  const [activeTab, setActiveTab] = useState(defaultTab);
 
   return (
     <SafeBottomBar style={styles.container}>
@@ -754,7 +844,7 @@ export default function CommunityScreen({ navigation }) {
 
       {/* Tab bar */}
       <View style={styles.tabBar}>
-        {TABS.map((tab) => (
+        {visibleTabs.map((tab) => (
           <TouchableOpacity
             key={tab.key}
             style={[styles.tabItem, activeTab === tab.key && styles.tabItemActive]}
@@ -1016,4 +1106,35 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.secondaryGlow,
   },
   blogReadBtnText: { fontSize: 11, fontWeight: '700', color: COLORS.secondary },
+  membersBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 10, paddingVertical: 5,
+    borderRadius: 16, backgroundColor: COLORS.surface,
+    borderWidth: 1, borderColor: COLORS.border,
+  },
+  membersBadgeText: { fontSize: 12, color: COLORS.textMuted },
+  modalOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end',
+  },
+  membersSheet: {
+    backgroundColor: COLORS.card,
+    borderTopLeftRadius: 20, borderTopRightRadius: 20,
+    padding: 20, maxHeight: '70%',
+  },
+  membersSheetHandle: {
+    width: 36, height: 4, borderRadius: 2,
+    backgroundColor: COLORS.textMuted, alignSelf: 'center', marginBottom: 14,
+  },
+  membersSheetTitle: {
+    fontSize: 16, fontWeight: '700', color: COLORS.white, marginBottom: 16,
+  },
+  membersEmptyState: { alignItems: 'center', paddingVertical: 30, gap: 8 },
+  emptyStateText: { fontSize: 13, color: COLORS.textMuted },
+  memberRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10 },
+  memberAvatar: { width: 38, height: 38, borderRadius: 19 },
+  memberAvatarPlaceholder: {
+    backgroundColor: COLORS.surface, justifyContent: 'center', alignItems: 'center',
+    borderWidth: 1, borderColor: COLORS.border,
+  },
+  memberName: { fontSize: 14, color: COLORS.white, flex: 1 },
 });

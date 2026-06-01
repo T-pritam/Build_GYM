@@ -109,6 +109,14 @@ export const reportPost = async (postId, reason) => {
   return data;
 };
 
+// ── Members ──────────────────────────────────────────────────────────────────
+
+/** GET /api/community/members — all opted-in members */
+export const fetchCommunityMembers = async () => {
+  const { data } = await api.get('/community/members');
+  return data.data;
+};
+
 // ── Polls ────────────────────────────────────────────────────────────────────
 
 /** POST /api/community/polls/:postId/vote */

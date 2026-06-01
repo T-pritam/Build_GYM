@@ -7,6 +7,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import { forgotPasswordSend } from '../../services/authService';
 
+const EMAIL_RE = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/;
+
 export default function ForgotPasswordScreen({ navigation }) {
   const [identifier, setIdentifier] = useState('');
   const [focused,    setFocused]    = useState(false);
@@ -18,6 +20,10 @@ export default function ForgotPasswordScreen({ navigation }) {
 
   const handleSend = async () => {
     if (!canSubmit || loading) return;
+    if (isEmail && !EMAIL_RE.test(identifier.trim())) {
+      Alert.alert('Invalid Email', 'Please enter a valid email address (e.g. name@domain.com).');
+      return;
+    }
     setLoading(true);
     try {
       const raw = isPhone ? `+91${identifier.trim()}` : identifier.trim().toLowerCase();

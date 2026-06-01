@@ -110,6 +110,8 @@ export const useAuthStore = create((set, get) => ({
       await SecureStore.setItemAsync(KEYS.USER_DATA, JSON.stringify(updatedUser));
     } catch (_) {}
     set({ user: updatedUser });
+    // Fetch fresh profile so optCommunity (and other member fields) are immediately available
+    get().refreshUser();
   },
 
   /**
@@ -131,6 +133,7 @@ export const useAuthStore = create((set, get) => ({
         fullName:        fresh.fullName        ?? user.fullName,
         email:           fresh.email           ?? user.email,
         profilePhotoUrl: fresh.profilePhotoUrl ?? user.profilePhotoUrl ?? null,
+        optCommunity:    fresh.optCommunity    ?? user.optCommunity    ?? false,
       };
       try {
         await SecureStore.setItemAsync(KEYS.USER_DATA, JSON.stringify(updatedUser));
