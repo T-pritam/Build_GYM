@@ -70,42 +70,29 @@ function getStatusStyle(status) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function TransactionDetailScreen({ navigation, route }) {
-  const { transaction: passedTransaction, transactionId } = route.params;
+  const { transaction: passedTransaction, transactionId } = route.params || {};
 
   const [transaction, setTransaction] = useState(passedTransaction || null);
   const [loadingTxn, setLoadingTxn] = useState(!passedTransaction && !!transactionId);
+  const [txnError, setTxnError] = useState(false);
   const [booking, setBooking] = useState(null);
   const [loadingBooking, setLoadingBooking] = useState(false);
 
-  // Deeplink support: fetch transaction by ID when only transactionId is passed
+  // Deeplink support: fetch by ID when only transactionId is passed
   useEffect(() => {
     if (!passedTransaction && transactionId) {
       fetchTransactionById(transactionId)
         .then(data => setTransaction(data))
-        .catch(() => {})
+        .catch(() => setTxnError(true))
         .finally(() => setLoadingTxn(false));
     }
   }, []);
 
-  if (loadingTxn || !transaction) {
-    return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator color={COLORS.secondary} size="large" />
-      </View>
-    );
-  }
-
-  const isCredit   = transaction.transactionType === 'CREDIT' || transaction.transactionType === 'REFUND';
-  const isRefund   = transaction.transactionType === 'REFUND';
-  const isSession  = transaction.itemCategory === 'SESSION';
-  const isCafe     = transaction.itemCategory === 'CAFE';
-
-  const meta = getCategoryMeta(transaction.itemCategory, transaction.transactionType);
-
+  // Booking context fetch — must be before any early return (React hooks rule)
+  // Depends on `transaction` so it fires once the fetch above resolves
   useEffect(() => {
-    if (!isSession || !transaction.referenceId) return;
+    if (!transaction || transaction.itemCategory !== 'SESSION' || !transaction.referenceId) return;
 
-    // If booking context was passed directly (from MyBookings), use it
     if (transaction.slotDate) {
       setBooking({
         booking: {
@@ -124,13 +111,37 @@ export default function TransactionDetailScreen({ navigation, route }) {
       return;
     }
 
-    // Otherwise fetch from API
     setLoadingBooking(true);
     fetchBookingDetail(transaction.referenceId)
       .then(res => setBooking(res.data?.data || null))
       .catch(() => {})
       .finally(() => setLoadingBooking(false));
-  }, []);
+  }, [transaction]);
+
+  if (loadingTxn) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator color={COLORS.secondary} size="large" />
+      </View>
+    );
+  }
+
+  if (txnError || !transaction) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={24} color="#fff" />
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  const isCredit   = transaction.transactionType === 'CREDIT' || transaction.transactionType === 'REFUND';
+  const isRefund   = transaction.transactionType === 'REFUND';
+  const isSession  = transaction.itemCategory === 'SESSION';
+  const isCafe     = transaction.itemCategory === 'CAFE';
+
+  const meta = getCategoryMeta(transaction.itemCategory, transaction.transactionType);
 
   const b = booking?.booking;
   const ss = b ? getStatusStyle(b.status) : null;
