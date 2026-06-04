@@ -17,6 +17,15 @@ export const fetchBalance = async () => {
 };
 
 /**
+ * GET /api/wallet/transactions/:id
+ * Returns a single coin transaction by ID.
+ */
+export const fetchTransactionById = async (id) => {
+  const { data } = await api.get(`/wallet/transactions/${id}`);
+  return data.data;
+};
+
+/**
  * GET /api/wallet/transactions?limit=&cursor=
  * Returns { data: [], nextCursor, hasMore }.
  */

@@ -66,7 +66,7 @@ export const handleDeepLink = (deepLink) => {
         if (id) navigateTo('BlogFeed', { postId: id });
         break;
       case 'transaction':
-        navigateTo('BuildCoinTransactions');
+        if (id) navigateTo('TransactionDetail', { transactionId: id });
         break;
       case 'transactions':
         navigateTo('BuildCoinTransactions');

@@ -6,6 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import { fetchBookingDetail } from '../../services/activityService';
+import { fetchTransactionById } from '../../services/walletService';
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -69,10 +70,30 @@ function getStatusStyle(status) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function TransactionDetailScreen({ navigation, route }) {
-  const { transaction } = route.params;
+  const { transaction: passedTransaction, transactionId } = route.params;
 
+  const [transaction, setTransaction] = useState(passedTransaction || null);
+  const [loadingTxn, setLoadingTxn] = useState(!passedTransaction && !!transactionId);
   const [booking, setBooking] = useState(null);
   const [loadingBooking, setLoadingBooking] = useState(false);
+
+  // Deeplink support: fetch transaction by ID when only transactionId is passed
+  useEffect(() => {
+    if (!passedTransaction && transactionId) {
+      fetchTransactionById(transactionId)
+        .then(data => setTransaction(data))
+        .catch(() => {})
+        .finally(() => setLoadingTxn(false));
+    }
+  }, []);
+
+  if (loadingTxn || !transaction) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator color={COLORS.secondary} size="large" />
+      </View>
+    );
+  }
 
   const isCredit   = transaction.transactionType === 'CREDIT' || transaction.transactionType === 'REFUND';
   const isRefund   = transaction.transactionType === 'REFUND';
