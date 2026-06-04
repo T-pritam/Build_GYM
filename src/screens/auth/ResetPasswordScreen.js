@@ -12,18 +12,18 @@ import { CommonActions } from '@react-navigation/native';
 export default function ResetPasswordScreen({ navigation, route }) {
   const { identifier } = route?.params || {};
 
-  const [otp,       setOtp]       = useState(['', '', '', '', '', '']);
-  const [newPw,     setNewPw]     = useState('');
+  const [otp, setOtp] = useState(['', '', '', '', '', '']);
+  const [newPw, setNewPw] = useState('');
   const [confirmPw, setConfirmPw] = useState('');
-  const [showNew,   setShowNew]   = useState(false);
-  const [showCon,   setShowCon]   = useState(false);
-  const [timer,     setTimer]     = useState(30);
+  const [showNew, setShowNew] = useState(false);
+  const [showCon, setShowCon] = useState(false);
+  const [timer, setTimer] = useState(30);
   const [canResend, setCanResend] = useState(false);
   const [resending, setResending] = useState(false);
-  const [loading,   setLoading]   = useState(false);
+  const [loading, setLoading] = useState(false);
   const inputRefs = useRef([]);
 
-  const strength  = passwordStrength(newPw);
+  const strength = passwordStrength(newPw);
   const otpFilled = otp.every((d) => d !== '');
   const canSubmit = otpFilled && newPw.length >= 8 && newPw === confirmPw;
 
@@ -126,7 +126,10 @@ export default function ResetPasswordScreen({ navigation, route }) {
                   onKeyPress={(e) => handleKeyPress(e, i)}
                   keyboardType="number-pad"
                   maxLength={1}
+                  multiline={false}
+                  scrollEnabled={false}
                   textAlign="center"
+                  textAlignVertical="center"
                   selectTextOnFocus
                 />
               ))}
@@ -259,13 +262,36 @@ const s = StyleSheet.create({
   },
 
   // OTP boxes — flex: 1 so all 6 fit on any screen width
-  otpRow: { flexDirection: 'row', gap: 8 },
-  otpBox: {
-    flex: 1, height: 40, borderRadius: 12, textAlign: 'center',
-    fontSize: 20, fontWeight: '800', color: '#fff',
-    backgroundColor: '#111', borderWidth: 1.5, borderColor: '#333',
+  // OTP
+  otpRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 4,
   },
-  otpBoxFilled: { borderColor: COLORS.secondary },
+
+  otpBox: {
+    width: 44,
+    height: 46,
+    borderRadius: 12,
+
+    backgroundColor: '#111',
+    borderWidth: 1.5,
+    borderColor: '#333',
+
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: '700',
+
+    textAlign: 'center',
+    textAlignVertical: 'center',
+
+    includeFontPadding: false,
+    paddingVertical: 0,
+  },
+
+  otpBoxFilled: {
+    borderColor: COLORS.secondary,
+  },
 
   resendRow: { alignItems: 'center', marginTop: 16 },
   timerText: { fontSize: 13, color: '#555' },

@@ -12,7 +12,7 @@ import {
   registerForPushNotificationsAsync,
   saveFCMToken,
   setupNotificationListeners,
-  handleDeepLink,
+  handleNotificationData,
 } from './src/services/notificationService';
 import { useAuthStore } from './src/store/authStore';
 import { useAnnouncementStore } from './src/store/announcementStore';
@@ -65,9 +65,9 @@ export default function App() {
       // ── 4. Deep link: app opened from a killed state via notification ─────
       try {
         const initialMessage = await messaging().getInitialNotification();
-        if (initialMessage?.data?.deep_link) {
+        if (initialMessage?.data) {
           // Delay to let navigation container mount fully
-          setTimeout(() => handleDeepLink(initialMessage.data.deep_link), 1500);
+          setTimeout(() => handleNotificationData(initialMessage.data), 1500);
         }
       } catch (err) {
         console.warn('getInitialNotification error:', err);
@@ -75,8 +75,8 @@ export default function App() {
 
       // ── 5. Deep link: app in background, user taps notification ──────────
       const unsubscribeOnOpen = messaging().onNotificationOpenedApp((remoteMessage) => {
-        if (remoteMessage?.data?.deep_link) {
-          handleDeepLink(remoteMessage.data.deep_link);
+        if (remoteMessage?.data) {
+          handleNotificationData(remoteMessage.data);
         }
       });
 

@@ -15,7 +15,18 @@ export const FCM_TOKEN_KEY = '@fcm_token';
  * Supported routes:
  *   buildfitness://announcements/<id>  → AnnouncementDetail
  *   buildfitness://mybookings          → MyBookings
- *   buildfitness://bookings/<id>       → BookingQR (booking detail / QR code)
+ *   buildfitness://bookings/<id>       → BookingQR
+ *   buildfitness://membership          → Membership
+ *   buildfitness://complaints          → MyComplaints
+ *   buildfitness://complaint/<id>      → MyComplaintDetail
+ *   buildfitness://activities          → Activities
+ *   buildfitness://activity/<id>       → ActivityDetail
+ *   buildfitness://notifications       → Notifications (bell tab)
+ *   buildfitness://blogs/<id>          → BlogFeed (single blog post)
+ *   buildfitness://transaction/<id>    → TransactionDetail
+ *   buildfitness://transactions        → BuildCoinTransactions (list)
+ *   buildfitness://trainers/<id>       → TrainerDetail
+ *   buildfitness://community/<id>      → PostDetail (community post)
  */
 export const handleDeepLink = (deepLink) => {
   if (!deepLink) return;
@@ -23,17 +34,90 @@ export const handleDeepLink = (deepLink) => {
     const withoutScheme = deepLink.replace('buildfitness://', '');
     const [resource, id] = withoutScheme.split('/');
 
-    if (resource === 'announcements' && id) {
-      navigateTo('AnnouncementDetail', { id });
-    } else if (resource === 'mybookings') {
-      navigateTo('MyBookings');
-    } else if (resource === 'bookings' && id) {
-      // Navigate to the QR / booking detail screen — BookingQRScreen accepts bookingId
-      navigateTo('BookingQR', { bookingId: id });
+    switch (resource) {
+      case 'announcements':
+        if (id) navigateTo('AnnouncementDetail', { id });
+        break;
+      case 'mybookings':
+        navigateTo('MyBookings');
+        break;
+      case 'bookings':
+        if (id) navigateTo('BookingQR', { bookingId: id });
+        break;
+      case 'membership':
+        navigateTo('Membership');
+        break;
+      case 'complaints':
+        navigateTo('MyComplaints');
+        break;
+      case 'complaint':
+        if (id) navigateTo('MyComplaintDetail', { id });
+        break;
+      case 'activities':
+        navigateTo('Activities');
+        break;
+      case 'activity':
+        if (id) navigateTo('ActivityDetail', { activityId: id });
+        break;
+      case 'notifications':
+        navigateTo('Notifications');
+        break;
+      case 'blogs':
+        if (id) navigateTo('BlogFeed', { postId: id });
+        break;
+      case 'transaction':
+        if (id) navigateTo('TransactionDetail', { transactionId: id });
+        break;
+      case 'transactions':
+        navigateTo('BuildCoinTransactions');
+        break;
+      case 'trainers':
+        if (id) navigateTo('TrainerDetail', { trainerId: id });
+        else navigateTo('Trainers');
+        break;
+      case 'community':
+        if (id) navigateTo('PostDetail', { postId: id });
+        break;
+      default:
+        break;
     }
   } catch (err) {
     console.warn('handleDeepLink error:', err);
   }
+};
+
+/**
+ * Type → fallback deep link for notifications that don't include a deep_link field yet.
+ * Used as a safety-net until all call sites pass an explicit deep_link.
+ */
+const TYPE_FALLBACK_DEEPLINK = {
+  MEMBERSHIP_ACTIVATED:        'buildfitness://membership',
+  MEMBERSHIP_PAUSE_CREATED:    'buildfitness://membership',
+  MEMBERSHIP_PAUSED:           'buildfitness://membership',
+  MEMBERSHIP_RESUMED:          'buildfitness://membership',
+  MEMBERSHIP_EXPIRED:          'buildfitness://membership',
+  MEMBERSHIP_EXPIRY_REMINDER:  'buildfitness://membership',
+  booking_cancelled:           'buildfitness://mybookings',
+  slot_cancelled:              'buildfitness://mybookings',
+  trial_booking:               'buildfitness://mybookings',
+  // blog_published: deep_link already in FCM data from blog.worker.js
+  // COINS_GRANTED / COINS_PURCHASED: transaction ID needed for specific screen
+  COINS_GRANTED:               'buildfitness://transactions',
+  COINS_PURCHASED:             'buildfitness://transactions',
+};
+
+/**
+ * Primary entry point for handling any notification tap.
+ * Checks deep_link first; falls back to data.type → screen mapping.
+ */
+export const handleNotificationData = (data) => {
+  if (!data) return;
+  if (data.deep_link) {
+    handleDeepLink(data.deep_link);
+    return;
+  }
+  const fallback = TYPE_FALLBACK_DEEPLINK[data.type];
+  if (fallback) handleDeepLink(fallback);
 };
 
 Notifications.setNotificationHandler({
@@ -120,8 +204,7 @@ export const setupNotificationListeners = () => {
 
     // Handle notification tap (Expo local notifications)
     const responseSubscription = Notifications.addNotificationResponseReceivedListener(response => {
-      const deepLink = response.notification.request.content.data?.deep_link;
-      if (deepLink) handleDeepLink(deepLink);
+      handleNotificationData(response.notification.request.content.data);
     });
 
     // Handle FCM messages
