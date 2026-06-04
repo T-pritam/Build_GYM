@@ -28,6 +28,17 @@ export default function ActivityDetailScreen({ navigation, route }) {
   const { activity: passedActivity, fallbackStyle } = route?.params || {};
 
   const [activity, setActivity] = useState(passedActivity || null);
+
+  // Support deeplink navigation where only activityId is available (no full object passed)
+  useEffect(() => {
+    const activityId = route.params?.activityId;
+    if (!passedActivity && activityId) {
+      fetchActivityDetail(activityId)
+        .then(data => setActivity(data))
+        .catch(() => {});
+    }
+  }, []);
+
   const [slots, setSlots] = useState([]);
   const [slotsLoading, setSlotsLoading] = useState(true);
   const [booking, setBooking] = useState(false);

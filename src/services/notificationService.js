@@ -42,7 +42,7 @@ export const handleDeepLink = (deepLink) => {
         navigateTo('MyBookings');
         break;
       case 'bookings':
-        if (id) navigateTo('BookingQR', { bookingId: id });
+        navigateTo('MyBookings');
         break;
       case 'membership':
         navigateTo('Membership');
@@ -51,7 +51,7 @@ export const handleDeepLink = (deepLink) => {
         navigateTo('MyComplaints');
         break;
       case 'complaint':
-        if (id) navigateTo('MyComplaintDetail', { id });
+        if (id) navigateTo('MyComplaintDetail', { complaintId: id });
         break;
       case 'activities':
         navigateTo('Activities');
@@ -66,7 +66,7 @@ export const handleDeepLink = (deepLink) => {
         if (id) navigateTo('BlogFeed', { postId: id });
         break;
       case 'transaction':
-        if (id) navigateTo('TransactionDetail', { transactionId: id });
+        navigateTo('BuildCoinTransactions');
         break;
       case 'transactions':
         navigateTo('BuildCoinTransactions');

@@ -6,7 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import SafeBottomBar from '../../components/SafeBottomBar';
-import { requestTrialSession, checkTrainerTrialStatus } from '../../services/trainerService';
+import { requestTrialSession, checkTrainerTrialStatus, fetchTrainers } from '../../services/trainerService';
 
 const RECEPTION_PHONE = '+919876543210';
 
@@ -21,22 +21,38 @@ export default function TrainerDetailScreen({ navigation, route }) {
   const [requesting, setRequesting] = useState(false);
   // null = no active trial | 'pending' | 'accepted' | 'member_confirmed'
   const [trialStatus, setTrialStatus] = useState(null);
+  const [fetchedTrainer, setFetchedTrainer] = useState(null);
+
+  const resolvedTrainer = trainer || fetchedTrainer;
+
+  // Deeplink support: fetch by ID when navigated without a full trainer object
+  useEffect(() => {
+    const trainerId = route.params?.trainerId;
+    if (!trainer && trainerId) {
+      fetchTrainers()
+        .then(list => {
+          const found = list.find(t => t.id === trainerId);
+          if (found) setFetchedTrainer(found);
+        })
+        .catch(() => {});
+    }
+  }, []);
 
   useEffect(() => {
-    if (!trainer?.id) return;
-    checkTrainerTrialStatus(trainer.id)
+    if (!resolvedTrainer?.id) return;
+    checkTrainerTrialStatus(resolvedTrainer.id)
       .then(d => setTrialStatus(d.hasActive ? d.status : null))
       .catch(() => { });
-  }, [trainer?.id]);
+  }, [resolvedTrainer?.id]);
 
-  if (!trainer) return null;
+  if (!resolvedTrainer) return null;
 
-  const initials = (trainer.name || 'T').charAt(0).toUpperCase();
+  const initials = (resolvedTrainer.name || 'T').charAt(0).toUpperCase();
 
   async function handleTrialRequest() {
     setRequesting(true);
     try {
-      await requestTrialSession(trainer.id);
+      await requestTrialSession(resolvedTrainer.id);
       setTrialStatus('pending');
       Alert.alert('Request Sent', "Your trial session request has been submitted. You'll receive a notification once it's confirmed by the admin.");
     } catch (err) {
@@ -55,37 +71,37 @@ export default function TrainerDetailScreen({ navigation, route }) {
   const stats = [
     {
       label: 'Experience',
-      value: trainer.experience || (trainer.yearsOfExperience ? `${trainer.yearsOfExperience} years` : '—'),
+      value: resolvedTrainer.experience || (resolvedTrainer.yearsOfExperience ? `${resolvedTrainer.yearsOfExperience} years` : '—'),
       icon: 'time-outline',
       color: COLORS.secondary,
       bg: `${COLORS.secondary}25`,
     },
     {
       label: 'Clients',
-      value: trainer.clients > 0 ? `${trainer.clients}+` : '0+',
+      value: resolvedTrainer.clients > 0 ? `${resolvedTrainer.clients}+` : '0+',
       icon: 'people-outline',
       color: '#3B82F6',
       bg: 'rgba(59,130,246,0.15)',
     },
     {
       label: 'Rating',
-      value: String(trainer.rating ?? 4.8),
+      value: String(resolvedTrainer.rating ?? 4.8),
       icon: 'star-outline',
       color: '#EAB308',
       bg: 'rgba(234,179,8,0.15)',
     },
     {
       label: 'Status',
-      value: trainer.available ? 'Available' : 'Full',
-      icon: trainer.available ? 'checkmark-circle-outline' : 'time-outline',
-      color: trainer.available ? '#22C55E' : '#94A3B8',
-      bg: trainer.available ? 'rgba(34,197,94,0.15)' : 'rgba(148,163,184,0.15)',
+      value: resolvedTrainer.available ? 'Available' : 'Full',
+      icon: resolvedTrainer.available ? 'checkmark-circle-outline' : 'time-outline',
+      color: resolvedTrainer.available ? '#22C55E' : '#94A3B8',
+      bg: resolvedTrainer.available ? 'rgba(34,197,94,0.15)' : 'rgba(148,163,184,0.15)',
     },
   ];
 
   // Parse certifications text into lines (filter blanks)
-  const certLines = trainer.certificationsText
-    ? trainer.certificationsText.split('\n').map((l) => l.trim()).filter(Boolean)
+  const certLines = resolvedTrainer.certificationsText
+    ? resolvedTrainer.certificationsText.split('\n').map((l) => l.trim()).filter(Boolean)
     : [];
 
   return (
@@ -105,32 +121,32 @@ export default function TrainerDetailScreen({ navigation, route }) {
       >
         {/* ── Profile header ─────────────────────────────────────── */}
         <View style={s.profileHeader}>
-          {trainer.profilePhotoUrl ? (
-            <Image source={{ uri: trainer.profilePhotoUrl }} style={s.avatar} />
+          {resolvedTrainer.profilePhotoUrl ? (
+            <Image source={{ uri: resolvedTrainer.profilePhotoUrl }} style={s.avatar} />
           ) : (
             <View style={[s.avatar, s.avatarFallback]}>
               <Text style={s.avatarText}>{initials}</Text>
             </View>
           )}
-          <Text style={s.trainerName}>{trainer.name}</Text>
-          <Text style={s.trainerSpec}>{trainer.specialisation}</Text>
+          <Text style={s.trainerName}>{resolvedTrainer.name}</Text>
+          <Text style={s.trainerSpec}>{resolvedTrainer.specialisation}</Text>
 
           {/* Stars + rating */}
           <View style={s.ratingRow}>
             {[1, 2, 3, 4, 5].map((i) => (
               <Ionicons
                 key={i}
-                name={i <= Math.round(trainer.rating ?? 4.8) ? 'star' : 'star-outline'}
+                name={i <= Math.round(resolvedTrainer.rating ?? 4.8) ? 'star' : 'star-outline'}
                 size={17}
                 color={COLORS.secondary}
               />
             ))}
-            <Text style={s.ratingNum}>{trainer.rating ?? 4.8}</Text>
+            <Text style={s.ratingNum}>{resolvedTrainer.rating ?? 4.8}</Text>
           </View>
         </View>
 
         {/* ── Availability banner ─────────────────────────────────── */}
-        {trainer.available ? (
+        {resolvedTrainer.available ? (
           <View style={s.availBanner}>
             <Ionicons name="checkmark-circle" size={20} color="#22C55E" />
             <Text style={s.availText}>Currently accepting new clients</Text>
@@ -156,21 +172,21 @@ export default function TrainerDetailScreen({ navigation, route }) {
         </View>
 
         {/* ── About ──────────────────────────────────────────────── */}
-        {!!trainer.bio && (
+        {!!resolvedTrainer.bio && (
           <View style={s.section}>
             <Text style={s.sectionTitle}>ABOUT</Text>
             <View style={s.card}>
-              <Text style={s.cardBody}>{trainer.bio}</Text>
+              <Text style={s.cardBody}>{resolvedTrainer.bio}</Text>
             </View>
           </View>
         )}
 
         {/* ── Training Philosophy ────────────────────────────────── */}
-        {!!trainer.trainingPhilosophy && (
+        {!!resolvedTrainer.trainingPhilosophy && (
           <View style={s.section}>
             <Text style={s.sectionTitle}>TRAINING PHILOSOPHY</Text>
             <View style={s.card}>
-              <Text style={s.cardBody}>{trainer.trainingPhilosophy}</Text>
+              <Text style={s.cardBody}>{resolvedTrainer.trainingPhilosophy}</Text>
             </View>
           </View>
         )}
@@ -191,11 +207,11 @@ export default function TrainerDetailScreen({ navigation, route }) {
         )}
 
         {/* ── Expertise chips ────────────────────────────────────── */}
-        {(trainer.specialisations?.length > 0 || trainer.tags?.length > 0) && (
+        {(resolvedTrainer.specialisations?.length > 0 || resolvedTrainer.tags?.length > 0) && (
           <View style={s.section}>
             <Text style={s.sectionTitle}>EXPERTISE</Text>
             <View style={s.chipRow}>
-              {(trainer.specialisations || trainer.tags || []).map((tag) => (
+              {(resolvedTrainer.specialisations || resolvedTrainer.tags || []).map((tag) => (
                 <View key={tag} style={s.expertiseChip}>
                   <Ionicons name="checkmark" size={13} color={COLORS.secondary} />
                   <Text style={s.expertiseChipText}>{tag}</Text>
@@ -206,11 +222,11 @@ export default function TrainerDetailScreen({ navigation, route }) {
         )}
 
         {/* ── Languages ──────────────────────────────────────────── */}
-        {trainer.languages?.length > 0 && (
+        {resolvedTrainer.languages?.length > 0 && (
           <View style={s.section}>
             <Text style={s.sectionTitle}>LANGUAGES</Text>
             <View style={s.chipRow}>
-              {trainer.languages.map((lang) => (
+              {resolvedTrainer.languages.map((lang) => (
                 <View key={lang} style={s.langChip}>
                   <Text style={s.langChipText}>{lang}</Text>
                 </View>
