@@ -34,7 +34,7 @@ export default function ActivityDetailScreen({ navigation, route }) {
     const activityId = route.params?.activityId;
     if (!passedActivity && activityId) {
       fetchActivityDetail(activityId)
-        .then(data => setActivity(data))
+        .then(res => setActivity(res.data?.data || null))
         .catch(() => {});
     }
   }, []);

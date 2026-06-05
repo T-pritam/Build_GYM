@@ -3,10 +3,10 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "start": "expo start",
+    "start": "expo start --port 8085 --dev-client",
     "start:offline": "expo start --offline",
-    "android": "expo run:android --no-bundler",
-    "android:build": "expo run:android",
+    "android": "expo run:android --no-bundler --port 8085",
+    "android:build": "expo run:android --port 8085",
     "ios": "expo run:ios",
     "web": "expo start --web"
   },

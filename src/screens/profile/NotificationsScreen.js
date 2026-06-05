@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import { fetchAnnouncements, markAnnouncementRead } from '../../services/announcementService';
 import { useAnnouncementStore } from '../../store/announcementStore';
+import { handleDeepLink } from '../../services/notificationService';
 import SafeBottomBar from '../../components/SafeBottomBar';
 import api from '../../services/apiService';
 
@@ -117,12 +118,16 @@ export default function NotificationsScreen({ navigation }) {
 
   // ── Open / close detail modal ─────────────────────────────────────────────
   const handleOpen = (item) => {
-    setSelected(item);
     if (!item.is_read) {
       markAnnouncementRead(item.id).catch(() => {});
       markOneRead();
       setItems((prev) => prev.map((a) => a.id === item.id ? { ...a, is_read: true } : a));
     }
+    if (item.deepLink) {
+      handleDeepLink(item.deepLink);
+      return;
+    }
+    setSelected(item);
   };
 
   const handleClose = () => setSelected(null);

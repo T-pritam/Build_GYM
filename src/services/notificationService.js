@@ -9,6 +9,12 @@ import { navigateTo } from '../navigation/navigationRef';
 
 export const FCM_TOKEN_KEY = '@fcm_token';
 
+// Cold-start deeplink: store the notification data from getInitialNotification so
+// SplashScreen can fire it AFTER replacing to MainTabs (prevents the 3200ms override bug).
+let _coldStartData = null;
+export const storeColdStartData = (data) => { _coldStartData = data; };
+export const consumeColdStartData = () => { const d = _coldStartData; _coldStartData = null; return d; };
+
 /**
  * Parse a buildfitness:// deep link and navigate to the correct screen.
  *

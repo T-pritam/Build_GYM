@@ -8,6 +8,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { useAuthStore } from '../../store/authStore';
+import { consumeColdStartData, handleNotificationData } from '../../services/notificationService';
 
 const { width, height } = Dimensions.get('window');
 const LOGO = width * 0.44;
@@ -94,6 +95,8 @@ export default function SplashScreen({ navigation }) {
       if (isAuthenticated && user) {
         if (user.onboardingCompleted) {
           navigation.replace('MainTabs');
+          const pending = consumeColdStartData();
+          if (pending) setTimeout(() => handleNotificationData(pending), 400);
         } else {
           navigation.replace('Onboarding');
         }

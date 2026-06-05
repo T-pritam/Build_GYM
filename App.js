@@ -13,6 +13,7 @@ import {
   saveFCMToken,
   setupNotificationListeners,
   handleNotificationData,
+  storeColdStartData,
 } from './src/services/notificationService';
 import { useAuthStore } from './src/store/authStore';
 import { useAnnouncementStore } from './src/store/announcementStore';
@@ -63,11 +64,13 @@ export default function App() {
       }
 
       // ── 4. Deep link: app opened from a killed state via notification ─────
+      // Store the data — do NOT navigate yet. SplashScreen fires it after
+      // navigation.replace('MainTabs') so the 3200ms Splash timer can't
+      // override the deeplink navigation.
       try {
         const initialMessage = await messaging().getInitialNotification();
         if (initialMessage?.data) {
-          // Delay to let navigation container mount fully
-          setTimeout(() => handleNotificationData(initialMessage.data), 1500);
+          storeColdStartData(initialMessage.data);
         }
       } catch (err) {
         console.warn('getInitialNotification error:', err);
