@@ -1,9 +1,12 @@
 import React, { useEffect } from 'react';
+import { View, ActivityIndicator } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useAuthStore } from '../store/authStore';
+import { useMembershipStore } from '../store/membershipStore';
 import { navigationRef } from './navigationRef';
+import FrozenLockScreen from '../screens/membership/FrozenLockScreen';
 
 // Auth Screens
 import SplashScreen from '../screens/auth/SplashScreen';
@@ -104,6 +107,36 @@ function MainTabs() {
   );
 }
 
+/**
+ * Gate around the main app: when the member's membership is `frozen`
+ * (admin- or member-initiated pause) the entire app is replaced by a single
+ * static lock screen (v1 hard lock per BA sheet 4.1). Status is refreshed on
+ * mount and whenever a MEMBERSHIP_* push arrives (via membershipStore.refresh).
+ */
+function MainTabsGate() {
+  const status  = useMembershipStore((s) => s.status);
+  const loaded  = useMembershipStore((s) => s.loaded);
+  const refresh = useMembershipStore((s) => s.refresh);
+
+  useEffect(() => {
+    refresh();
+  }, []);
+
+  // Until the first status fetch resolves, show a brief loader so a frozen
+  // member never flashes the full app. On network failure refresh() still sets
+  // loaded=true (status stays null) so offline users are not locked out.
+  if (!loaded) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#000000', alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator color="#E96316" />
+      </View>
+    );
+  }
+
+  if (status === 'frozen') return <FrozenLockScreen />;
+  return <MainTabs />;
+}
+
 export default function AppNavigator() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const isLoading       = useAuthStore((s) => s.isLoading);
@@ -122,6 +155,7 @@ export default function AppNavigator() {
    */
   useEffect(() => {
     if (!isLoading && !isAuthenticated && navigationRef.isReady()) {
+      useMembershipStore.getState().reset(); // drop stale freeze status on logout
       navigationRef.reset({ index: 0, routes: [{ name: 'Login' }] });
     }
   }, [isAuthenticated, isLoading]);
@@ -150,8 +184,8 @@ export default function AppNavigator() {
           options={{ animation: 'fade' }}
         />
 
-        {/* Main app */}
-        <Stack.Screen name="MainTabs" component={MainTabs} />
+        {/* Main app (gated by membership freeze status) */}
+        <Stack.Screen name="MainTabs" component={MainTabsGate} />
 
         {/* Cafe sub screens */}
         <Stack.Screen

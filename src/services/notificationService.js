@@ -1,13 +1,33 @@
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import messaging from '@react-native-firebase/messaging';
-import { Platform } from 'react-native';
+import { Platform, Linking } from 'react-native';
 import axios from 'axios';
 import { BASE_API_URL } from '@env';
 
 import { navigateTo } from '../navigation/navigationRef';
+import { useMembershipStore } from '../store/membershipStore';
 
 export const FCM_TOKEN_KEY = '@fcm_token';
+
+/** Re-check membership freeze status when a membership push arrives. */
+const refreshMembershipIfNeeded = (data) => {
+  if (data?.type && String(data.type).startsWith('MEMBERSHIP_')) {
+    useMembershipStore.getState().refresh();
+  }
+};
+
+// Gym reception line dialled by "call-admin" notification actions
+// (gate access revoked, trainer removed). Matches the hardcoded number used
+// across HomeScreen / MembershipScreen.
+export const RECEPTION_PHONE = '+919876543210';
+
+/** Dial the gym reception (used by call-admin notification actions). */
+export const callAdmin = () => {
+  Linking.openURL(`tel:${RECEPTION_PHONE}`).catch((err) =>
+    console.warn('callAdmin dial failed:', err),
+  );
+};
 
 // Cold-start deeplink: store the notification data from getInitialNotification so
 // SplashScreen can fire it AFTER replacing to MainTabs (prevents the 3200ms override bug).
@@ -84,6 +104,9 @@ export const handleDeepLink = (deepLink) => {
       case 'community':
         if (id) navigateTo('PostDetail', { postId: id });
         break;
+      case 'call-admin':
+        callAdmin();
+        break;
       default:
         break;
     }
@@ -110,6 +133,12 @@ const TYPE_FALLBACK_DEEPLINK = {
   // COINS_GRANTED / COINS_PURCHASED: transaction ID needed for specific screen
   COINS_GRANTED:               'buildfitness://transactions',
   COINS_PURCHASED:             'buildfitness://transactions',
+  COINS_PURCHASE_FAILED:       'buildfitness://transactions',
+  COINS_DEBITED:               'buildfitness://transactions',
+  COINS_LOW_BALANCE:           'buildfitness://transactions',
+  complaint_submitted:         'buildfitness://complaints',
+  complaint_in_progress:       'buildfitness://complaints',
+  // GATE_ACCESS_REVOKED / TRAINER_REMOVED carry action:'call_admin' (handled before deep links)
 };
 
 /**
@@ -216,6 +245,8 @@ export const setupNotificationListeners = () => {
     // Handle FCM messages
     const unsubscribeOnMessage = messaging().onMessage(async remoteMessage => {
       console.log('FCM Message received in foreground:', remoteMessage);
+
+      refreshMembershipIfNeeded(remoteMessage.data);
 
       if (remoteMessage.notification) {
         await Notifications.scheduleNotificationAsync({
