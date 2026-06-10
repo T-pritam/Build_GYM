@@ -35,9 +35,13 @@ function toYMD(date) {
 }
 
 const fmtLong  = (d) => new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-const fmtRange = (p) => {
-  const f = (d) => new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' });
-  return `${f(p.startDate)} → ${f(p.endDate)}`;
+const fmtShort = (d) => new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' });
+const fmtRange = (p) => `${fmtShort(p.startDate)} → ${fmtShort(p.endDate)}`;
+
+// Days a pause lasted: credited days once completed, else the planned span.
+const pauseDays = (p) => {
+  if (p.pauseDaysApplied != null) return p.pauseDaysApplied;
+  return Math.max(0, Math.round((new Date(p.endDate) - new Date(p.startDate)) / (1000 * 60 * 60 * 24)));
 };
 
 export default function PauseSubscriptionScreen({ navigation }) {
@@ -372,7 +376,8 @@ export default function PauseSubscriptionScreen({ navigation }) {
                       <Text style={styles.histDates}>{fmtRange(h)}</Text>
                       <Text style={styles.histMeta}>
                         {h.isAdminOverride ? 'By gym staff' : 'Self-requested'}
-                        {h.resumedEarly ? ' · resumed early' : ''}
+                        {h.resumedEarly && h.actualEndDate ? ` · resumed early on ${fmtShort(h.actualEndDate)}` : ''}
+                        {h.pauseDaysApplied != null ? ` · ${pauseDays(h)} day${pauseDays(h) === 1 ? '' : 's'} paused` : ''}
                         {h.reason ? ` · ${h.reason}` : ''}
                       </Text>
                     </View>

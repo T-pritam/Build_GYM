@@ -23,6 +23,24 @@ export default function SetPasswordScreen({ navigation, route }) {
   const strength = passwordStrength(newPw);
   const canSubmit = newPw.length >= 8 && confirmPw.length >= 8;
 
+  // Move past this screen: onboard first if not yet done, otherwise straight to home.
+  const goNext = () => {
+    const currentUser = user ?? {};
+    if (currentUser.onboardingCompleted) {
+      navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'MainTabs' }] }));
+    } else {
+      navigation.dispatch(CommonActions.reset({
+        index: 0,
+        routes: [{ name: 'Onboarding', params: { mobile: currentUser.phone } }],
+      }));
+    }
+  };
+
+  const handleSkip = () => {
+    if (loading) return;
+    goNext();
+  };
+
   const handleSet = async () => {
     if (newPw.length < 8) {
       Alert.alert('Too Short', 'Password must be at least 8 characters.');
@@ -36,16 +54,7 @@ export default function SetPasswordScreen({ navigation, route }) {
     try {
       await setPassword(newPw, confirmPw);
       await updateUser({ hasPassword: true });
-
-      const currentUser = user ?? {};
-      if (currentUser.onboardingCompleted) {
-        navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'MainTabs' }] }));
-      } else {
-        navigation.dispatch(CommonActions.reset({
-          index: 0,
-          routes: [{ name: 'Onboarding', params: { mobile: currentUser.phone } }],
-        }));
-      }
+      goNext();
     } catch (err) {
       Alert.alert('Error', err?.response?.data?.message || 'Could not set password. Please try again.');
     } finally {
@@ -161,6 +170,16 @@ export default function SetPasswordScreen({ navigation, route }) {
                 )
               }
             </TouchableOpacity>
+
+            {/* Skip — continue without setting a password */}
+            <TouchableOpacity
+              style={s.skipBtn}
+              onPress={handleSkip}
+              disabled={loading}
+              activeOpacity={0.7}
+            >
+              <Text style={s.skipText}>Skip for now</Text>
+            </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -223,4 +242,7 @@ const s = StyleSheet.create({
   },
   btnDisabled: { opacity: 0.5 },
   btnText: { fontSize: 14, fontWeight: '900', color: '#fff', letterSpacing: 2 },
+
+  skipBtn: { alignItems: 'center', justifyContent: 'center', height: 44, marginTop: 8 },
+  skipText: { fontSize: 14, fontWeight: '700', color: '#888' },
 });

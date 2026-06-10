@@ -20,9 +20,17 @@ const PAUSE_STATUS = {
   cancelled: { label: 'Cancelled', color: '#6B7280' },
 };
 
+const fmtShortDate = (d) => new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' });
+
 function fmtPauseRange(p) {
-  const f = (d) => new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' });
-  return `${f(p.startDate)} → ${f(p.endDate)}`;
+  return `${fmtShortDate(p.startDate)} → ${fmtShortDate(p.endDate)}`;
+}
+
+// Days a pause lasted: credited days once completed, else the planned span.
+function pauseDays(p) {
+  if (p.pauseDaysApplied != null) return p.pauseDaysApplied;
+  const ms = new Date(p.endDate) - new Date(p.startDate);
+  return Math.max(0, Math.round(ms / (1000 * 60 * 60 * 24)));
 }
 
 // ─── Tier colours ─────────────────────────────────────────────────────────────
@@ -113,8 +121,8 @@ export default function MembershipScreen({ navigation }) {
     if (!pauseId) return;
     setResuming(true);
     try {
-      await resumeMembershipPause(pauseId);
-      await load();
+      const data = await resumeMembershipPause(pauseId);
+      setMembershipData(data);
     } catch (err) {
       Alert.alert('Error', err?.response?.data?.message ?? 'Failed to resume membership.');
     } finally {
@@ -190,6 +198,13 @@ export default function MembershipScreen({ navigation }) {
   const validFrom = new Date(membership.startDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
   const validTill = new Date(membership.endDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 
+  // End-date breakdown: the stored endDate already includes credited pause days.
+  // Show "base + X paused days = end date" when any pause days have been applied.
+  const freezeDays = membership.freezeDaysAccumulated ?? 0;
+  const baseEnd = new Date(membership.endDate);
+  baseEnd.setDate(baseEnd.getDate() - freezeDays);
+  const baseTill = baseEnd.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+
   const features = TIER_FEATURES[plan.tier] ?? [];
   const perks     = (plan.perks ?? []).filter((p) => p.quantity !== 0);
 
@@ -256,6 +271,13 @@ export default function MembershipScreen({ navigation }) {
               <Text style={styles.dateValue}>{validTill}</Text>
             </View>
           </View>
+
+          {/* End-date breakdown when pause days have extended the membership */}
+          {freezeDays > 0 && (
+            <Text style={styles.endBreakdown}>
+              {baseTill} + {freezeDays} paused day{freezeDays === 1 ? '' : 's'} = {validTill}
+            </Text>
+          )}
 
           {/* Progress bar */}
           <View style={styles.progressSection}>
@@ -407,7 +429,8 @@ export default function MembershipScreen({ navigation }) {
                       <Text style={styles.pauseHistDates}>{fmtPauseRange(h)}</Text>
                       <Text style={styles.pauseHistMeta}>
                         {h.isAdminOverride ? 'By gym staff' : 'Self-requested'}
-                        {h.resumedEarly ? ' · resumed early' : ''}
+                        {h.resumedEarly && h.actualEndDate ? ` · resumed early on ${fmtShortDate(h.actualEndDate)}` : ''}
+                        {h.pauseDaysApplied != null ? ` · ${pauseDays(h)} day${pauseDays(h) === 1 ? '' : 's'} paused` : ''}
                       </Text>
                     </View>
                     <Text style={[styles.pauseHistStatus, { color: meta.color }]}>{meta.label}</Text>
@@ -519,6 +542,8 @@ const styles = StyleSheet.create({
     width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(233,99,22,0.15)',
     alignItems: 'center', justifyContent: 'center',
   },
+
+  endBreakdown: { fontSize: 11, color: COLORS.secondary, marginBottom: 16, marginTop: -4 },
 
   progressSection: { marginBottom: 12 },
   progressLabels:  { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },

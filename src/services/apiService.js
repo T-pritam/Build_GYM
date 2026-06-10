@@ -17,6 +17,7 @@
 import axios from 'axios';
 import { BASE_API_URL } from '@env';
 import { useAuthStore } from '../store/authStore';
+import { navigationRef } from '../navigation/navigationRef';
 
 // ─── Base instance ────────────────────────────────────────────────────────────
 const api = axios.create({
@@ -54,6 +55,19 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+
+    // Membership frozen (paused) → drop the user onto the hard-lock screen no
+    // matter which screen they're on. The backend blocks every non-recovery
+    // endpoint with this code, so a mid-session pause locks the app immediately.
+    if (error.response?.status === 403 && error.response?.data?.code === 'MEMBERSHIP_FROZEN') {
+      // Lazy require to avoid the apiService → membershipStore → membershipService cycle.
+      const { useMembershipStore } = require('../store/membershipStore');
+      useMembershipStore.getState().refresh(); // loads frozen status + currentPause for the lock screen
+      if (navigationRef.isReady()) {
+        navigationRef.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
+      }
+      return Promise.reject(error);
+    }
 
     // Only intercept 401 errors and prevent infinite retry loops
     if (error.response?.status !== 401 || originalRequest._retry) {

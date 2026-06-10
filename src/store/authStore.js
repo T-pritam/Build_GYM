@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
 import api from '../services/apiService';
+import { useAnnouncementStore } from './announcementStore';
 
 const KEYS = {
   ACCESS_TOKEN: 'bg_access_token',
@@ -51,6 +52,9 @@ export const useAuthStore = create((set, get) => ({
         SecureStore.setItemAsync(KEYS.USER_DATA, JSON.stringify(user)),
       ]);
       set({ user, accessToken, refreshToken, isAuthenticated: true });
+      // Load this user's unread count fresh (clears any value left by a previous session).
+      useAnnouncementStore.getState().clearUnread();
+      useAnnouncementStore.getState().refreshUnreadCount().catch(() => {});
     } catch (err) {
       console.warn('authStore.setAuth error:', err);
     }
@@ -162,5 +166,7 @@ export const useAuthStore = create((set, get) => ({
       refreshToken: null,
       isAuthenticated: false,
     });
+    // Drop the previous user's unread count so it can't leak into the next login.
+    useAnnouncementStore.getState().clearUnread();
   },
 }));

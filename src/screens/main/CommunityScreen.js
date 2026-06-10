@@ -7,9 +7,11 @@ import {
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { COLORS } from '../../constants/colors';
 import SafeBottomBar from '../../components/SafeBottomBar';
 import { useAuthStore } from '../../store/authStore';
+import { useAnnouncementStore } from '../../store/announcementStore';
 import { faqs, reviews } from '../../constants/dummyData';
 import { fetchPublishedBlogs } from '../../services/blogService';
 import { fetchCommunityPosts, votePost, fetchCommunityMembers } from '../../services/communityService';
@@ -821,9 +823,20 @@ function BlogTab({ navigation }) {
 
 export default function CommunityScreen({ navigation }) {
   const optCommunity = useAuthStore((s) => s.user?.optCommunity ?? false);
+  const refreshUser = useAuthStore((s) => s.refreshUser);
+  const unreadCount = useAnnouncementStore((s) => s.unreadCount);
   const visibleTabs = TABS.filter((t) => t.key !== 'community' || optCommunity);
-  const defaultTab = optCommunity ? 'community' : 'blog';
-  const [activeTab, setActiveTab] = useState(defaultTab);
+  const [activeTab, setActiveTab] = useState(optCommunity ? 'community' : 'blog');
+  const userPickedTab = useRef(false);
+
+  // Refresh consent on focus so the Community tab appears promptly after login.
+  useFocusEffect(useCallback(() => { refreshUser(); }, [refreshUser]));
+
+  // Once consent resolves to true, auto-select community — unless the user
+  // has already chosen a tab manually.
+  useEffect(() => {
+    if (optCommunity && !userPickedTab.current) setActiveTab('community');
+  }, [optCommunity]);
 
   return (
     <SafeBottomBar style={styles.container}>
@@ -836,9 +849,13 @@ export default function CommunityScreen({ navigation }) {
           <Text style={styles.headerTitle}>Community</Text>
           <Text style={styles.headerSub}>Articles & updates from Build Gym</Text>
         </View>
-        <TouchableOpacity onPress={() => navigation.navigate('Notifications')}>
+        <TouchableOpacity style={styles.notifBtn} onPress={() => navigation.navigate('Notifications')}>
           <Ionicons name="notifications-outline" size={24} color={COLORS.white} />
-          <View style={styles.notifDot} />
+          {unreadCount > 0 && (
+            <View style={styles.notifBadge}>
+              <Text style={styles.notifBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+            </View>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -848,7 +865,7 @@ export default function CommunityScreen({ navigation }) {
           <TouchableOpacity
             key={tab.key}
             style={[styles.tabItem, activeTab === tab.key && styles.tabItemActive]}
-            onPress={() => setActiveTab(tab.key)}
+            onPress={() => { userPickedTab.current = true; setActiveTab(tab.key); }}
             activeOpacity={0.7}
           >
             <Text style={[styles.tabLabel, activeTab === tab.key && styles.tabLabelActive]}>
@@ -874,9 +891,9 @@ export default function CommunityScreen({ navigation }) {
               <Text style={styles.faqMainHeading}>FAQs</Text>
               <Text style={styles.faqMainSub}>Common questions answered</Text>
             </View>
-            <View style={styles.faqHelpIcon}>
+            {/* <View style={styles.faqHelpIcon}>
               <Ionicons name="help-circle-outline" size={22} color={COLORS.textMuted} />
-            </View>
+            </View> */}
           </View>
           {(faqs || []).map((faq) => (
             <FAQItem key={faq.id} faq={faq} />
@@ -980,10 +997,16 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: 28, fontWeight: '800', color: COLORS.white },
   headerSub: { fontSize: 13, color: COLORS.textMuted, marginTop: 2 },
-  notifDot: {
-    position: 'absolute', top: 0, right: 0, width: 8, height: 8,
-    borderRadius: 4, backgroundColor: COLORS.secondary, borderWidth: 1.5, borderColor: COLORS.background,
+  notifBtn: { position: 'relative' },
+  notifBadge: {
+    position: 'absolute', top: -4, right: -4,
+    minWidth: 16, height: 16, borderRadius: 8,
+    backgroundColor: COLORS.secondary,
+    borderWidth: 1.5, borderColor: COLORS.background,
+    alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: 3,
   },
+  notifBadgeText: { fontSize: 9, fontWeight: '900', color: '#fff' },
 
   // Tab bar
   tabBar: {
