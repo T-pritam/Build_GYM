@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
+import { logEvent } from '../../services/analyticsService';
 
 const CATEGORY_COLORS = {
   Training: '#E96316',
@@ -14,6 +15,19 @@ const CATEGORY_COLORS = {
 
 export default function ArticleReaderScreen({ navigation, route }) {
   const { article } = route?.params || {};
+
+  // blog_read — measure time-on-screen; log once on unmount (lightweight, no re-renders).
+  const openedAt = useRef(Date.now());
+  useEffect(() => {
+    if (!article) return;
+    return () => {
+      logEvent('blog_read', {
+        post_id: article.id,
+        post_title: article.title,
+        reading_time_seconds: Math.round((Date.now() - openedAt.current) / 1000),
+      }).catch(() => {});
+    };
+  }, [article?.id]);
 
   if (!article) return null;
 

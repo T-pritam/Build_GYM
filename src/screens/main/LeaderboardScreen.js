@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import { getLeaderboard, getHallOfFame } from '../../services/leaderboardService';
+import { logEvent } from '../../services/analyticsService';
 
 const MEDAL_COLORS = ['#FFB400', '#B0B0B0', '#CD7F32'];
 const MEDAL_EMOJIS = ['🥇', '🥈', '🥉'];
@@ -30,6 +31,8 @@ export default function LeaderboardScreen({ navigation }) {
   const [hallOfFame, setHallOfFame] = useState([]);
   const [hofLoading, setHofLoading] = useState(false);
 
+  const viewLogged = useRef(false);
+
   const fetchData = useCallback(async () => {
     try {
       setError(null);
@@ -39,6 +42,13 @@ export default function LeaderboardScreen({ navigation }) {
       ]);
       setData(lb);
       setHallOfFame(hof);
+      if (!viewLogged.current) {
+        viewLogged.current = true;
+        logEvent('leaderboard_viewed', {
+          period: 'monthly',
+          member_rank: lb?.myRank?.rank ?? null,
+        }).catch(() => {});
+      }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to load leaderboard');
     } finally {

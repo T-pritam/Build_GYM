@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import SafeBottomBar from '../../components/SafeBottomBar';
 import { requestTrialSession, checkTrainerTrialStatus, fetchTrainers } from '../../services/trainerService';
+import { logEvent } from '../../services/analyticsService';
 
 const RECEPTION_PHONE = '+919876543210';
 
@@ -53,6 +54,7 @@ export default function TrainerDetailScreen({ navigation, route }) {
     setRequesting(true);
     try {
       await requestTrialSession(resolvedTrainer.id);
+      logEvent('trial_session_requested', { trainer_id: resolvedTrainer.id }).catch(() => {});
       setTrialStatus('pending');
       Alert.alert('Request Sent', "Your trial session request has been submitted. You'll receive a notification once it's confirmed by the admin.");
     } catch (err) {

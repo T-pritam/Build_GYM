@@ -7,6 +7,7 @@ import { BASE_API_URL } from '@env';
 
 import { navigateTo } from '../navigation/navigationRef';
 import { useMembershipStore } from '../store/membershipStore';
+import { logEvent } from './analyticsService';
 
 export const FCM_TOKEN_KEY = '@fcm_token';
 
@@ -147,6 +148,7 @@ const TYPE_FALLBACK_DEEPLINK = {
  */
 export const handleNotificationData = (data) => {
   if (!data) return;
+  logEvent('notification_tapped', { notification_type: data.type ?? 'unknown' }).catch(() => {});
   if (data.deep_link) {
     handleDeepLink(data.deep_link);
     return;
@@ -247,6 +249,17 @@ export const setupNotificationListeners = () => {
       console.log('FCM Message received in foreground:', remoteMessage);
 
       refreshMembershipIfNeeded(remoteMessage.data);
+
+      // coins_low_balance_alert_fired — logged when the low-balance push is received
+      // (the backend "threshold crossed + notification sent" moment; ties to
+      // NOTIFICATIONS.md §4.4). Foreground-received only; remaining_balance /
+      // threshold_value come from the FCM data payload when present.
+      if (remoteMessage.data?.type === 'COINS_LOW_BALANCE') {
+        logEvent('coins_low_balance_alert_fired', {
+          remaining_balance: Number(remoteMessage.data.remaining_balance ?? remoteMessage.data.balance ?? 0),
+          threshold_value: Number(remoteMessage.data.threshold_value ?? remoteMessage.data.threshold ?? 0),
+        }).catch(() => {});
+      }
 
       if (remoteMessage.notification) {
         await Notifications.scheduleNotificationAsync({

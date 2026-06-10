@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import { fetchMyBookings, cancelBooking } from '../../services/activityService';
 import SafeBottomBar from '../../components/SafeBottomBar';
+import { logEvent } from '../../services/analyticsService';
 
 export default function MyBookingsScreen({ navigation }) {
   const [tab, setTab] = useState('upcoming');
@@ -71,8 +72,21 @@ export default function MyBookingsScreen({ navigation }) {
           style: 'destructive',
           onPress: async () => {
             setCancellingId(bookingData.id);
+            const hoursBefore = (() => {
+              try {
+                const [h, m] = row.slotStartTime.split(':').map(Number);
+                const slotDate = new Date(row.slotDate);
+                slotDate.setHours(h, m, 0, 0);
+                return Math.round(((slotDate - Date.now()) / 3.6e6) * 10) / 10;
+              } catch { return null; }
+            })();
             try {
               await cancelBooking(bookingData.id);
+              logEvent('activity_cancelled_by_member', {
+                activity_type: row.activityName,
+                coins_refunded: bookingData.coinsPaid,
+                time_before_slot_hours: hoursBefore,
+              }).catch(() => {});
               Alert.alert('Cancelled', `${bookingData.coinsPaid} coins have been refunded to your wallet.`);
               loadBookings();
             } catch (err) {

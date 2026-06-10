@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
 import api from '../services/apiService';
 import { useAnnouncementStore } from './announcementStore';
+import { setUserId, setUserRole, setUserProperty } from '../services/analyticsService';
 
 const KEYS = {
   ACCESS_TOKEN: 'bg_access_token',
@@ -32,6 +33,10 @@ export const useAuthStore = create((set, get) => ({
 
       if (accessToken && refreshToken && user) {
         set({ accessToken, refreshToken, user, isAuthenticated: true, isLoading: false });
+        // Re-apply GA4 identity on session restore (display_id only, never UUID).
+        setUserId(user.displayId ?? null).catch(() => {});
+        setUserRole(user.role).catch(() => {});
+        setUserProperty('is_trainer', String(user.role === 'trainer')).catch(() => {});
       } else {
         set({ isLoading: false });
       }
@@ -52,6 +57,10 @@ export const useAuthStore = create((set, get) => ({
         SecureStore.setItemAsync(KEYS.USER_DATA, JSON.stringify(user)),
       ]);
       set({ user, accessToken, refreshToken, isAuthenticated: true });
+      // GA4 identity — display_id only, never the UUID.
+      setUserId(user.displayId ?? null).catch(() => {});
+      setUserRole(user.role).catch(() => {});
+      setUserProperty('is_trainer', String(user.role === 'trainer')).catch(() => {});
       // Load this user's unread count fresh (clears any value left by a previous session).
       useAnnouncementStore.getState().clearUnread();
       useAnnouncementStore.getState().refreshUnreadCount().catch(() => {});
@@ -143,6 +152,10 @@ export const useAuthStore = create((set, get) => ({
         await SecureStore.setItemAsync(KEYS.USER_DATA, JSON.stringify(updatedUser));
       } catch (_) {}
       set({ user: updatedUser });
+      // displayId may have arrived/changed here — keep GA4 user_id in sync.
+      if (updatedUser.displayId && updatedUser.displayId !== user.displayId) {
+        setUserId(updatedUser.displayId).catch(() => {});
+      }
     } catch (err) {
       // Non-fatal — silently ignore network errors so the screen still loads
       console.warn('authStore.refreshUser error:', err?.message);
@@ -168,5 +181,7 @@ export const useAuthStore = create((set, get) => ({
     });
     // Drop the previous user's unread count so it can't leak into the next login.
     useAnnouncementStore.getState().clearUnread();
+    // Clear GA4 identity so the next session starts clean.
+    setUserId(null).catch(() => {});
   },
 }));

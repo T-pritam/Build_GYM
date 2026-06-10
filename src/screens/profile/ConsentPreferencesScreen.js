@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import SafeBottomBar from '../../components/SafeBottomBar';
 import { fetchMyProfile, updateHealthEmergency } from '../../services/customerProfileService';
+import { setUserProperty } from '../../services/analyticsService';
 
 function Row({ icon, color, label, sub, value, onChange, locked }) {
   return (
@@ -62,6 +63,7 @@ export default function ConsentPreferencesScreen({ navigation }) {
         setOptLeaderboard(!!data.optLeaderboard);
         setOptCommunity(!!data.optCommunity);
         setOptPromotions(!!data.optPromotions);
+        setUserProperty('has_leaderboard_consent', String(!!data.optLeaderboard)).catch(() => {});
         setOriginal({
           optLeaderboard: !!data.optLeaderboard,
           optCommunity: !!data.optCommunity,
@@ -83,6 +85,7 @@ export default function ConsentPreferencesScreen({ navigation }) {
     try {
       await updateHealthEmergency({ optLeaderboard, optCommunity, optPromotions });
       setOriginal({ optLeaderboard, optCommunity, optPromotions });
+      setUserProperty('has_leaderboard_consent', String(optLeaderboard)).catch(() => {});
       navigation.goBack();
     } catch (err) {
       Alert.alert('Error', err?.response?.data?.message || 'Could not save. Please try again.');

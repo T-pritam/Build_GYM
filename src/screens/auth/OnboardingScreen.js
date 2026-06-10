@@ -20,6 +20,7 @@ import DatePickerModal from '../../components/DatePickerModal';
 import { useAuthStore } from '../../store/authStore';
 import { isAtLeast16 } from '../../utils/ageValidator';
 import api from '../../services/apiService';
+import { logScreenView } from '../../services/analyticsService';
 import SafeBottomBar from '../../components/SafeBottomBar';
 import {
   FITNESS_LEVELS,
@@ -283,6 +284,12 @@ export default function OnboardingScreen({ route, navigation }) {
 
   // Reset "tried" when user moves to a different step
   useEffect(() => { setTried(false); }, [step]);
+
+  // GA4 screen #2 — Onboarding, each step tracked separately (drop-off funnel).
+  useEffect(() => {
+    const title = STEPS[step]?.title?.replace(/\s+/g, '') ?? String(step + 1);
+    logScreenView(`Onboarding_${title}`).catch(() => {});
+  }, [step]);
 
   const canNext = () => {
     if (step === 0) {

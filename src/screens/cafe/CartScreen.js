@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   StatusBar, Image, Alert, ActivityIndicator,
@@ -12,6 +12,7 @@ import { placeOrder, fetchRewardBalance } from '../../services/cafeService';
 import { subscribeMenuAvailability } from '../../services/cafeSupabase';
 import { useActiveOrderStore } from '../../store/activeOrderStore';
 import { useAuthStore } from '../../store/authStore';
+import { logEvent } from '../../services/analyticsService';
 
 const fmtPrice = (v) => { const n = Number(v) || 0; return n % 1 === 0 ? String(n) : n.toFixed(2); };
 
@@ -38,6 +39,27 @@ export default function CartScreen({ navigation }) {
   const maxRedeemablePoints = Math.floor((billWithGst * redeemPercent / 100) / pointValue);
   const rewardDiscount = Math.min(rewardPointsApplied * pointValue, billWithGst);
   const payableTotal   = Math.max(0, billWithGst - rewardDiscount);
+
+  // cafe_order_started on entry (cart has items) + cafe_cart_abandoned on leave w/o order.
+  const orderPlacedRef = useRef(false);
+  useEffect(() => {
+    const startItems = useCartStore.getState().items;
+    if (startItems.length > 0) {
+      logEvent('cafe_order_started', {
+        item_count: startItems.reduce((s, c) => s + c.qty, 0),
+        cart_value_inr: cartTotal(startItems),
+      }).catch(() => {});
+    }
+    return () => {
+      const leftItems = useCartStore.getState().items;
+      if (!orderPlacedRef.current && leftItems.length > 0) {
+        logEvent('cafe_cart_abandoned', {
+          item_count: leftItems.reduce((s, c) => s + c.qty, 0),
+          cart_value_inr: cartTotal(leftItems),
+        }).catch(() => {});
+      }
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Keep cart in sync with live availability while on this screen
   useEffect(() => {
@@ -99,9 +121,16 @@ export default function CartScreen({ navigation }) {
         orderSource,
       } = data;
 
+      logEvent('cafe_order_placed', {
+        order_id: orderId,
+        item_count: totalQty,
+        order_value_inr: payableTotal,
+      }).catch(() => {});
+
       // Cafe backend always creates Razorpay order for INR > 0 GYM_APP flow.
       if (!razorpayOrderId || !keyId) {
         // Should never happen for gym-source orders, but fall back gracefully.
+        orderPlacedRef.current = true;
         finalizeAndNavigate({ orderId, deliveryPin, orderSource, totalAmount: payableTotal });
         return;
       }
@@ -123,11 +152,20 @@ export default function CartScreen({ navigation }) {
 
       try {
         await RazorpayCheckout.open(checkoutOpts);
+        logEvent('cafe_payment_completed', {
+          order_id: orderId,
+          amount_inr: Number(amountPaise) / 100,
+        }).catch(() => {});
+        orderPlacedRef.current = true;
         finalizeAndNavigate({ orderId, deliveryPin, orderSource, totalAmount: payableTotal });
       } catch (rzpErr) {
         // User dismissed or payment failed — order is in PAYMENT_PENDING and can
         // be retried from OrderTracking. Surface gentle message, keep the cart.
         const msg = rzpErr?.description || rzpErr?.message || 'Payment was cancelled.';
+        logEvent('cafe_payment_failed', {
+          error_reason: msg,
+          order_value_inr: payableTotal,
+        }).catch(() => {});
         Alert.alert('Payment not completed', msg + ' You can retry from Order History.');
         // Persist the pending order so tracking screen can show retry option
         setActiveOrder({ orderId, deliveryPin, orderSource, status: 'PAYMENT_PENDING', totalAmount: payableTotal });

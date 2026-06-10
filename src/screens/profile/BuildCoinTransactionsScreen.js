@@ -11,6 +11,7 @@ import { COLORS } from '../../constants/colors';
 import { useWalletStore } from '../../store/walletStore';
 import { useAuthStore } from '../../store/authStore';
 import { fetchPackages } from '../../services/walletService';
+import { logEvent, logScreenView } from '../../services/analyticsService';
 import SafeBottomBar from '../../components/SafeBottomBar';
 
 export default function BuildCoinTransactionsScreen({ navigation, route }) {
@@ -57,12 +58,26 @@ export default function BuildCoinTransactionsScreen({ navigation, route }) {
   const handleBuyPackage = async (pkg) => {
     if (purchasingId !== null) return;
     setPurchasingId(pkg.id);
+    const coinsAmount = pkg.coins + (pkg.bonusCoins ?? 0);
+    const amountInr = parseFloat(pkg.priceInr);
+    // Screen #14 — Buy Coins (Razorpay funnel) entry.
+    logScreenView('BuyCoinsRazorpay').catch(() => {});
+    logEvent('coins_purchase_started', {
+      package_id: pkg.id,
+      coins_amount: coinsAmount,
+      amount_inr: amountInr,
+    }).catch(() => {});
     try {
       const result = await purchaseWithRazorpay(pkg.id, {
         phone: user?.phone ?? '',
         name:  user?.firstName ?? user?.fullName ?? user?.name ?? '',
       });
       await fetchTransactions();
+      logEvent('coins_purchased', {
+        coins_amount: result.coinsAdded,
+        amount_inr: amountInr,
+        new_balance: result.newBalance,
+      }).catch(() => {});
       Alert.alert(
         'Payment Successful!',
         `${result.coinsAdded.toLocaleString()} Build Coins have been added to your wallet.`,
@@ -78,6 +93,11 @@ export default function BuildCoinTransactionsScreen({ navigation, route }) {
         err?.code === 0 ||
         err?.description?.toLowerCase?.().includes('cancel')
       ) return;
+      logEvent('coins_purchase_failed', {
+        error_reason: err?.description ?? err?.message ?? 'unknown',
+        package_id: pkg.id,
+        amount_inr: amountInr,
+      }).catch(() => {});
       Alert.alert(
         'Payment Unsuccessful',
         'Your payment could not be completed. Please try a different payment method or try again later.',

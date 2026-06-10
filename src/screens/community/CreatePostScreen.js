@@ -8,6 +8,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import { createCommunityPost } from '../../services/communityService';
+import { useAuthStore } from '../../store/authStore';
+import { logEvent } from '../../services/analyticsService';
 
 const CATEGORIES = [
   { key: 'transformation', label: 'Transformation', icon: 'body-outline', color: '#A855F7' },
@@ -85,6 +87,9 @@ export default function CreatePostScreen({ navigation }) {
         payload.options = pollOptions.filter((o) => o.trim().length > 0).map((o) => o.trim());
       }
       await createCommunityPost(payload);
+      logEvent('community_post_created', {
+        member_id: useAuthStore.getState().user?.displayId ?? 'guest',
+      }).catch(() => {});
       navigation.goBack();
     } catch (err) {
       const msg = err?.response?.data?.message || 'Failed to create post';

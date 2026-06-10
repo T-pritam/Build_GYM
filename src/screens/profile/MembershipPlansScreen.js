@@ -10,6 +10,7 @@ import { COLORS } from '../../constants/colors';
 import SafeBottomBar from '../../components/SafeBottomBar';
 import { fetchMembershipPlans, createMembershipOrder, verifyMembershipPayment } from '../../services/membershipService';
 import { useAuthStore } from '../../store/authStore';
+import { logEvent } from '../../services/analyticsService';
 
 // ─── Tier display config ──────────────────────────────────────────────────────
 const TIER_CONFIG = {
@@ -116,6 +117,12 @@ export default function MembershipPlansScreen({ navigation }) {
         razorpayPaymentId: paymentData.razorpay_payment_id,
         razorpaySignature: paymentData.razorpay_signature,
       });
+
+      logEvent('membership_purchased', {
+        plan_type: selectedTier,
+        amount_inr: Number(orderData.amountPaise) / 100,
+        validity_days: selectedPlan.durationDays ?? selectedTenure * 30,
+      }).catch(() => {});
 
       Alert.alert(
         'Membership Activated!',

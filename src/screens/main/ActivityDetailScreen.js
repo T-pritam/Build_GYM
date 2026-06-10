@@ -10,6 +10,7 @@ import { fetchActivityDetail, fetchSlots, createBooking } from '../../services/a
 import { useWalletStore } from '../../store/walletStore';
 import { getSocket } from '../../services/socketService';
 import { handleInsufficientCoins } from '../../utils/handleInsufficientCoins';
+import { logEvent } from '../../services/analyticsService';
 
 function buildDates() {
   const today = new Date();
@@ -136,11 +137,25 @@ export default function ActivityDetailScreen({ navigation, route }) {
       return;
     }
 
+    const slotStartTime = slots.find(s => s.id === selectedSlot)?.startTime;
+    logEvent('activity_booking_started', {
+      activity_type: name,
+      activity_id: activity.id,
+      coins_cost: cost,
+    }).catch(() => {});
+
     setBooking(true);
     try {
       const res = await createBooking({ slotId: selectedSlot, activityId: activity.id });
       const data = res.data?.data;
       fetchBalance();
+      logEvent('activity_booked', {
+        activity_type: name,
+        activity_id: activity.id,
+        coins_spent: cost,
+        date: selectedDate,
+        time: slotStartTime,
+      }).catch(() => {});
       navigation.navigate('BookingConfirmation', {
         booking: data?.booking,
         newBalance: data?.newBalance,

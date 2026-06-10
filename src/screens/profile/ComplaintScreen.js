@@ -19,6 +19,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { COLORS } from '../../constants/colors';
 import { complaintCategories } from '../../constants/dummyData';
 import { submitComplaint, uploadComplaintImages } from '../../services/complaintService';
+import { logEvent } from '../../services/analyticsService';
 import SafeBottomBar from '../../components/SafeBottomBar';
 
 export default function ComplaintScreen({ navigation }) {
@@ -66,6 +67,10 @@ export default function ComplaintScreen({ navigation }) {
     try {
       const response = await submitComplaint({ category: selectedCategory, description });
       const complaintId = response.data.data.id;
+      logEvent('complaint_submitted', {
+        category: selectedCategory,
+        complaint_id: complaintId,
+      }).catch(() => {});
 
       if (images.length > 0) {
         try {

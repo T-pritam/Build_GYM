@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -6,6 +6,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useAuthStore } from '../store/authStore';
 import { useMembershipStore } from '../store/membershipStore';
 import { navigationRef } from './navigationRef';
+import { logScreenView } from '../services/analyticsService';
 import FrozenLockScreen from '../screens/membership/FrozenLockScreen';
 
 // Auth Screens
@@ -147,6 +148,16 @@ export default function AppNavigator() {
     initialize();
   }, []);
 
+  // GA4 screen_view — logs the active route name on every navigation change.
+  const lastRoute = useRef(null);
+  const handleStateChange = () => {
+    const current = navigationRef.getCurrentRoute()?.name;
+    if (current && current !== lastRoute.current) {
+      lastRoute.current = current;
+      logScreenView(current).catch(() => {});
+    }
+  };
+
   /**
    * When the user is logged out from anywhere (token refresh failure, manual
    * logout, etc.) reset the stack back to the Login screen so they can't
@@ -161,7 +172,11 @@ export default function AppNavigator() {
   }, [isAuthenticated, isLoading]);
 
   return (
-    <NavigationContainer ref={navigationRef}>
+    <NavigationContainer
+      ref={navigationRef}
+      onReady={handleStateChange}
+      onStateChange={handleStateChange}
+    >
       <Stack.Navigator
         initialRouteName="Splash"
         screenOptions={{

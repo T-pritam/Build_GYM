@@ -19,6 +19,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import { useAuthStore } from '../../store/authStore';
+import { logEvent } from '../../services/analyticsService';
 
 const COOLDOWN_MS = 2 * 60 * 1000; // 2 minutes
 
@@ -140,8 +141,19 @@ export default function PresenceScreen() {
     setActionStatus('loading');
     startPulse();
     try {
-      const result = myStatus === 'out' ? await gymCheckIn() : await gymCheckOut();
+      const isCheckIn = myStatus === 'out';
+      const result = isCheckIn ? await gymCheckIn() : await gymCheckOut();
       stopPulse();
+      if (isCheckIn && result.myStatus === 'in') {
+        const now = new Date();
+        const hour = now.getHours();
+        const timeOfDay = hour < 5 ? 'night' : hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : hour < 21 ? 'evening' : 'night';
+        logEvent('check_in_done', {
+          member_id: user?.displayId ?? 'guest',
+          time_of_day: timeOfDay,
+          day_of_week: now.toLocaleDateString('en-US', { weekday: 'long' }),
+        }).catch(() => {});
+      }
       setMyStatus(result.myStatus);
       setCount(result.count);
       setActionStatus('success');
