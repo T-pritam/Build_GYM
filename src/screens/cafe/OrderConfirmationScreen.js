@@ -3,7 +3,21 @@ import {
   View, Text, StyleSheet, TouchableOpacity, StatusBar, Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../../constants/colors';
+import { HoloButton } from '../../components/auth';
+import { COLORS as THEME, FONTS } from '../../theme';
+
+// Theme-compat: legacy colour keys -> new "Holographic Noir" palette.
+const COLORS = {
+  primary: THEME.background, primaryLight: THEME.surface, primaryDark: THEME.black,
+  orange: THEME.primaryLight, orangeLight: THEME.primarySoft, orangeBorder: THEME.primaryBorder, orangeGlow: THEME.primaryGlow,
+  secondary: THEME.primaryLight, secondaryLight: THEME.primaryNeon, secondaryDark: THEME.primary, secondaryGlow: THEME.primarySoft, secondaryBorder: THEME.primaryBorder,
+  background: THEME.background, surface: '#1B191E', surface2: THEME.surface2, surface3: THEME.surface3, card: '#1B191E',
+  textPrimary: THEME.textPrimary, textSecondary: THEME.textSecondary, textMuted: THEME.textMuted, textDim: THEME.textDim,
+  success: THEME.success, successLight: THEME.successSoft, error: THEME.error, errorLight: THEME.errorSoft, warning: THEME.warning, warningLight: THEME.warningSoft,
+  border: THEME.border, borderLight: THEME.borderStrong, overlay: THEME.overlay, overlayLight: THEME.overlayLight,
+  white: THEME.white, black: THEME.black, transparent: 'transparent',
+  primarySoft: THEME.primarySoft, primaryBorder: THEME.primaryBorder, primaryNeon: THEME.primaryNeon,
+};
 
 export default function OrderConfirmationScreen({ navigation, route }) {
   const order = route?.params?.order;
@@ -97,9 +111,7 @@ export default function OrderConfirmationScreen({ navigation, route }) {
           <Ionicons name="location-outline" size={18} color={COLORS.secondary} />
           <Text style={styles.trackBtnText}>Track Order</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.homeBtn} onPress={() => navigation.replace('MainTabs')} activeOpacity={0.85}>
-          <Text style={styles.homeBtnText}>BACK TO HOME</Text>
-        </TouchableOpacity>
+        <HoloButton label="BACK TO HOME" onPress={() => navigation.replace('MainTabs')} />
       </View>
     </View>
   );
@@ -128,7 +140,7 @@ const styles = StyleSheet.create({
     shadowColor: '#22C55E', shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.35, shadowRadius: 30, elevation: 12,
   },
-  heading: { fontSize: 28, fontWeight: '800', color: COLORS.white, textAlign: 'center', marginBottom: 10 },
+  heading: { fontFamily: FONTS.headline, fontSize: 28, color: COLORS.white, textAlign: 'center', marginBottom: 10 },
   subheading: { fontSize: 14, color: COLORS.textSecondary, textAlign: 'center', lineHeight: 22 },
   summaryCard: {
     marginHorizontal: 24, marginBottom: 20,

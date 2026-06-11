@@ -4,7 +4,21 @@ import {
   StatusBar, RefreshControl, ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../../constants/colors';
+import { COLORS as THEME, FONTS } from '../../theme';
+
+// Theme-compat: legacy colour keys -> new "Holographic Noir" palette so the
+// whole screen restyles without rewriting the render. Accent (orange) -> purple.
+const COLORS = {
+  primary: THEME.background, primaryLight: THEME.surface, primaryDark: THEME.black,
+  orange: THEME.primaryLight, orangeLight: THEME.primarySoft, orangeBorder: THEME.primaryBorder, orangeGlow: THEME.primaryGlow,
+  secondary: THEME.primaryLight, secondaryLight: THEME.primaryNeon, secondaryDark: THEME.primary, secondaryGlow: THEME.primarySoft, secondaryBorder: THEME.primaryBorder,
+  background: THEME.background, surface: '#1B191E', surface2: THEME.surface2, surface3: THEME.surface3, card: '#1B191E',
+  textPrimary: THEME.textPrimary, textSecondary: THEME.textSecondary, textMuted: THEME.textMuted, textDim: THEME.textDim,
+  success: THEME.success, successLight: THEME.successSoft, error: THEME.error, errorLight: THEME.errorSoft, warning: THEME.warning, warningLight: THEME.warningSoft,
+  border: THEME.border, borderLight: THEME.borderStrong, overlay: THEME.overlay, overlayLight: THEME.overlayLight,
+  white: THEME.white, black: THEME.black, transparent: 'transparent',
+  primarySoft: THEME.primarySoft, primaryBorder: THEME.primaryBorder, primaryNeon: THEME.primaryNeon,
+};
 import { getMyComplaints } from '../../services/complaintService';
 import SafeBottomBar from '../../components/SafeBottomBar';
 
@@ -214,6 +228,15 @@ export default function MyComplaintsScreen({ navigation }) {
           </View>
         }
       />
+
+      {/* Register a new complaint */}
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={() => navigation.navigate('Complaint')}
+        activeOpacity={0.85}
+      >
+        <Ionicons name="add" size={28} color={COLORS.white} />
+      </TouchableOpacity>
     </SafeBottomBar>
   );
 }
@@ -233,7 +256,13 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 1, borderColor: COLORS.border,
   },
-  headerTitle: { fontSize: 18, fontWeight: '800', color: COLORS.white },
+  headerTitle: { fontFamily: FONTS.headline, fontSize: 16, color: COLORS.textPrimary, letterSpacing: 3 },
+  fab: {
+    position: 'absolute', right: 20, bottom: 28, width: 56, height: 56, borderRadius: 28,
+    backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: COLORS.primaryBorder,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.4, shadowRadius: 10, elevation: 8,
+  },
   filterRow: {
     flexDirection: 'row', flexWrap: 'wrap', gap: 8,
     paddingHorizontal: 20, paddingBottom: 12,

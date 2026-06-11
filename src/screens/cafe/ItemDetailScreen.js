@@ -4,8 +4,22 @@ import {
   StatusBar, Image, Share,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../../constants/colors';
+import { COLORS as THEME, FONTS } from '../../theme';
+
+// Theme-compat: legacy colour keys -> new "Holographic Noir" palette.
+const COLORS = {
+  primary: THEME.background, primaryLight: THEME.surface, primaryDark: THEME.black,
+  orange: THEME.primaryLight, orangeLight: THEME.primarySoft, orangeBorder: THEME.primaryBorder, orangeGlow: THEME.primaryGlow,
+  secondary: THEME.primaryLight, secondaryLight: THEME.primaryNeon, secondaryDark: THEME.primary, secondaryGlow: THEME.primarySoft, secondaryBorder: THEME.primaryBorder,
+  background: THEME.background, surface: '#1B191E', surface2: THEME.surface2, surface3: THEME.surface3, card: '#1B191E',
+  textPrimary: THEME.textPrimary, textSecondary: THEME.textSecondary, textMuted: THEME.textMuted, textDim: THEME.textDim,
+  success: THEME.success, successLight: THEME.successSoft, error: THEME.error, errorLight: THEME.errorSoft, warning: THEME.warning, warningLight: THEME.warningSoft,
+  border: THEME.border, borderLight: THEME.borderStrong, overlay: THEME.overlay, overlayLight: THEME.overlayLight,
+  white: THEME.white, black: THEME.black, transparent: 'transparent',
+  primarySoft: THEME.primarySoft, primaryBorder: THEME.primaryBorder, primaryNeon: THEME.primaryNeon,
+};
 import SafeBottomBar from '../../components/SafeBottomBar';
+import { HoloButton } from '../../components/auth';
 import AddonPickerModal from '../../components/AddonPickerModal';
 import { useCartStore } from '../../store/cartStore';
 import { subscribeMenuAvailability } from '../../services/cafeSupabase';
@@ -30,7 +44,7 @@ function fmtTime(t) {
 }
 
 const NUTRI_ICONS = [
-  { label: 'Calories', key: 'calories', icon: 'flame-outline', color: '#F97316' },
+  { label: 'Calories', key: 'calories', icon: 'flame-outline', color: '#A78BFA' },
   { label: 'Protein', key: 'protein', icon: 'barbell-outline', color: '#22C55E' },
   { label: 'Carbs', key: 'carbs', icon: 'leaf-outline', color: '#3B82F6' },
   { label: 'Fat', key: 'fat', icon: 'water-outline', color: '#A855F7' },
@@ -286,15 +300,13 @@ export default function ItemDetailScreen({ navigation, route }) {
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity
-          style={[styles.addCartBtn, !canAddToCart && styles.addCartBtnDisabled]}
+        <HoloButton
+          label="ADD TO CART"
+          icon="cart-outline"
           onPress={handleAddToCart}
           disabled={!canAddToCart}
-          activeOpacity={0.85}
-        >
-          <Ionicons name="cart-outline" size={20} color={COLORS.white} />
-          <Text style={styles.addCartText}>ADD TO CART</Text>
-        </TouchableOpacity>
+          style={{ flex: 1 }}
+        />
       </SafeBottomBar>
 
       <AddonPickerModal
@@ -326,7 +338,7 @@ const styles = StyleSheet.create({
   },
   heroGlow: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(233,99,22,0.1)',
+    backgroundColor: 'rgba(127,41,130,0.1)',
   },
   heroImgOuter: {
     width: '80%', height: '80%', borderRadius: 24, overflow: 'hidden',
@@ -351,7 +363,7 @@ const styles = StyleSheet.create({
     borderRadius: 6, paddingHorizontal: 10, paddingVertical: 4,
   },
   categoryChipText: { fontSize: 9, fontWeight: '900', color: COLORS.secondary, letterSpacing: 1.5 },
-  itemName: { fontSize: 24, fontWeight: '900', color: COLORS.white, lineHeight: 30 },
+  itemName: { fontFamily: FONTS.headline, fontSize: 24, color: COLORS.white, lineHeight: 30 },
   priceRow: { flexDirection: 'row', alignItems: 'baseline' },
   priceCoins: { fontSize: 22, fontWeight: '800', color: COLORS.secondary },
   priceSub: { fontSize: 14, fontWeight: '500', color: COLORS.textMuted },

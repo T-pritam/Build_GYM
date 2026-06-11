@@ -3,10 +3,12 @@ import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar,
   ActivityIndicator, RefreshControl, Image,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../../constants/colors';
+import { COLORS, FONTS } from '../../theme';
 import SafeBottomBar from '../../components/SafeBottomBar';
 import { fetchActivities } from '../../services/activityService';
+import { useWalletStore } from '../../store/walletStore';
 
 // Fallback colors/emojis for activities without cover images
 const FALLBACK_STYLE = {
@@ -19,10 +21,22 @@ const FALLBACK_STYLE = {
 };
 const DEFAULT_STYLE = { emoji: '🏋️', color: ['#6B7280', '#374151'] };
 
+// Slot availability summary — only present if the list API provides it.
+const slotInfo = (act) => {
+  const count = act.availableSlots ?? act.slotsAvailable ?? act.remainingSlots ?? null;
+  const next  = act.nextSlotTime ?? act.nextSlot ?? null;
+  if (count == null && next == null) return null;
+  return { count, next };
+};
+
 export default function ActivitiesScreen({ navigation }) {
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [activeCat, setActiveCat] = useState('All');
+
+  const balance = useWalletStore((s) => s.balance);
+  const fetchBalance = useWalletStore((s) => s.fetchBalance);
 
   const loadActivities = useCallback(async () => {
     try {
@@ -36,95 +50,142 @@ export default function ActivitiesScreen({ navigation }) {
     }
   }, []);
 
-  useEffect(() => { loadActivities(); }, [loadActivities]);
+  useEffect(() => { loadActivities(); fetchBalance(); }, [loadActivities]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     loadActivities();
+    fetchBalance();
   }, [loadActivities]);
 
   const getStyle = (name) => FALLBACK_STYLE[name] || DEFAULT_STYLE;
 
+  // Derive category pills from data if present, else just "All".
+  const categories = ['All', ...Array.from(new Set(
+    activities.map((a) => a.category || a.type).filter(Boolean),
+  ))];
+  const visible = activeCat === 'All'
+    ? activities
+    : activities.filter((a) => (a.category || a.type) === activeCat);
+
   if (loading) {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color={COLORS.secondary} />
+        <ActivityIndicator size="large" color={COLORS.primaryLight} />
       </View>
     );
   }
 
   return (
     <SafeBottomBar style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#000" />
-      <View style={styles.glowTop} />
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
 
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Activities</Text>
+      {/* Header — row 1: title + balance */}
+      <View style={styles.headerRow}>
+        <Text style={styles.headerTitle}>ACTIVITIES</Text>
+        <View style={styles.balanceChip}>
+          <Text style={styles.balanceCoin}>₿</Text>
+          <Text style={styles.balanceText}>{Number(balance).toLocaleString('en-IN')}</Text>
+        </View>
+      </View>
+
+      {/* Header — row 2: my bookings */}
+      <View style={styles.headerRow2}>
+        <Text style={styles.subtitle}>Book sessions with Build Coins</Text>
         <TouchableOpacity
           style={styles.bookingsBtn}
           onPress={() => navigation.navigate('MyBookings')}
         >
-          <Ionicons name="calendar-outline" size={18} color={COLORS.secondary} />
-          <Text style={styles.bookingsBtnText}>My Bookings</Text>
+          <Ionicons name="calendar-outline" size={14} color={COLORS.primaryLight} />
+          <Text style={styles.bookingsBtnText}>MY BOOKINGS</Text>
         </TouchableOpacity>
       </View>
 
-      <Text style={styles.subtitle}>Book sessions & amenities with Build Coins</Text>
+      {/* Category pills (only meaningful if data has categories) */}
+      {categories.length > 1 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.pillsRow}
+        >
+          {categories.map((c) => (
+            <TouchableOpacity
+              key={c}
+              style={[styles.pill, activeCat === c && styles.pillActive]}
+              onPress={() => setActiveCat(c)}
+            >
+              <Text style={[styles.pillText, activeCat === c && styles.pillTextActive]}>
+                {String(c).toUpperCase()}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      )}
 
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scroll}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.secondary} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primaryLight} />}
       >
-        {activities.length === 0 ? (
+        {visible.length === 0 ? (
           <View style={styles.emptyState}>
-            <Ionicons name="fitness-outline" size={48} color="#555" />
+            <Ionicons name="fitness-outline" size={48} color={COLORS.textMuted} />
             <Text style={styles.emptyText}>No activities available</Text>
           </View>
         ) : (
-          <View style={styles.grid}>
-            {activities.map((act) => {
-              const style = getStyle(act.name);
-              return (
-                <TouchableOpacity
-                  key={act.id}
-                  style={styles.card}
-                  onPress={() => navigation.navigate('ActivityDetail', { activity: act, fallbackStyle: style })}
-                  activeOpacity={0.85}
-                >
-                  {/* Hero color block */}
+          visible.map((act) => {
+            const style = getStyle(act.name);
+            const info = slotInfo(act);
+            const full = info?.count === 0;
+            return (
+              <TouchableOpacity
+                key={act.id}
+                style={[styles.card, full && styles.cardFull]}
+                onPress={() => navigation.navigate('ActivityDetail', { activity: act, fallbackStyle: style })}
+                activeOpacity={0.9}
+              >
+                {/* Cover */}
+                <View style={styles.cover}>
                   {act.coverImageUrl ? (
-                    <View style={styles.heroBlock}>
-                      <Image source={{ uri: act.coverImageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
-                      <View style={[styles.heroGradient, { backgroundColor: 'rgba(0,0,0,0.4)' }]} />
-                      <Text style={styles.heroLabel}>{act.name}</Text>
-                    </View>
+                    <Image source={{ uri: act.coverImageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
                   ) : (
-                    <View style={[styles.heroBlock, { backgroundColor: style.color[1] }]}>
-                      <View style={[styles.heroGradient, { backgroundColor: style.color[0] + '99' }]} />
-                      <Text style={styles.heroEmoji}>{style.emoji}</Text>
-                      <Text style={styles.heroLabel}>{act.name}</Text>
+                    <LinearGradient colors={[style.color[0], style.color[1]]} style={StyleSheet.absoluteFill}>
+                      <Text style={styles.coverEmoji}>{style.emoji}</Text>
+                    </LinearGradient>
+                  )}
+                  <LinearGradient
+                    colors={['transparent', 'rgba(8,6,8,0.92)']}
+                    style={StyleSheet.absoluteFill}
+                  />
+
+                  {/* Slot badge — only when data provides it */}
+                  {info && info.count != null && (
+                    <View style={[
+                      styles.slotBadge,
+                      full ? styles.slotBadgeFull : info.count <= 2 ? styles.slotBadgeLow : styles.slotBadgeOk,
+                    ]}>
+                      <Text style={styles.slotBadgeText}>
+                        {full ? 'NO SLOTS' : `${info.count} SLOT${info.count === 1 ? '' : 'S'}`}
+                      </Text>
                     </View>
                   )}
 
-                  {/* Info footer */}
-                  <View style={styles.cardFooter}>
-                    <View style={styles.cardMeta}>
-                      <Text style={styles.cardDuration}>{act.durationMinutes} min</Text>
-                      <Text style={styles.cardDot}>·</Text>
-                      <Text style={styles.cardCost}>₿ {act.coinPrice}</Text>
-                    </View>
-                    <TouchableOpacity
-                      onPress={() => navigation.navigate('ActivityDetail', { activity: act, fallbackStyle: style })}
-                    >
-                      <Text style={styles.bookNow}>BOOK NOW →</Text>
-                    </TouchableOpacity>
+                  <Text style={styles.coverName}>{act.name}</Text>
+                </View>
+
+                {/* Footer */}
+                <View style={styles.cardFooter}>
+                  <View style={styles.metaRow}>
+                    {info?.next && <Text style={styles.metaNext}>Next {info.next}</Text>}
+                    <Text style={styles.metaItem}>{act.durationMinutes} min</Text>
+                    <Text style={styles.metaDot}>·</Text>
+                    <Text style={styles.metaCost}>₿ {act.coinPrice}</Text>
                   </View>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+                  <Text style={styles.bookNow}>BOOK NOW →</Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })
         )}
 
         <View style={{ height: 100 }} />
@@ -134,48 +195,72 @@ export default function ActivitiesScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000' },
-  glowTop: { position: 'absolute', top: 0, left: 0, right: 0, height: 200, backgroundColor: 'rgba(233,99,22,0.1)' },
+  container: { flex: 1, backgroundColor: COLORS.background },
 
-  header: {
+  headerRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: 20, paddingTop: 52, paddingBottom: 4,
   },
-  headerTitle: { fontSize: 32, fontWeight: '900', color: '#fff' },
+  headerTitle: { fontFamily: FONTS.headline, fontSize: 22, color: COLORS.white, letterSpacing: 2 },
+  balanceChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: COLORS.primarySoft, borderWidth: 1, borderColor: COLORS.primaryBorder,
+    borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6,
+  },
+  balanceCoin: { fontFamily: FONTS.bodyBold, fontSize: 13, color: COLORS.primaryLight },
+  balanceText: { fontFamily: FONTS.bodyBold, fontSize: 13, color: COLORS.primaryLight },
+
+  headerRow2: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingHorizontal: 20, paddingTop: 6, paddingBottom: 8,
+  },
+  subtitle: { fontFamily: FONTS.body, fontSize: 13, color: COLORS.textMuted },
   bookingsBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    borderWidth: 1, borderColor: COLORS.secondary + '55', borderRadius: 20,
+    borderWidth: 1, borderColor: COLORS.primaryBorder, borderRadius: 20,
     paddingHorizontal: 12, paddingVertical: 6,
   },
-  bookingsBtnText: { fontSize: 12, fontWeight: '700', color: COLORS.secondary },
+  bookingsBtnText: { fontFamily: FONTS.label, fontSize: 10, color: COLORS.primaryLight, letterSpacing: 1 },
 
-  subtitle: { fontSize: 14, color: '#9A9A9A', paddingHorizontal: 20, marginBottom: 20, marginTop: 4 },
+  pillsRow: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4, gap: 8 },
+  pill: {
+    paddingHorizontal: 16, paddingVertical: 7, borderRadius: 20,
+    backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border,
+  },
+  pillActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  pillText: { fontFamily: FONTS.label, fontSize: 10, color: COLORS.textMuted, letterSpacing: 1 },
+  pillTextActive: { color: COLORS.white },
 
-  scroll: { paddingHorizontal: 16, paddingBottom: 20 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 14 },
+  scroll: { paddingHorizontal: 16, paddingTop: 10 },
 
   card: {
-    width: '47%', backgroundColor: '#1C1C1E', borderRadius: 18,
-    borderWidth: 1, borderColor: '#333', overflow: 'hidden',
+    backgroundColor: COLORS.surface, borderRadius: 18,
+    borderWidth: 1, borderColor: COLORS.border, overflow: 'hidden', marginBottom: 14,
   },
-  heroBlock: {
-    aspectRatio: 4 / 5, position: 'relative',
-    alignItems: 'flex-start', justifyContent: 'flex-end', padding: 12,
+  cardFull: { opacity: 0.6 },
+  cover: { height: 150, justifyContent: 'flex-end', padding: 14 },
+  coverEmoji: { fontSize: 52, position: 'absolute', top: '26%', alignSelf: 'center' },
+  coverName: { fontFamily: FONTS.display, fontSize: 26, color: COLORS.white, letterSpacing: 1 },
+  slotBadge: {
+    position: 'absolute', top: 12, right: 12,
+    borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4,
   },
-  heroGradient: {
-    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-    borderRadius: 0,
-  },
-  heroEmoji: { fontSize: 48, position: 'absolute', top: '30%', alignSelf: 'center' },
-  heroLabel: { fontSize: 18, fontWeight: '900', color: '#fff', zIndex: 1 },
+  slotBadgeOk: { backgroundColor: 'rgba(45,212,191,0.9)' },
+  slotBadgeLow: { backgroundColor: 'rgba(245,176,65,0.95)' },
+  slotBadgeFull: { backgroundColor: 'rgba(244,67,54,0.95)' },
+  slotBadgeText: { fontFamily: FONTS.label, fontSize: 9, color: '#0D0D0F', letterSpacing: 1 },
 
-  cardFooter: { padding: 12, gap: 8 },
-  cardMeta: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  cardDuration: { fontSize: 12, color: '#9A9A9A', fontWeight: '600' },
-  cardDot: { fontSize: 12, color: '#555' },
-  cardCost: { fontSize: 12, color: COLORS.secondary, fontWeight: '700' },
-  bookNow: { fontSize: 10, fontWeight: '900', color: COLORS.secondary, letterSpacing: 1.5 },
+  cardFooter: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 14, paddingVertical: 12,
+  },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  metaNext: { fontFamily: FONTS.bodyMedium, fontSize: 11, color: COLORS.textSecondary, marginRight: 4 },
+  metaItem: { fontFamily: FONTS.bodyMedium, fontSize: 12, color: COLORS.textMuted },
+  metaDot: { color: COLORS.textMuted },
+  metaCost: { fontFamily: FONTS.bodyBold, fontSize: 13, color: COLORS.primaryLight },
+  bookNow: { fontFamily: FONTS.label, fontSize: 10, color: COLORS.primaryLight, letterSpacing: 1 },
 
   emptyState: { alignItems: 'center', paddingTop: 80, gap: 12 },
-  emptyText: { fontSize: 16, color: '#666', fontWeight: '600' },
+  emptyText: { fontFamily: FONTS.body, fontSize: 16, color: COLORS.textMuted },
 });

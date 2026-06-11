@@ -5,8 +5,22 @@ import {
 } from 'react-native';
 import RazorpayCheckout from 'react-native-razorpay';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../../constants/colors';
+import { COLORS as THEME, FONTS } from '../../theme';
+
+// Theme-compat: legacy colour keys -> new "Holographic Noir" palette.
+const COLORS = {
+  primary: THEME.background, primaryLight: THEME.surface, primaryDark: THEME.black,
+  orange: THEME.primaryLight, orangeLight: THEME.primarySoft, orangeBorder: THEME.primaryBorder, orangeGlow: THEME.primaryGlow,
+  secondary: THEME.primaryLight, secondaryLight: THEME.primaryNeon, secondaryDark: THEME.primary, secondaryGlow: THEME.primarySoft, secondaryBorder: THEME.primaryBorder,
+  background: THEME.background, surface: '#1B191E', surface2: THEME.surface2, surface3: THEME.surface3, card: '#1B191E',
+  textPrimary: THEME.textPrimary, textSecondary: THEME.textSecondary, textMuted: THEME.textMuted, textDim: THEME.textDim,
+  success: THEME.success, successLight: THEME.successSoft, error: THEME.error, errorLight: THEME.errorSoft, warning: THEME.warning, warningLight: THEME.warningSoft,
+  border: THEME.border, borderLight: THEME.borderStrong, overlay: THEME.overlay, overlayLight: THEME.overlayLight,
+  white: THEME.white, black: THEME.black, transparent: 'transparent',
+  primarySoft: THEME.primarySoft, primaryBorder: THEME.primaryBorder, primaryNeon: THEME.primaryNeon,
+};
 import SafeBottomBar from '../../components/SafeBottomBar';
+import { HoloButton } from '../../components/auth';
 import { useCartStore, cartTotal, hasUnavailableItems } from '../../store/cartStore';
 import { placeOrder, fetchRewardBalance } from '../../services/cafeService';
 import { subscribeMenuAvailability } from '../../services/cafeSupabase';
@@ -147,7 +161,7 @@ export default function CartScreen({ navigation }) {
           email:   user?.email || '',
           name:    user?.fullName || [user?.firstName, user?.lastName].filter(Boolean).join(' '),
         },
-        theme: { color: '#E96316' },
+        theme: { color: '#7F2982' },
       };
 
       try {
@@ -340,21 +354,13 @@ export default function CartScreen({ navigation }) {
             </Text>
             <Text style={styles.footerTotalValue}>₹{payableTotal}</Text>
           </View>
-          <TouchableOpacity
-            style={[styles.placeOrderBtn, (anyUnavailable || placing) && styles.placeOrderBtnDisabled]}
+          <HoloButton
+            label="PAY & PLACE ORDER"
+            icon="arrow-forward"
             onPress={handlePlaceOrder}
-            disabled={anyUnavailable || placing}
-            activeOpacity={0.85}
-          >
-            {placing ? (
-              <ActivityIndicator color={COLORS.white} />
-            ) : (
-              <>
-                <Text style={styles.placeOrderText}>PAY & PLACE ORDER</Text>
-                <Ionicons name="arrow-forward" size={20} color={COLORS.white} />
-              </>
-            )}
-          </TouchableOpacity>
+            loading={placing}
+            disabled={anyUnavailable}
+          />
         </SafeBottomBar>
       )}
     </View>
@@ -365,7 +371,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   glow: {
     position: 'absolute', top: 0, left: 0, right: 0, height: 260,
-    backgroundColor: 'rgba(233,99,22,0.05)',
+    backgroundColor: 'rgba(127,41,130,0.05)',
   },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -375,7 +381,7 @@ const styles = StyleSheet.create({
     width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.surface,
     borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center',
   },
-  headerTitle: { fontSize: 18, fontWeight: '800', color: COLORS.white },
+  headerTitle: { fontFamily: FONTS.headline, fontSize: 16, color: COLORS.textPrimary, letterSpacing: 2 },
   headerSub: { fontSize: 13, color: COLORS.textMuted },
   balanceCard: {
     flexDirection: 'row', alignItems: 'center',

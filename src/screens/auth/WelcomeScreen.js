@@ -1,288 +1,155 @@
 import React, { useEffect, useRef } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, StatusBar,
-  Animated, Dimensions,
+  View, Text, StyleSheet, StatusBar, Animated, Image, useWindowDimensions,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../../constants/colors';
+import Svg, { Defs, RadialGradient, Stop, Rect } from 'react-native-svg';
+import { COLORS, FONTS, TYPE } from '../../theme';
+import { HoloButton } from '../../components/auth';
+import { useAuthStore } from '../../store/authStore';
 
-const { width, height } = Dimensions.get('window');
+const LOGO = require('../../../assets/build-logo-outline.png');
 
-const CONFETTI = [
-  { top: '22%', left: '18%', color: COLORS.secondary + '66' },
-  { top: '30%', right: '20%', color: '#EAB308' + '55' },
-  { bottom: '28%', left: '28%', color: COLORS.secondary + '99' },
-  { top: '48%', right: '8%', color: '#F97316' + '66' },
-  { bottom: '46%', left: '6%', color: '#FEF08A' + '33' },
-];
-
+/**
+ * Post-onboarding welcome — "Obsidian Pulse" mockup
+ * (NewUi/build_welcome_refined_noir). Three zones over a cinematic purple
+ * radial: greeting (name + member id), glowing logo, "GO TO HOME" CTA.
+ */
 export default function WelcomeScreen({ route, navigation }) {
   const firstName = route?.params?.firstName || 'Member';
-  const scaleAnim = useRef(new Animated.Value(0.7)).current;
-  const opacityAnim = useRef(new Animated.Value(0)).current;
-  const cardAnim = useRef(new Animated.Value(40)).current;
-  const btnAnim = useRef(new Animated.Value(60)).current;
-  const glowPulse = useRef(new Animated.Value(0.08)).current;
+  const displayId = useAuthStore((st) => st.user?.displayId);
+
+  const { width, height } = useWindowDimensions();
+
+  const fade = useRef(new Animated.Value(0)).current;     // overall content
+  const logoFade = useRef(new Animated.Value(0)).current;  // logo (fade-in-slow)
+  const glow = useRef(new Animated.Value(0.25)).current;   // logo glow pulse
 
   useEffect(() => {
-    Animated.sequence([
-      Animated.parallel([
-        Animated.spring(scaleAnim, { toValue: 1, tension: 60, friction: 7, useNativeDriver: true }),
-        Animated.timing(opacityAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
-      ]),
-      Animated.parallel([
-        Animated.spring(cardAnim, { toValue: 0, tension: 70, friction: 8, useNativeDriver: true }),
-        Animated.spring(btnAnim, { toValue: 0, tension: 70, friction: 8, useNativeDriver: true }),
-      ]),
+    Animated.parallel([
+      Animated.timing(fade, { toValue: 1, duration: 600, useNativeDriver: true }),
+      Animated.timing(logoFade, { toValue: 1, duration: 900, delay: 200, useNativeDriver: true }),
     ]).start();
 
     Animated.loop(
       Animated.sequence([
-        Animated.timing(glowPulse, { toValue: 0.18, duration: 1800, useNativeDriver: false }),
-        Animated.timing(glowPulse, { toValue: 0.08, duration: 1800, useNativeDriver: false }),
-      ])
+        Animated.timing(glow, { toValue: 0.45, duration: 1800, useNativeDriver: true }),
+        Animated.timing(glow, { toValue: 0.25, duration: 1800, useNativeDriver: true }),
+      ]),
     ).start();
-  }, []);
+  }, [fade, logoFade, glow]);
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
+      <StatusBar barStyle="light-content" backgroundColor="#0D0D0F" />
 
-      {/* Radial glow background */}
-      <Animated.View
-        style={[
-          styles.glow,
-          {
-            opacity: glowPulse,
-          },
-        ]}
-      />
+      {/* Cinematic purple radial background */}
+      <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
+        <Defs>
+          <RadialGradient id="welcomeBg" cx="50%" cy="46%" rx="78%" ry="58%">
+            <Stop offset="0%" stopColor="#2D1B69" stopOpacity={0.55} />
+            <Stop offset="45%" stopColor="#1A0A2E" stopOpacity={0.5} />
+            <Stop offset="100%" stopColor="#0D0D0F" stopOpacity={0} />
+          </RadialGradient>
+        </Defs>
+        <Rect x={0} y={0} width={width} height={height} fill="url(#welcomeBg)" />
+      </Svg>
 
-      {/* Confetti dots */}
-      {CONFETTI.map((dot, i) => (
-        <View key={i} style={[styles.confettiDot, dot, { backgroundColor: dot.color }]} />
-      ))}
-
-      {/* Top bar */}
-      <View style={styles.topBar}>
-        <TouchableOpacity style={styles.closeBtn} onPress={() => navigation.replace('Login')}>
-          <Ionicons name="close" size={20} color={COLORS.white} />
-        </TouchableOpacity>
-        <Text style={styles.brandLabel}>BUILD GYM</Text>
-        <View style={{ width: 40 }} />
-      </View>
-
-      {/* Main content */}
-      <Animated.View
-        style={[
-          styles.mainContent,
-          { opacity: opacityAnim, transform: [{ scale: scaleAnim }] },
-        ]}
-      >
-        {/* Logo */}
-        <View style={styles.logoWrap}>
-          <View style={styles.logoGlow} />
-          <View style={styles.logoBox}>
-            <Ionicons name="barbell-outline" size={56} color={COLORS.background} />
-          </View>
+      <Animated.View style={[styles.content, { opacity: fade }]}>
+        {/* ── Greeting ── */}
+        <View style={styles.greeting}>
+          <Text style={styles.welcome}>Welcome,</Text>
+          <Text style={styles.name}>{firstName}</Text>
+          {!!displayId && <Text style={styles.memberId}>Member ID: {displayId}</Text>}
         </View>
 
-        {/* Heading */}
-        <View style={styles.headingWrap}>
-          <Text style={styles.heading}>Welcome to BUILD,{'\n'}{firstName}! 💪</Text>
-          <Text style={styles.subheading}>YOUR FITNESS JOURNEY STARTS NOW</Text>
+        {/* ── Logo ── */}
+        <Animated.View style={[styles.logoWrap, { opacity: logoFade }]}>
+          <Animated.View style={[styles.logoGlow, { opacity: glow }]} pointerEvents="none">
+            <Svg width={300} height={300}>
+              <Defs>
+                <RadialGradient id="logoGlow" cx="50%" cy="50%" r="50%">
+                  <Stop offset="0%" stopColor="#7f2982" stopOpacity={0.9} />
+                  <Stop offset="55%" stopColor="#0A2A2A" stopOpacity={0.25} />
+                  <Stop offset="100%" stopColor="#0D0D0F" stopOpacity={0} />
+                </RadialGradient>
+              </Defs>
+              <Rect width={300} height={300} fill="url(#logoGlow)" />
+            </Svg>
+          </Animated.View>
+          <Image source={LOGO} style={styles.logo} resizeMode="contain" />
+        </Animated.View>
+
+        {/* ── CTA ── */}
+        <View style={styles.cta}>
+          <Text style={styles.tagline}>Your journey starts today.</Text>
+          <HoloButton
+            label="GO TO HOME"
+            icon="arrow-forward"
+            onPress={() => navigation.replace('MainTabs')}
+            style={styles.ctaBtn}
+          />
         </View>
-      </Animated.View>
-
-      {/* Member ID Card */}
-      <Animated.View
-        style={[
-          styles.cardContainer,
-          { transform: [{ translateY: cardAnim }], opacity: opacityAnim },
-        ]}
-      >
-        <View style={styles.card}>
-          {/* Internal glow */}
-          <View style={styles.cardGlow} />
-
-          <View style={styles.cardHeader}>
-            <View>
-              <Text style={styles.memberId}>Member ID: BG-00425</Text>
-              <Text style={styles.memberName}>{firstName} Sharma</Text>
-            </View>
-            <View style={styles.activeBadge}>
-              <View style={styles.activeDot} />
-              <Text style={styles.activeLabel}>Active</Text>
-            </View>
-          </View>
-
-          <View style={styles.cardFooter}>
-            <View style={styles.avatarCircle}>
-              <Ionicons name="person" size={14} color={COLORS.textMuted} />
-            </View>
-            <Text style={styles.tierLabel}>PREMIUM TIER</Text>
-          </View>
-        </View>
-      </Animated.View>
-
-      {/* Bottom CTA */}
-      <Animated.View
-        style={[
-          styles.bottomArea,
-          { transform: [{ translateY: btnAnim }], opacity: opacityAnim },
-        ]}
-      >
-        <TouchableOpacity
-          onPress={() => navigation.replace('MainTabs')}
-          activeOpacity={0.85}
-          style={styles.ctaBtn}
-        >
-          <LinearGradient
-            colors={[COLORS.secondary, COLORS.secondaryDark]}
-            style={styles.ctaGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-          >
-            <Text style={styles.ctaText}>GO TO DASHBOARD</Text>
-            <Ionicons name="arrow-forward" size={18} color={COLORS.white} style={{ marginLeft: 8 }} />
-          </LinearGradient>
-        </TouchableOpacity>
-        <Text style={styles.copyright}>© 2024 BUILD GYM PERFORMANCE</Text>
       </Animated.View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
+  container: { flex: 1, backgroundColor: '#0D0D0F' },
 
-  glow: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: COLORS.secondary,
-    borderRadius: width / 2,
-    transform: [{ scale: 2 }],
-  },
-
-  confettiDot: {
-    position: 'absolute',
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 24,
-    paddingTop: 56,
-    paddingBottom: 16,
-    zIndex: 10,
-  },
-  closeBtn: {
-    width: 40, height: 40, borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  brandLabel: {
-    fontSize: 12, fontWeight: '800', color: COLORS.white,
-    letterSpacing: 4, opacity: 0.5,
-  },
-
-  mainContent: {
+  content: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 24,
-    zIndex: 10,
+    paddingVertical: 48,
+    gap: 40,
   },
 
-  logoWrap: { marginBottom: 48, position: 'relative', alignItems: 'center', justifyContent: 'center' },
+  // Greeting
+  greeting: { alignItems: 'center' },
+  welcome: {
+    ...TYPE.taglineItalic,
+    fontSize: 20,
+    color: COLORS.textSecondary,
+    letterSpacing: 1,
+    marginBottom: 4,
+  },
+  name: {
+    fontFamily: FONTS.display,
+    fontSize: 48,
+    lineHeight: 52,
+    color: COLORS.white,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginBottom: 10,
+  },
+  memberId: {
+    fontFamily: FONTS.bodyMedium,
+    fontSize: 13,
+    color: COLORS.textMuted,
+    letterSpacing: 2.5,
+    textTransform: 'uppercase',
+  },
+
+  // Logo
+  logoWrap: { alignItems: 'center', justifyContent: 'center', width: 240, height: 150 },
   logoGlow: {
-    position: 'absolute',
-    width: 120, height: 120,
-    borderRadius: 60,
-    backgroundColor: COLORS.secondary,
-    opacity: 0.12,
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  logoBox: {
-    backgroundColor: COLORS.white,
-    borderRadius: 20,
-    padding: 24,
-    shadowColor: COLORS.secondary,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.35,
-    shadowRadius: 30,
-    elevation: 12,
-  },
+  logo: { width: 220, height: 137 },
 
-  headingWrap: { alignItems: 'center' },
-  heading: {
-    fontSize: 36, fontWeight: '800', color: COLORS.white,
-    textAlign: 'center', lineHeight: 44, marginBottom: 8,
-  },
-  subheading: {
-    fontSize: 11, fontWeight: '700', color: COLORS.textMuted,
-    letterSpacing: 3, textAlign: 'center',
-  },
-
-  cardContainer: { paddingHorizontal: 24, marginBottom: 24, zIndex: 10 },
-  card: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    padding: 24,
-    overflow: 'hidden',
-  },
-  cardGlow: {
-    position: 'absolute', top: -40, right: -40,
-    width: 120, height: 120, borderRadius: 60,
-    backgroundColor: COLORS.secondary,
-    opacity: 0.05,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+  // CTA
+  cta: { width: '100%', alignItems: 'center' },
+  tagline: {
+    fontFamily: FONTS.bodyMedium,
+    fontSize: 13,
+    color: COLORS.textMuted,
+    letterSpacing: 2.5,
+    textTransform: 'uppercase',
     marginBottom: 24,
   },
-  memberId: { fontSize: 16, fontWeight: '800', color: COLORS.white, marginBottom: 4 },
-  memberName: { fontSize: 14, fontWeight: '500', color: COLORS.textMuted },
-  activeBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: 'rgba(34,197,94,0.2)',
-    borderWidth: 1, borderColor: 'rgba(34,197,94,0.3)',
-    borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4,
-  },
-  activeDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#4ADE80' },
-  activeLabel: { fontSize: 10, fontWeight: '900', color: '#4ADE80', letterSpacing: 2 },
-  cardFooter: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingTop: 16, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)',
-  },
-  avatarCircle: {
-    width: 32, height: 32, borderRadius: 16,
-    borderWidth: 2, borderColor: COLORS.surface,
-    backgroundColor: COLORS.surface2, alignItems: 'center', justifyContent: 'center',
-  },
-  tierLabel: {
-    fontSize: 9, fontWeight: '900', color: COLORS.textMuted,
-    letterSpacing: 2, fontStyle: 'italic',
-  },
-
-  bottomArea: { paddingHorizontal: 24, paddingBottom: 40, zIndex: 10 },
-  ctaBtn: { borderRadius: 16, overflow: 'hidden', marginBottom: 20 },
-  ctaGradient: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    paddingVertical: 18,
-  },
-  ctaText: {
-    fontSize: 15, fontWeight: '800', color: COLORS.white, letterSpacing: 2,
-  },
-  copyright: {
-    textAlign: 'center', fontSize: 10, color: COLORS.textMuted,
-    opacity: 0.4, letterSpacing: 1,
-  },
+  ctaBtn: { width: '100%', maxWidth: 384 },
 });

@@ -4,7 +4,21 @@ import {
   TextInput, Alert, ActivityIndicator, Modal, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../../constants/colors';
+import { COLORS as THEME, FONTS } from '../../theme';
+
+// Theme-compat: legacy colour keys -> new "Holographic Noir" palette so the
+// whole screen restyles without rewriting the render. Accent (orange) -> purple.
+const COLORS = {
+  primary: THEME.background, primaryLight: THEME.surface, primaryDark: THEME.black,
+  orange: THEME.primaryLight, orangeLight: THEME.primarySoft, orangeBorder: THEME.primaryBorder, orangeGlow: THEME.primaryGlow,
+  secondary: THEME.primaryLight, secondaryLight: THEME.primaryNeon, secondaryDark: THEME.primary, secondaryGlow: THEME.primarySoft, secondaryBorder: THEME.primaryBorder,
+  background: THEME.background, surface: '#1B191E', surface2: THEME.surface2, surface3: THEME.surface3, card: '#1B191E',
+  textPrimary: THEME.textPrimary, textSecondary: THEME.textSecondary, textMuted: THEME.textMuted, textDim: THEME.textDim,
+  success: THEME.success, successLight: THEME.successSoft, error: THEME.error, errorLight: THEME.errorSoft, warning: THEME.warning, warningLight: THEME.warningSoft,
+  border: THEME.border, borderLight: THEME.borderStrong, overlay: THEME.overlay, overlayLight: THEME.overlayLight,
+  white: THEME.white, black: THEME.black, transparent: 'transparent',
+  primarySoft: THEME.primarySoft, primaryBorder: THEME.primaryBorder, primaryNeon: THEME.primaryNeon,
+};
 import SafeBottomBar from '../../components/SafeBottomBar';
 import { fetchMyProfile, updateHealthEmergency } from '../../services/customerProfileService';
 
@@ -523,7 +537,7 @@ const s = StyleSheet.create({
     width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.06)',
     alignItems: 'center', justifyContent: 'center',
   },
-  headerTitle: { fontSize: 14, fontWeight: '800', color: '#fff', letterSpacing: 3 },
+  headerTitle: { fontFamily: FONTS.headline, fontSize: 16, color: COLORS.textPrimary, letterSpacing: 3 },
 
   // Scroll
   scroll: { paddingHorizontal: 20, paddingTop: 28, paddingBottom: 40 },
@@ -554,7 +568,7 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
     backgroundColor: '#1C1C1E',
   },
-  chipActive: { backgroundColor: 'rgba(233,99,22,0.15)', borderColor: COLORS.secondary },
+  chipActive: { backgroundColor: 'rgba(127,41,130,0.15)', borderColor: COLORS.secondary },
   chipDashed: { borderStyle: 'dashed', borderColor: 'rgba(255,255,255,0.2)' },
   chipText: { fontSize: 12, fontWeight: '700', color: 'rgba(255,255,255,0.5)' },
   chipTextActive: { color: COLORS.secondary },
@@ -569,8 +583,8 @@ const s = StyleSheet.create({
   toggleTextActive: { color: '#fff' },
   toggleTextInactive: {},
   textArea: {
-    backgroundColor: '#1C1C1E', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
-    borderRadius: 12, padding: 14, fontSize: 13, color: '#fff', minHeight: 100,
+    backgroundColor: '#1B191E', borderWidth: 1, borderColor: COLORS.border,
+    borderRadius: 12, padding: 14, fontFamily: FONTS.body, fontSize: 15, color: COLORS.textPrimary, minHeight: 100,
   },
 
   // Injury
@@ -598,14 +612,16 @@ const s = StyleSheet.create({
   // Emergency contact
   infoBanner: {
     flexDirection: 'row', gap: 10, alignItems: 'center',
-    backgroundColor: 'rgba(45,30,20,0.6)', borderWidth: 1, borderColor: 'rgba(233,99,22,0.2)',
+    backgroundColor: 'rgba(45,30,20,0.6)', borderWidth: 1, borderColor: 'rgba(127,41,130,0.2)',
     borderRadius: 12, padding: 14, marginBottom: 24,
   },
   infoBannerText: { fontSize: 11, fontWeight: '700', color: 'rgba(255,219,195,0.8)', flex: 1, letterSpacing: 0.5 },
   underlineInput: {
-    borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.1)',
-    paddingVertical: 12, paddingHorizontal: 4,
-    fontSize: 14, fontWeight: '700', color: '#fff',
+    backgroundColor: '#1B191E',
+    borderTopLeftRadius: 6, borderTopRightRadius: 6,
+    borderBottomWidth: 1, borderBottomColor: COLORS.borderStrong,
+    paddingVertical: 14, paddingHorizontal: 14,
+    fontFamily: FONTS.body, fontSize: 16, color: COLORS.textPrimary,
   },
   selectRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',

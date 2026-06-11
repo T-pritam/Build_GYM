@@ -6,7 +6,9 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import messaging from '@react-native-firebase/messaging';
+import { useFonts } from 'expo-font';
 import AppNavigator from './src/navigation/AppNavigator';
+import { FONT_ASSETS } from './src/theme';
 import {
   FCM_TOKEN_KEY,
   registerForPushNotificationsAsync,
@@ -19,6 +21,8 @@ import { useAuthStore } from './src/store/authStore';
 import { useAnnouncementStore } from './src/store/announcementStore';
 
 export default function App() {
+  const [fontsLoaded] = useFonts(FONT_ASSETS);
+
   useEffect(() => {
     if (Platform.OS === 'android') {
       Notifications.setNotificationChannelAsync('default', {
@@ -110,6 +114,12 @@ export default function App() {
       if (appStateSubscription) appStateSubscription.remove();
     };
   }, []);
+
+  // Hold rendering until the brand fonts are ready so the UI never flashes
+  // with the system fallback. The native splash stays up in the meantime.
+  if (!fontsLoaded) {
+    return null;
+  }
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

@@ -49,6 +49,7 @@ import PersonalDetailsScreen from '../screens/profile/PersonalDetailsScreen';
 import HealthEmergencyScreen from '../screens/profile/HealthEmergencyScreen';
 import EditProfileScreen from '../screens/profile/EditProfileScreen';
 import ConsentPreferencesScreen from '../screens/profile/ConsentPreferencesScreen';
+import SupportScreen from '../screens/profile/SupportScreen';
 
 // Workout screens
 import {
@@ -81,6 +82,8 @@ import LeaderboardScreen from '../screens/main/LeaderboardScreen';
 import ActivitiesScreen from '../screens/main/ActivitiesScreen';
 import ActivityDetailScreen from '../screens/main/ActivityDetailScreen';
 import MyBookingsScreen from '../screens/main/MyBookingsScreen';
+import BookingDetailScreen from '../screens/main/BookingDetailScreen';
+import BookingCancelledScreen from '../screens/main/BookingCancelledScreen';
 import BookingConfirmationScreen from '../screens/main/BookingConfirmationScreen';
 import BookingQRScreen from '../screens/main/BookingQRScreen';
 import TrainersScreen from '../screens/main/TrainersScreen';
@@ -258,6 +261,7 @@ export default function AppNavigator() {
         <Stack.Screen name="HealthEmergency" component={HealthEmergencyScreen} />
         <Stack.Screen name="EditProfile" component={EditProfileScreen} />
         <Stack.Screen name="ConsentPreferences" component={ConsentPreferencesScreen} />
+        <Stack.Screen name="Support" component={SupportScreen} />
 
         {/* Detail screens */}
         <Stack.Screen name="TrainerDetail" component={TrainerDetailScreen} />
@@ -280,6 +284,16 @@ export default function AppNavigator() {
           name="MyBookings"
           component={MyBookingsScreen}
           options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="BookingDetail"
+          component={BookingDetailScreen}
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="BookingCancelled"
+          component={BookingCancelledScreen}
+          options={{ animation: 'fade', gestureEnabled: false }}
         />
         <Stack.Screen
           name="BookingConfirmation"

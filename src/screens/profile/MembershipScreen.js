@@ -6,7 +6,21 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from '@react-navigation/native';
-import { COLORS } from '../../constants/colors';
+import { COLORS as THEME, FONTS } from '../../theme';
+
+// Theme-compat: legacy colour keys -> new "Holographic Noir" palette so the
+// whole screen restyles without rewriting the render. Accent (orange) -> purple.
+const COLORS = {
+  primary: THEME.background, primaryLight: THEME.surface, primaryDark: THEME.black,
+  orange: THEME.primaryLight, orangeLight: THEME.primarySoft, orangeBorder: THEME.primaryBorder, orangeGlow: THEME.primaryGlow,
+  secondary: THEME.primaryLight, secondaryLight: THEME.primaryNeon, secondaryDark: THEME.primary, secondaryGlow: THEME.primarySoft, secondaryBorder: THEME.primaryBorder,
+  background: THEME.background, surface: '#1B191E', surface2: THEME.surface2, surface3: THEME.surface3, card: '#1B191E',
+  textPrimary: THEME.textPrimary, textSecondary: THEME.textSecondary, textMuted: THEME.textMuted, textDim: THEME.textDim,
+  success: THEME.success, successLight: THEME.successSoft, error: THEME.error, errorLight: THEME.errorSoft, warning: THEME.warning, warningLight: THEME.warningSoft,
+  border: THEME.border, borderLight: THEME.borderStrong, overlay: THEME.overlay, overlayLight: THEME.overlayLight,
+  white: THEME.white, black: THEME.black, transparent: 'transparent',
+  primarySoft: THEME.primarySoft, primaryBorder: THEME.primaryBorder, primaryNeon: THEME.primaryNeon,
+};
 import SafeBottomBar from '../../components/SafeBottomBar';
 import { fetchMyMembership, resumeMembershipPause } from '../../services/membershipService';
 
@@ -467,7 +481,7 @@ export default function MembershipScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container:  { flex: 1, backgroundColor: '#000' },
-  glowTop:    { position: 'absolute', top: 0, left: 0, right: 0, height: 260, backgroundColor: 'rgba(233,99,22,0.06)' },
+  glowTop:    { position: 'absolute', top: 0, left: 0, right: 0, height: 260, backgroundColor: 'rgba(127,41,130,0.06)' },
   center:     { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32, gap: 12 },
 
   header: {
@@ -478,7 +492,7 @@ const styles = StyleSheet.create({
     width: 40, height: 40, borderRadius: 20, backgroundColor: '#2A2A2A',
     alignItems: 'center', justifyContent: 'center',
   },
-  headerTitle: { fontSize: 17, fontWeight: '800', color: '#fff' },
+  headerTitle: { fontFamily: FONTS.headline, fontSize: 16, color: COLORS.textPrimary, letterSpacing: 3 },
 
   scroll: { paddingHorizontal: 16, paddingBottom: 20 },
 
@@ -520,7 +534,7 @@ const styles = StyleSheet.create({
   resumeBtnText: { fontSize: 12, fontWeight: '800', color: '#000' },
   pauseBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: '#1C1C1E', borderWidth: 1, borderColor: 'rgba(233,99,22,0.25)',
+    backgroundColor: '#1C1C1E', borderWidth: 1, borderColor: 'rgba(127,41,130,0.25)',
     borderRadius: 12, padding: 14, marginBottom: 20,
   },
   pauseBtnTitle: { fontSize: 13, fontWeight: '800', color: '#fff' },
@@ -539,7 +553,7 @@ const styles = StyleSheet.create({
   dateLabel: { fontSize: 9, fontWeight: '600', color: '#888', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 },
   dateValue: { fontSize: 14, fontWeight: '700', color: '#fff' },
   arrowCircle: {
-    width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(233,99,22,0.15)',
+    width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(127,41,130,0.15)',
     alignItems: 'center', justifyContent: 'center',
   },
 
@@ -554,13 +568,13 @@ const styles = StyleSheet.create({
 
   discountTag: {
     flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10,
-    backgroundColor: 'rgba(233,99,22,0.1)', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6,
+    backgroundColor: 'rgba(127,41,130,0.1)', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6,
   },
   discountTagText: { fontSize: 11, color: COLORS.secondary, flex: 1 },
 
   upgradeBanner: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: 'rgba(233,99,22,0.08)', borderWidth: 1, borderColor: 'rgba(233,99,22,0.25)',
+    backgroundColor: 'rgba(127,41,130,0.08)', borderWidth: 1, borderColor: 'rgba(127,41,130,0.25)',
     borderRadius: 12, padding: 14, marginBottom: 20,
   },
   upgradeTitle:    { fontSize: 13, fontWeight: '700', color: '#fff', marginBottom: 2 },
@@ -581,7 +595,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14,
   },
   perkIconWrap: {
-    width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(233,99,22,0.1)',
+    width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(127,41,130,0.1)',
     alignItems: 'center', justifyContent: 'center',
   },
   perkInfo:    { flex: 1 },

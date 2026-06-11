@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, Alert,
-  ActivityIndicator, Image,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../../constants/colors';
+import { COLORS, FONTS } from '../../theme';
 import SafeBottomBar from '../../components/SafeBottomBar';
+import { HoloButton } from '../../components/auth';
 import { fetchActivityDetail, fetchSlots, createBooking } from '../../services/activityService';
 import { useWalletStore } from '../../store/walletStore';
 import { getSocket } from '../../services/socketService';
@@ -18,12 +19,22 @@ function buildDates() {
     const d = new Date(today);
     d.setDate(today.getDate() + i);
     return {
+      dow: i === 0 ? 'TODAY' : d.toLocaleString('en', { weekday: 'short' }).toUpperCase(),
+      day: d.getDate(),
       label: i === 0 ? 'Today' : `${d.getDate()} ${d.toLocaleString('en', { month: 'short' })}`,
       dateStr: d.toISOString().split('T')[0], // YYYY-MM-DD
       isToday: i === 0,
     };
   });
 }
+
+// "14:00" -> "2:00 PM"
+const fmt12 = (t) => {
+  if (!t) return '';
+  const [h, m] = t.split(':').map(Number);
+  const s = h >= 12 ? 'PM' : 'AM';
+  return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${s}`;
+};
 
 export default function ActivityDetailScreen({ navigation, route }) {
   const { activity: passedActivity, fallbackStyle } = route?.params || {};
@@ -137,7 +148,8 @@ export default function ActivityDetailScreen({ navigation, route }) {
       return;
     }
 
-    const slotStartTime = slots.find(s => s.id === selectedSlot)?.startTime;
+    const slotObj = slots.find(s => s.id === selectedSlot);
+    const slotStartTime = slotObj?.startTime;
     logEvent('activity_booking_started', {
       activity_type: name,
       activity_id: activity.id,
@@ -162,6 +174,8 @@ export default function ActivityDetailScreen({ navigation, route }) {
         activityName: name,
         activityColor: color,
         activityEmoji: emoji,
+        duration,
+        slotEndTime: slotObj?.endTime,
       });
     } catch (err) {
       const msg = err.response?.data?.message || err.message;
@@ -176,129 +190,117 @@ export default function ActivityDetailScreen({ navigation, route }) {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
 
-      {/* Hero */}
-      {activity?.coverImageUrl ? (
-        <View style={styles.hero}>
-          <Image source={{ uri: activity.coverImageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
-          {/* bottom-to-top dark gradient over image */}
-          <View style={styles.heroImageOverlay} />
-          {/* top amber glow */}
-          <View style={styles.heroTopGlow} pointerEvents="none" />
-          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={22} color="#fff" />
-          </TouchableOpacity>
-          <View style={styles.heroBottom}>
-            <Text style={styles.heroTitle}>{name}</Text>
-            <View style={{ gap: 2, marginTop: 6 }}>
-              <Text style={styles.heroMeta}>{duration} min · ₿ {cost}</Text>
-              {trainerLabel !== 'TBD' && (
-                <Text style={styles.heroMeta}>Instructor: {trainerLabel}</Text>
-              )}
-            </View>
-          </View>
-        </View>
-      ) : (
-        <View style={[styles.hero, { backgroundColor: color[1] }]}>
-          <View style={[styles.heroColorOverlay, { backgroundColor: color[0] + '66' }]} />
-          <View style={styles.heroTopGlow} pointerEvents="none" />
-          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={22} color="#fff" />
-          </TouchableOpacity>
-          <View style={styles.heroBottom}>
-            <Text style={styles.heroEmoji}>{emoji}</Text>
-            <Text style={styles.heroTitle}>{name}</Text>
-            <View style={{ gap: 2, marginTop: 6 }}>
-              <Text style={styles.heroMeta}>{duration} min · ₿ {cost}</Text>
-              {trainerLabel !== 'TBD' && (
-                <Text style={styles.heroMeta}>Instructor: {trainerLabel}</Text>
-              )}
-            </View>
-          </View>
-        </View>
-      )}
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={20} color={COLORS.textPrimary} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle} numberOfLines={1}>{name}</Text>
+        <View style={{ width: 40 }} />
+      </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
-        {/* Description */}
+        {/* Summary card */}
+        <View style={styles.summaryTop}>
+          <View style={styles.summaryCol}>
+            <Text style={styles.summaryKey}>ACTIVITY</Text>
+            <Text style={styles.summaryName} numberOfLines={1}>{name}</Text>
+          </View>
+          <View style={[styles.summaryCol, { alignItems: 'center' }]}>
+            <Text style={styles.summaryKey}>DURATION</Text>
+            <Text style={styles.summaryVal}>{duration} min</Text>
+          </View>
+          <View style={[styles.summaryCol, { alignItems: 'flex-end' }]}>
+            <Text style={styles.summaryKey}>COST</Text>
+            <Text style={[styles.summaryVal, { color: COLORS.primaryLight }]}>₿ {cost}</Text>
+          </View>
+        </View>
+
         {activity?.description ? (
           <Text style={styles.description}>{activity.description}</Text>
         ) : null}
+        {trainerLabel !== 'TBD' && (
+          <Text style={styles.trainerLine}>Instructor: {trainerLabel}</Text>
+        )}
 
         {/* Date selector */}
+        <Text style={styles.sectionLabel}>SELECT DATE</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.dateScroll} contentContainerStyle={styles.dateScrollContent}>
-          {DATES.map((d) => (
-            <TouchableOpacity
-              key={d.dateStr}
-              style={[styles.dateChip, selectedDate === d.dateStr && styles.dateChipActive]}
-              onPress={() => setSelectedDate(d.dateStr)}
-            >
-              <Text style={[styles.dateChipText, selectedDate === d.dateStr && styles.dateChipTextActive]}>
-                {d.label}
-              </Text>
-              {selectedDate === d.dateStr && <View style={styles.dateDot} />}
-            </TouchableOpacity>
-          ))}
+          {DATES.map((d) => {
+            const active = selectedDate === d.dateStr;
+            return (
+              <TouchableOpacity
+                key={d.dateStr}
+                style={[styles.dateChip, active && styles.dateChipActive]}
+                onPress={() => setSelectedDate(d.dateStr)}
+              >
+                <Text style={[styles.dateDow, active && styles.dateActiveText]}>{d.dow}</Text>
+                <Text style={[styles.dateNum, active && styles.dateActiveText]}>{d.day}</Text>
+              </TouchableOpacity>
+            );
+          })}
         </ScrollView>
 
         {/* Slots */}
-        <Text style={styles.sectionLabel}>AVAILABLE SLOTS</Text>
+        <Text style={styles.sectionLabel}>SELECT TIME</Text>
         {slotsLoading ? (
-          <ActivityIndicator size="small" color={COLORS.secondary} style={{ marginVertical: 20 }} />
+          <ActivityIndicator size="small" color={COLORS.primaryLight} style={{ marginVertical: 20 }} />
         ) : slots.length === 0 ? (
           <View style={styles.noSlots}>
-            <Ionicons name="time-outline" size={32} color="#555" />
+            <Ionicons name="time-outline" size={32} color={COLORS.textMuted} />
             <Text style={styles.noSlotsText}>No slots available for this date</Text>
           </View>
         ) : (
           <View style={styles.slotsGrid}>
-            {slots.map((s) => (
-              <TouchableOpacity
-                key={s.id}
-                style={[
-                  styles.slotCard,
-                  s.isFull && styles.slotCardFull,
-                  selectedSlot === s.id && !s.isFull && styles.slotCardSelected,
-                ]}
-                onPress={() => !s.isFull && setSelectedSlot(s.id)}
-                activeOpacity={s.isFull ? 1 : 0.75}
-              >
-                <Text style={[styles.slotTime, s.isFull && styles.slotTimeFull]}>{s.startTime}</Text>
-                <Text style={[styles.slotSpots, s.isFull && { color: '#EF4444' }]}>
-                  {s.isFull ? 'Full' : `${s.remainingCapacity} spots left`}
-                </Text>
-              </TouchableOpacity>
-            ))}
+            {slots.map((s) => {
+              const sel = selectedSlot === s.id && !s.isFull;
+              return (
+                <TouchableOpacity
+                  key={s.id}
+                  style={[styles.slotCard, s.isFull && styles.slotCardFull, sel && styles.slotCardSelected]}
+                  onPress={() => !s.isFull && setSelectedSlot(s.id)}
+                  activeOpacity={s.isFull ? 1 : 0.75}
+                >
+                  <Text style={[styles.slotTime, s.isFull && styles.slotTimeFull, sel && { color: COLORS.white }]}>
+                    {fmt12(s.startTime)}
+                  </Text>
+                  <Text style={[styles.slotSpots, s.isFull && { color: COLORS.error }]}>
+                    {s.isFull ? 'Full' : `${s.remainingCapacity} left`}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         )}
 
-        {/* Booking Summary */}
+        {/* Booking summary line */}
         {selectedSlotObj && (
-          <View style={styles.summaryCard}>
-            <Text style={styles.summaryLabel}>BOOKING SUMMARY</Text>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryKey}>Activity</Text>
-              <Text style={styles.summaryVal}>{name}</Text>
-            </View>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryKey}>Date</Text>
-              <Text style={styles.summaryVal}>{selectedDateLabel}</Text>
-            </View>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryKey}>Time</Text>
-              <Text style={styles.summaryVal}>{selectedSlotObj.startTime} – {selectedSlotObj.endTime}</Text>
-            </View>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryKey}>Cost</Text>
-              <Text style={styles.summaryVal}>₿ {cost}</Text>
-            </View>
-            <View style={[styles.summaryRow, styles.summaryFinalRow]}>
-              <Text style={styles.summaryKey}>Balance after</Text>
-              <Text style={[styles.summaryVal, { color: afterBal >= 0 ? COLORS.secondary : '#EF4444', fontWeight: '900' }]}>
-                ₿ {afterBal.toLocaleString()}
+          <>
+            <Text style={styles.bookingLine}>
+              You are booking: <Text style={styles.bookingLineBold}>
+                {name}, {selectedDateLabel}, {fmt12(selectedSlotObj.startTime)}
               </Text>
+            </Text>
+            <Text style={styles.deductLine}>
+              <Text style={styles.deductCoin}>₿ {cost}</Text> will be deducted from your balance
+              <Text style={[styles.afterBal, { color: afterBal >= 0 ? COLORS.primaryLight : COLORS.error }]}>
+                {'  '}(balance after: ₿ {afterBal.toLocaleString()})
+              </Text>
+            </Text>
+
+            {/* Cancellation policy */}
+            <View style={styles.policyBanner}>
+              <Ionicons name="warning-outline" size={16} color="#F5B041" />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.policyTitle}>CANCELLATION POLICY</Text>
+                <Text style={styles.policyText}>
+                  Cancellations made within 2 hours of the activity start time are non-refundable.
+                </Text>
+              </View>
             </View>
-          </View>
+          </>
         )}
 
         <View style={{ height: 120 }} />
@@ -307,22 +309,12 @@ export default function ActivityDetailScreen({ navigation, route }) {
       {/* Sticky footer CTA */}
       {selectedSlotObj && (
         <SafeBottomBar style={styles.footer}>
-          <TouchableOpacity
-            style={[styles.confirmBtn, (booking || afterBal < 0) && { opacity: 0.5 }]}
+          <HoloButton
+            label={`CONFIRM BOOKING   ·   ₿ ${cost}`}
             onPress={handleBook}
-            disabled={booking || afterBal < 0}
-            activeOpacity={0.85}
-          >
-            {booking ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <>
-                <Text style={styles.confirmBtnText}>CONFIRM & PAY</Text>
-                <Ionicons name="arrow-forward" size={18} color="#fff" />
-                <Text style={styles.confirmBtnCost}>₿ {cost}</Text>
-              </>
-            )}
-          </TouchableOpacity>
+            loading={booking}
+            disabled={afterBal < 0}
+          />
         </SafeBottomBar>
       )}
     </View>
@@ -330,82 +322,84 @@ export default function ActivityDetailScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000' },
+  container: { flex: 1, backgroundColor: COLORS.background },
 
-  hero: { height: 320, justifyContent: 'flex-end', padding: 20 },
-  heroImageOverlay: {
-    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-  },
-  heroColorOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
-  heroTopGlow: {
-    position: 'absolute', top: 0, left: 0, right: 0, height: 200,
-    backgroundColor: 'rgba(233,99,22,0.18)',
+  header: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 16, paddingTop: 52, paddingBottom: 12,
   },
   backBtn: {
-    position: 'absolute', top: 52, left: 16,
-    width: 40, height: 40, borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
+    width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center',
   },
-  heroBottom: { gap: 6 },
-  heroEmoji: { fontSize: 40 },
-  heroTitle: { fontSize: 40, fontWeight: '900', color: '#fff' },
-  heroMeta: { fontSize: 13, color: 'rgba(255,255,255,0.7)' },
+  headerTitle: { flex: 1, textAlign: 'center', fontFamily: FONTS.headline, fontSize: 18, color: COLORS.white },
 
-  description: { fontSize: 14, color: '#aaa', lineHeight: 20, marginBottom: 20 },
+  scroll: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 20 },
 
-  scroll: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 20 },
-
-  dateScroll: { marginBottom: 24, marginHorizontal: -16 },
-  dateScrollContent: { paddingHorizontal: 16, gap: 10 },
-  dateChip: {
-    height: 48, paddingHorizontal: 18, borderRadius: 14,
-    backgroundColor: '#1C1C1E', borderWidth: 1, borderColor: '#333',
-    alignItems: 'center', justifyContent: 'center', gap: 4,
+  // Summary card
+  summaryTop: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    backgroundColor: COLORS.surface, borderRadius: 16, borderWidth: 1, borderColor: COLORS.border,
+    padding: 18, marginBottom: 16,
   },
-  dateChipActive: { backgroundColor: COLORS.secondary, borderColor: COLORS.secondary },
-  dateChipText: { fontSize: 13, fontWeight: '700', color: '#aaa' },
-  dateChipTextActive: { color: '#fff' },
-  dateDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: '#fff' },
+  summaryCol: { flex: 1, gap: 6 },
+  summaryKey: { fontFamily: FONTS.label, fontSize: 9, color: COLORS.textMuted, letterSpacing: 1.5 },
+  summaryName: { fontFamily: FONTS.headline, fontSize: 18, color: COLORS.white },
+  summaryVal: { fontFamily: FONTS.bodyBold, fontSize: 16, color: COLORS.white },
+
+  description: { fontFamily: FONTS.body, fontSize: 14, color: COLORS.textSecondary, lineHeight: 21, marginBottom: 12 },
+  trainerLine: { fontFamily: FONTS.bodyMedium, fontSize: 13, color: COLORS.textMuted, marginBottom: 12 },
 
   sectionLabel: {
-    fontSize: 10, fontWeight: '800', color: '#666',
-    letterSpacing: 2, textTransform: 'uppercase', marginBottom: 12,
+    fontFamily: FONTS.label, fontSize: 11, color: COLORS.textSecondary,
+    letterSpacing: 2, marginBottom: 12, marginTop: 12,
   },
-  slotsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 24 },
+
+  // Date chips
+  dateScroll: { marginHorizontal: -16, marginBottom: 8 },
+  dateScrollContent: { paddingHorizontal: 16, gap: 10 },
+  dateChip: {
+    width: 64, height: 72, borderRadius: 14, gap: 4,
+    backgroundColor: COLORS.surface, borderWidth: 1.5, borderColor: COLORS.border,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  dateChipActive: { borderColor: COLORS.primaryNeon, backgroundColor: COLORS.primarySoft },
+  dateDow: { fontFamily: FONTS.label, fontSize: 10, color: COLORS.textMuted, letterSpacing: 1 },
+  dateNum: { fontFamily: FONTS.headline, fontSize: 20, color: COLORS.textSecondary },
+  dateActiveText: { color: COLORS.white },
+
+  // Slots
+  slotsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 8 },
   slotCard: {
-    width: '47%', alignItems: 'center', padding: 16, borderRadius: 14,
-    backgroundColor: '#1C1C1E', borderWidth: 1.5, borderColor: '#333',
+    width: '47%', alignItems: 'center', paddingVertical: 14, borderRadius: 14, gap: 4,
+    backgroundColor: COLORS.surface, borderWidth: 1.5, borderColor: COLORS.border,
   },
-  slotCardSelected: { borderColor: COLORS.secondary },
+  slotCardSelected: { borderColor: COLORS.primaryNeon, backgroundColor: COLORS.primarySoft },
   slotCardFull: { opacity: 0.4 },
-  slotTime: { fontSize: 15, fontWeight: '700', color: '#fff', marginBottom: 4 },
-  slotTimeFull: { color: '#888' },
-  slotSpots: { fontSize: 10, color: COLORS.secondary, fontWeight: '600' },
+  slotTime: { fontFamily: FONTS.bodyBold, fontSize: 15, color: COLORS.textPrimary },
+  slotTimeFull: { color: COLORS.textMuted },
+  slotSpots: { fontFamily: FONTS.body, fontSize: 10, color: COLORS.primaryLight },
 
   noSlots: { alignItems: 'center', paddingVertical: 30, gap: 8 },
-  noSlotsText: { fontSize: 14, color: '#666' },
+  noSlotsText: { fontFamily: FONTS.body, fontSize: 14, color: COLORS.textMuted },
 
-  summaryCard: {
-    backgroundColor: '#1C1C1E', borderRadius: 18, borderWidth: 1.5,
-    borderColor: COLORS.secondary + '55', padding: 20, marginBottom: 20,
+  bookingLine: { fontFamily: FONTS.body, fontSize: 14, color: COLORS.textSecondary, marginTop: 16, lineHeight: 21 },
+  bookingLineBold: { fontFamily: FONTS.bodyBold, color: COLORS.white },
+  deductLine: { fontFamily: FONTS.body, fontSize: 13, color: COLORS.textMuted, marginTop: 8 },
+  deductCoin: { fontFamily: FONTS.bodyBold, color: COLORS.primaryLight },
+  afterBal: { fontFamily: FONTS.bodyMedium, fontSize: 12 },
+
+  policyBanner: {
+    flexDirection: 'row', gap: 10, alignItems: 'flex-start', marginTop: 16,
+    backgroundColor: 'rgba(245,176,65,0.08)', borderWidth: 1, borderColor: 'rgba(245,176,65,0.3)',
+    borderRadius: 12, padding: 14,
   },
-  summaryLabel: { fontSize: 10, fontWeight: '800', color: COLORS.secondary, letterSpacing: 2, marginBottom: 16 },
-  summaryRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8 },
-  summaryFinalRow: { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.07)', marginTop: 8, paddingTop: 14 },
-  summaryKey: { fontSize: 13, color: '#888' },
-  summaryVal: { fontSize: 13, fontWeight: '600', color: '#fff' },
+  policyTitle: { fontFamily: FONTS.label, fontSize: 10, color: '#F5B041', letterSpacing: 1.5, marginBottom: 4 },
+  policyText: { fontFamily: FONTS.body, fontSize: 12, color: COLORS.textSecondary, lineHeight: 18 },
 
   footer: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
-    paddingHorizontal: 16, paddingTop: 16,
-    backgroundColor: 'rgba(0,0,0,0.9)',
+    paddingHorizontal: 16, paddingTop: 14,
+    backgroundColor: COLORS.background,
   },
-  confirmBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    backgroundColor: COLORS.secondary, borderRadius: 14, height: 58, gap: 8,
-  },
-  confirmBtnText: { fontSize: 14, fontWeight: '900', color: '#fff', letterSpacing: 1.5 },
-  confirmBtnCost: { fontSize: 13, color: 'rgba(255,255,255,0.85)', fontWeight: '700' },
 });

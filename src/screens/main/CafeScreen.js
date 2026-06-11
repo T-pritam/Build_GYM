@@ -1,30 +1,16 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  StatusBar, TextInput, Dimensions, Image, ActivityIndicator, RefreshControl, AppState,
+  StatusBar, TextInput, Image, ActivityIndicator, RefreshControl, AppState,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { COLORS } from '../../constants/colors';
+import { COLORS, FONTS } from '../../theme';
 import { fetchMenu } from '../../services/cafeService';
 import { subscribeMenuAvailability, subscribeCafeStatus } from '../../services/cafeSupabase';
 import { fetchCafeStatus } from '../../services/cafeApiService';
 import { useCartStore, cartQty, cartTotal } from '../../store/cartStore';
 import AddonPickerModal from '../../components/AddonPickerModal';
-
-const { width } = Dimensions.get('window');
-const HORIZONTAL_PAD = 14;
-const COLUMN_GAP = 12;
-const CARD_WIDTH = (width - HORIZONTAL_PAD * 2 - COLUMN_GAP) / 2;
-
-const CATEGORY_ICONS = {
-  All:           'grid-outline',
-  Shakes:        'water-outline',
-  Meals:         'restaurant-outline',
-  Snacks:        'pizza-outline',
-  Supplements:   'flask-outline',
-  'Hot Beverages': 'cafe-outline',
-};
 
 export default function CafeScreen({ navigation }) {
   const [menuItems,       setMenuItems]       = useState([]);
@@ -52,8 +38,7 @@ export default function CafeScreen({ navigation }) {
   });
 
   // Fetch menu from the Cafe backend. /menu returns { categories: [{ name, items: [...] }] }.
-  // We flatten to a single array with `category` denormalized onto each item to keep
-  // the existing 2-column grid UI unchanged.
+  // We flatten to a single array with `category` denormalized onto each item.
   const loadMenu = useCallback(async ({ isRefresh = false } = {}) => {
     try {
       const res = await fetchMenu();
@@ -197,79 +182,70 @@ export default function CafeScreen({ navigation }) {
 
     return (
       <TouchableOpacity
-        style={[styles.card, !item.isAvailable && styles.cardUnavailable]}
+        style={[styles.row, !item.isAvailable && styles.rowUnavailable]}
         onPress={() => navigation.navigate('ItemDetail', { item })}
         activeOpacity={0.88}
       >
-        {/* Image area */}
-        <LinearGradient colors={['#2A1200', '#160800']} style={styles.imgBox}>
-          {item.imageUrl ? (
-            <Image source={{ uri: item.imageUrl }} style={styles.itemImage} resizeMode="cover" />
-          ) : (
-            <Text style={styles.emoji}>{item.name.charAt(0).toUpperCase()}</Text>
-          )}
-          {!item.isAvailable && (
-            <View style={styles.unavailOverlay}>
-              <Text style={styles.unavailText}>Unavailable</Text>
+        {/* Left: text block */}
+        <View style={styles.rowBody}>
+          {!!item.category && (
+            <View style={styles.tagPill}>
+              <Text style={styles.tagText}>{String(item.category).toUpperCase()}</Text>
             </View>
           )}
-        </LinearGradient>
+          <Text style={styles.itemName} numberOfLines={1}>{item.name}</Text>
+          {!!item.description && (
+            <Text style={styles.itemDesc} numberOfLines={1}>{item.description}</Text>
+          )}
 
-        {/* Info area */}
-        <View style={styles.cardBody}>
-          <Text style={styles.itemName} numberOfLines={2}>{item.name}</Text>
-
-          {/* Macros */}
-          <View style={styles.macrosRow}>
-            {item.protein != null && (
-              <View style={styles.macroChip}>
-                <Text style={styles.macroVal}>{item.protein}g</Text>
-                <Text style={styles.macroLbl}>P</Text>
-              </View>
-            )}
-            {item.calories != null && (
-              <View style={[styles.macroChip, { backgroundColor: 'rgba(255,107,0,0.08)' }]}>
-                <Text style={[styles.macroVal, { color: COLORS.secondary }]}>{item.calories}</Text>
-                <Text style={styles.macroLbl}>cal</Text>
-              </View>
-            )}
-          </View>
-
-          {/* Price */}
-          <View style={styles.priceRow}>
+          <View style={styles.priceCtaRow}>
             <Text style={styles.priceText}>₹{Number(item.price ?? 0)}</Text>
-          </View>
 
-          {/* ADD button or qty stepper */}
-          {item.isAvailable ? (
-            qty === 0 ? (
-              <TouchableOpacity style={[styles.addBtn, !cafeIsOpen && { opacity: 0.35 }]} onPress={() => cafeIsOpen ? handleAddToCart(item) : null} activeOpacity={0.85} disabled={!cafeIsOpen}>
-                <LinearGradient
-                  colors={[COLORS.secondary, COLORS.secondaryDark]}
-                  style={styles.addBtnGrad}
-                  start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+            {item.isAvailable ? (
+              qty === 0 ? (
+                <TouchableOpacity
+                  style={[styles.addBtn, !cafeIsOpen && { opacity: 0.35 }]}
+                  onPress={() => cafeIsOpen ? handleAddToCart(item) : null}
+                  activeOpacity={0.85}
+                  disabled={!cafeIsOpen}
                 >
                   <Ionicons name="add" size={15} color={COLORS.white} />
                   <Text style={styles.addBtnText}>ADD</Text>
-                </LinearGradient>
-              </TouchableOpacity>
+                </TouchableOpacity>
+              ) : (
+                <View style={styles.qtyRow}>
+                  <TouchableOpacity style={styles.qtyMinus} onPress={() => handleRemoveFromCart(item.id)}>
+                    <Ionicons name="remove" size={15} color={COLORS.primaryLight} />
+                  </TouchableOpacity>
+                  <Text style={styles.qtyNum}>{qty}</Text>
+                  <TouchableOpacity
+                    style={[styles.qtyPlus, qty >= maxQty && styles.qtyPlusDisabled]}
+                    onPress={() => handleAddToCart(item)}
+                    disabled={qty >= maxQty}
+                  >
+                    <Ionicons name="add" size={15} color={COLORS.white} />
+                  </TouchableOpacity>
+                </View>
+              )
             ) : (
-              <View style={styles.qtyRow}>
-                <TouchableOpacity style={styles.qtyMinus} onPress={() => handleRemoveFromCart(item.id)}>
-                  <Ionicons name="remove" size={14} color={COLORS.secondary} />
-                </TouchableOpacity>
-                <Text style={styles.qtyNum}>{qty}</Text>
-                <TouchableOpacity
-                  style={[styles.qtyPlus, qty >= maxQty && styles.qtyPlusDisabled]}
-                  onPress={() => handleAddToCart(item)}
-                  disabled={qty >= maxQty}
-                >
-                  <Ionicons name="add" size={14} color={COLORS.white} />
-                </TouchableOpacity>
-              </View>
-            )
+              <Text style={styles.naText}>UNAVAILABLE</Text>
+            )}
+          </View>
+        </View>
+
+        {/* Right: image */}
+        <View style={styles.imgBox}>
+          {item.imageUrl ? (
+            <Image source={{ uri: item.imageUrl }} style={styles.itemImage} resizeMode="cover" />
           ) : (
-            <Text style={styles.naText}>Unavailable</Text>
+            <LinearGradient colors={['#2A1640', '#0F2A2A']} style={styles.imgFallback}>
+              <Text style={styles.imgLetter}>{item.name.charAt(0).toUpperCase()}</Text>
+            </LinearGradient>
+          )}
+          {!item.isAvailable && (
+            <View style={styles.unavailOverlay}>
+              <Text style={styles.unavailText}>UNAVAILABLE</Text>
+            </View>
           )}
         </View>
       </TouchableOpacity>
@@ -280,7 +256,7 @@ export default function CafeScreen({ navigation }) {
     return (
       <View style={[styles.container, styles.center]}>
         <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
-        <ActivityIndicator size="large" color={COLORS.secondary} />
+        <ActivityIndicator size="large" color={COLORS.primaryLight} />
       </View>
     );
   }
@@ -290,17 +266,20 @@ export default function CafeScreen({ navigation }) {
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
       {/* Header */}
-      <LinearGradient colors={['#1A0800', '#0D0D0D']} style={styles.header}>
+      <View style={styles.header}>
+        {/* Row 1: back · BUILD Café · cart */}
         <View style={styles.headerRow}>
-          <View>
-            <Text style={styles.headerTitle}>Build Café</Text>
-            <Text style={styles.headerSub}>Order takeaway · pay with Razorpay</Text>
-          </View>
-          <TouchableOpacity
-            style={styles.cartBtn}
-            onPress={() => navigation.navigate('Cart')}
-          >
-            <Ionicons name="bag-outline" size={22} color={COLORS.white} />
+          <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
+            <Ionicons name="arrow-back" size={20} color={COLORS.textPrimary} />
+          </TouchableOpacity>
+
+          <Text style={styles.brand}>
+            <Text style={styles.brandBold}>BUILD</Text>
+            <Text style={styles.brandItalic}>  Café</Text>
+          </Text>
+
+          <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.navigate('Cart')}>
+            <Ionicons name="bag-outline" size={20} color={COLORS.textPrimary} />
             {totalItems > 0 && (
               <View style={styles.cartBadge}>
                 <Text style={styles.cartBadgeText}>{totalItems}</Text>
@@ -309,7 +288,7 @@ export default function CafeScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
-        {/* Search */}
+        {/* Row 2: search */}
         <View style={styles.searchRow}>
           <Ionicons name="search-outline" size={16} color={COLORS.textMuted} style={{ marginLeft: 12 }} />
           <TextInput
@@ -325,7 +304,7 @@ export default function CafeScreen({ navigation }) {
             </TouchableOpacity>
           )}
         </View>
-      </LinearGradient>
+      </View>
 
       {/* Cafe closed banner */}
       {!cafeIsOpen && (
@@ -338,15 +317,14 @@ export default function CafeScreen({ navigation }) {
         </View>
       )}
 
-      {/* 2-column item grid */}
+      {/* Item list */}
       <FlatList
         style={{ flex: 1 }}
         data={filteredItems}
         keyExtractor={(item) => item.id}
-        numColumns={2}
         renderItem={renderItem}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.secondary} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primaryLight} />
         }
         ListHeaderComponent={() => (
           <>
@@ -362,13 +340,9 @@ export default function CafeScreen({ navigation }) {
                   style={[styles.tab, activeCategory === cat && styles.tabActive]}
                   onPress={() => setActiveCategory(cat)}
                 >
-                  <Ionicons
-                    name={CATEGORY_ICONS[cat] || 'grid-outline'}
-                    size={13}
-                    color={activeCategory === cat ? COLORS.secondary : COLORS.textMuted}
-                    style={{ marginRight: 4 }}
-                  />
-                  <Text style={[styles.tabText, activeCategory === cat && styles.tabTextActive]}>{cat}</Text>
+                  <Text style={[styles.tabText, activeCategory === cat && styles.tabTextActive]}>
+                    {String(cat).toUpperCase()}
+                  </Text>
                 </TouchableOpacity>
               )}
             />
@@ -378,8 +352,7 @@ export default function CafeScreen({ navigation }) {
             </Text>
           </>
         )}
-        contentContainerStyle={styles.gridContent}
-        columnWrapperStyle={styles.columnWrapper}
+        contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           <View style={styles.emptyState}>
@@ -387,7 +360,7 @@ export default function CafeScreen({ navigation }) {
             <Text style={styles.emptyText}>No items found</Text>
           </View>
         }
-        ListFooterComponent={<View style={{ height: totalItems > 0 ? 80 : 20 }} />}
+        ListFooterComponent={<View style={{ height: totalItems > 0 ? 90 : 20 }} />}
       />
 
       {/* Floating cart bar */}
@@ -420,129 +393,120 @@ const styles = StyleSheet.create({
   center: { justifyContent: 'center', alignItems: 'center' },
 
   // Header
-  header: { paddingTop: 52, paddingHorizontal: 18, paddingBottom: 14 },
+  header: { paddingTop: 52, paddingHorizontal: 18, paddingBottom: 12 },
   headerRow: {
     flexDirection: 'row', justifyContent: 'space-between',
-    alignItems: 'center', marginBottom: 12,
+    alignItems: 'center', marginBottom: 14,
   },
-  headerTitle: { fontSize: 24, fontWeight: '900', color: COLORS.white },
-  headerSub: { fontSize: 12, color: COLORS.textSecondary, marginTop: 2 },
-  cartBtn: {
+  iconBtn: {
     width: 42, height: 42, borderRadius: 12,
-    backgroundColor: COLORS.surface, borderWidth: 1,
+    backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1,
     borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center',
   },
+  brand: { textAlign: 'center' },
+  brandBold: { fontFamily: FONTS.headline, fontSize: 20, color: COLORS.white, letterSpacing: 1 },
+  brandItalic: { fontFamily: FONTS.taglineItalic, fontSize: 20, color: COLORS.textSecondary, fontStyle: 'italic' },
   cartBadge: {
     position: 'absolute', top: -4, right: -4,
-    width: 17, height: 17, borderRadius: 9,
-    backgroundColor: COLORS.secondary,
+    minWidth: 17, height: 17, borderRadius: 9, paddingHorizontal: 4,
+    backgroundColor: COLORS.primary,
     alignItems: 'center', justifyContent: 'center',
   },
-  cartBadgeText: { fontSize: 9, fontWeight: '900', color: COLORS.white },
+  cartBadgeText: { fontFamily: FONTS.bodyBold, fontSize: 9, color: COLORS.white },
   searchRow: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: COLORS.surface, borderRadius: 12,
-    borderWidth: 1, borderColor: COLORS.border, height: 44,
+    borderWidth: 1, borderColor: COLORS.border, height: 46,
   },
-  searchInput: { flex: 1, color: COLORS.white, fontSize: 14, paddingHorizontal: 10 },
+  searchInput: { flex: 1, fontFamily: FONTS.body, color: COLORS.textPrimary, fontSize: 14, paddingHorizontal: 10 },
 
-  // Tabs
-  tabsScroll: { paddingHorizontal: HORIZONTAL_PAD, paddingTop: 12, paddingBottom: 4, gap: 8 },
+  // Tabs (text-only pills)
+  tabsScroll: { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 4, gap: 8 },
   tab: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 12, paddingVertical: 7,
+    paddingHorizontal: 16, paddingVertical: 8,
     borderRadius: 20, backgroundColor: COLORS.surface,
     borderWidth: 1, borderColor: COLORS.border,
   },
-  tabActive: { backgroundColor: COLORS.secondaryGlow, borderColor: COLORS.secondary },
-  tabText: { fontSize: 12, fontWeight: '600', color: COLORS.textMuted },
-  tabTextActive: { color: COLORS.secondary, fontWeight: '800' },
+  tabActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  tabText: { fontFamily: FONTS.label, fontSize: 11, color: COLORS.textMuted, letterSpacing: 1 },
+  tabTextActive: { color: COLORS.white },
   resultCount: {
-    paddingHorizontal: HORIZONTAL_PAD + 2,
-    paddingTop: 8, paddingBottom: 6,
-    fontSize: 11, color: COLORS.textMuted, fontWeight: '600',
+    paddingHorizontal: 18, paddingTop: 10, paddingBottom: 6,
+    fontFamily: FONTS.body, fontSize: 11, color: COLORS.textMuted,
   },
 
-  // Grid layout
-  gridContent: { paddingHorizontal: HORIZONTAL_PAD },
-  columnWrapper: { gap: COLUMN_GAP, marginBottom: COLUMN_GAP },
+  // List
+  listContent: { paddingHorizontal: 16, gap: 12 },
 
-  // Card
-  card: {
-    width: CARD_WIDTH,
-    backgroundColor: COLORS.surface,
-    borderRadius: 14, borderWidth: 1, borderColor: COLORS.border, overflow: 'hidden',
+  // Row card
+  row: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: COLORS.surface, borderRadius: 16,
+    borderWidth: 1, borderColor: COLORS.border, padding: 12,
   },
-  cardUnavailable: { opacity: 0.55 },
-  imgBox: {
-    width: '100%', height: CARD_WIDTH * 0.85,
-    alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+  rowUnavailable: { opacity: 0.55 },
+  rowBody: { flex: 1, gap: 6 },
+  tagPill: {
+    alignSelf: 'flex-start', backgroundColor: COLORS.primarySoft,
+    borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3,
   },
+  tagText: { fontFamily: FONTS.label, fontSize: 8, color: COLORS.primaryLight, letterSpacing: 1.5 },
+  itemName: { fontFamily: FONTS.headline, fontSize: 17, color: COLORS.white },
+  itemDesc: { fontFamily: FONTS.body, fontSize: 12, color: COLORS.textMuted },
+
+  priceCtaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 },
+  priceText: { fontFamily: FONTS.bodyBold, fontSize: 18, color: COLORS.white },
+
+  // ADD pill
+  addBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: COLORS.primary, borderRadius: 20,
+    paddingHorizontal: 16, paddingVertical: 8,
+  },
+  addBtnText: { fontFamily: FONTS.label, fontSize: 12, color: COLORS.white, letterSpacing: 1 },
+
+  // Qty stepper
+  qtyRow: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: COLORS.surface2, borderRadius: 20,
+    borderWidth: 1, borderColor: COLORS.primaryBorder, overflow: 'hidden',
+  },
+  qtyMinus: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center' },
+  qtyNum: { fontFamily: FONTS.bodyBold, fontSize: 14, color: COLORS.white, minWidth: 18, textAlign: 'center' },
+  qtyPlus: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.primary },
+  qtyPlusDisabled: { opacity: 0.35 },
+  naText: { fontFamily: FONTS.label, fontSize: 10, color: COLORS.textMuted, letterSpacing: 1 },
+
+  // Image
+  imgBox: { width: 96, height: 96, borderRadius: 14, overflow: 'hidden', backgroundColor: COLORS.surface2 },
   itemImage: { width: '100%', height: '100%' },
-  emoji: { fontSize: 48, color: COLORS.secondary, fontWeight: '900' },
+  imgFallback: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' },
+  imgLetter: { fontFamily: FONTS.display, fontSize: 36, color: COLORS.primaryLight },
   unavailOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center',
   },
-  unavailText: { fontSize: 12, fontWeight: '700', color: COLORS.white },
-
-  // Card body
-  cardBody: { padding: 12, gap: 6 },
-  itemName: { fontSize: 14, fontWeight: '800', color: COLORS.white, lineHeight: 19, minHeight: 25 },
-
-  // Macros
-  macrosRow: { flexDirection: 'row', gap: 6 },
-  macroChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 3,
-    backgroundColor: COLORS.surface2, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 4,
-  },
-  macroVal: { fontSize: 12, fontWeight: '700', color: COLORS.white },
-  macroLbl: { fontSize: 10, color: COLORS.textMuted },
-
-  // Price
-  priceRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  priceText: { fontSize: 17, fontWeight: '900', color: COLORS.white },
-
-  // ADD button
-  addBtn: { borderRadius: 10, overflow: 'hidden', marginTop: 2 },
-  addBtnGrad: {
-    flexDirection: 'row', alignItems: 'center',
-    justifyContent: 'center', paddingVertical: 10, gap: 4,
-  },
-  addBtnText: { fontSize: 13, fontWeight: '900', color: COLORS.white },
-
-  // Qty stepper
-  qtyRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: COLORS.surface2, borderRadius: 10,
-    borderWidth: 1, borderColor: COLORS.secondaryBorder, marginTop: 2, overflow: 'hidden',
-  },
-  qtyMinus: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
-  qtyNum: { fontSize: 14, fontWeight: '900', color: COLORS.white },
-  qtyPlus: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.secondary },
-  qtyPlusDisabled: { opacity: 0.35 },
-
-  naText: { fontSize: 12, color: COLORS.textMuted, fontStyle: 'italic', marginTop: 2 },
+  unavailText: { fontFamily: FONTS.label, fontSize: 9, color: COLORS.white, letterSpacing: 1 },
 
   // Empty state
   emptyState: { alignItems: 'center', paddingVertical: 60, gap: 10 },
-  emptyText: { fontSize: 15, color: COLORS.textMuted },
+  emptyText: { fontFamily: FONTS.body, fontSize: 15, color: COLORS.textMuted },
 
-  // Floating cart bar — sits just above the tab bar (screen area already excludes tab height)
+  // Floating cart bar
   cartBar: {
     position: 'absolute', bottom: 30, left: 16, right: 16,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     backgroundColor: COLORS.surface, borderRadius: 16, borderWidth: 1,
-    borderColor: COLORS.secondaryBorder, padding: 14,
-    // shadowColor: COLORS.secondary, shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25, shadowRadius: 12, elevation: 8,
+    borderColor: COLORS.primaryBorder, padding: 14,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4, shadowRadius: 12, elevation: 8,
   },
-  cartBarQty: { fontSize: 13, fontWeight: '700', color: COLORS.textSecondary },
+  cartBarQty: { fontFamily: FONTS.bodyBold, fontSize: 13, color: COLORS.textSecondary },
   cartBarBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: COLORS.secondary, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10,
+    backgroundColor: COLORS.primary, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 11,
   },
-  cartBarBtnText: { fontSize: 13, fontWeight: '900', color: COLORS.white },
+  cartBarBtnText: { fontFamily: FONTS.label, fontSize: 12, color: COLORS.white, letterSpacing: 1 },
 
   cafeClosedBanner: {
     flexDirection: 'row',
@@ -551,6 +515,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
-  cafeClosedTitle: { fontSize: 13, fontWeight: '800', color: '#fff' },
-  cafeClosedSub: { fontSize: 11, color: 'rgba(255,255,255,0.75)', marginTop: 2 },
+  cafeClosedTitle: { fontFamily: FONTS.bodyBold, fontSize: 13, color: '#fff' },
+  cafeClosedSub: { fontFamily: FONTS.body, fontSize: 11, color: 'rgba(255,255,255,0.75)', marginTop: 2 },
 });

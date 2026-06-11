@@ -15,7 +15,8 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../../constants/colors';
+import { COLORS as THEME, FONTS } from '../../theme';
+import { HoloButton } from '../../components/auth';
 import DatePickerModal from '../../components/DatePickerModal';
 import { useAuthStore } from '../../store/authStore';
 import { isAtLeast16 } from '../../utils/ageValidator';
@@ -45,7 +46,27 @@ const STEPS = [
   { title: 'Consent',         icon: 'shield-checkmark-outline', step: 'Step 6 of 6' },
 ];
 
-const O = COLORS.secondary; // orange
+// Theme compatibility — map the legacy colour keys this screen uses onto the
+// new "Holographic Noir" palette so the entire render restyles without touching
+// the 1000-line JSX. Accent (was orange) → lavender purple.
+const COLORS = {
+  secondary:     THEME.primaryLight,   // accent: text / borders / active states
+  secondaryDeep: THEME.primary,        // solid accent fills
+  background:    THEME.background,
+  surface:       '#1B191E',            // cards / inputs / sheets
+  surface3:      THEME.surface3,
+  white:         THEME.white,
+  textPrimary:   THEME.textPrimary,
+  textSecondary: THEME.textSecondary,
+  textMuted:     THEME.textMuted,
+  border:        THEME.border,
+  borderStrong:  THEME.borderStrong,
+  orangeLight:   THEME.primarySoft,    // switch track-on / soft accent wash
+  primarySoft:   THEME.primarySoft,
+  primaryBorder: THEME.primaryBorder,
+};
+
+const O = COLORS.secondary; // accent (purple)
 const S = COLORS.surface;
 const B = COLORS.border;
 
@@ -87,17 +108,20 @@ function Field({ label, optional, children }) {
 }
 
 // ─── Input ────────────────────────────────────────────────────────────────────
-function Input({ value, onChangeText, placeholder, keyboardType, secureTextEntry, trailing, ...rest }) {
+function Input({ value, onChangeText, placeholder, keyboardType, secureTextEntry, trailing, onFocus, onBlur, ...rest }) {
+  const [focused, setFocused] = useState(false);
   return (
     <View style={{ position: 'relative' }}>
       <TextInput
-        style={[s.input, trailing && { paddingRight: 44 }]}
+        style={[s.input, focused && s.inputFocused, trailing && { paddingRight: 44 }]}
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
         placeholderTextColor={COLORS.textMuted}
         keyboardType={keyboardType || 'default'}
         secureTextEntry={secureTextEntry}
+        onFocus={(e) => { setFocused(true); onFocus?.(e); }}
+        onBlur={(e) => { setFocused(false); onBlur?.(e); }}
         {...rest}
       />
       {trailing && (
@@ -1128,7 +1152,7 @@ export default function OnboardingScreen({ route, navigation }) {
               <Text style={{ color: COLORS.white, fontWeight: '600' }}>+91</Text>
             </View>
             <TextInput
-              style={[s.input, { flex: 1, borderColor: phoneMatchesUser ? '#EF4444' : COLORS.border }]}
+              style={[s.input, { flex: 1, borderBottomColor: phoneMatchesUser ? '#EF4444' : COLORS.borderStrong }]}
               value={ecPhone}
               onChangeText={setEcPhone}
               placeholder="Enter 10-digit"
@@ -1288,29 +1312,22 @@ export default function OnboardingScreen({ route, navigation }) {
 
       {/* ── Bottom CTA ── */}
       <View style={s.bottomBar}>
-        <TouchableOpacity
-          style={[s.ctaBtn, (!canNext() || submitting) && { opacity: 0.4 }]}
+        {/* Stays pressable even when invalid (dim via style) so the
+            "fill all required fields" message still shows on tap. */}
+        <HoloButton
+          label={step === 5 ? 'GET STARTED' : 'CONTINUE'}
+          icon={step < 5 ? 'arrow-forward' : undefined}
+          loading={submitting}
           onPress={() => {
+            if (submitting) return;
             if (!canNext()) { setTried(true); return; }
             setTried(false);
             goNext();
           }}
-          disabled={submitting}
-          activeOpacity={0.85}
-        >
-          {submitting ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <>
-              <Text style={s.ctaText}>
-                {step === 5 ? 'GET STARTED 🚀' : 'CONTINUE'}
-              </Text>
-              {step < 5 && <Ionicons name="arrow-forward" size={18} color="#fff" style={{ marginLeft: 8 }} />}
-            </>
-          )}
-        </TouchableOpacity>
+          style={(!canNext() && !submitting) ? { opacity: 0.5 } : null}
+        />
         {tried && !canNext() && (
-          <Text style={{ color: '#EF4444', fontSize: 12, textAlign: 'center', marginTop: 8 }}>
+          <Text style={{ color: '#EF4444', fontSize: 12, textAlign: 'center', marginTop: 8, fontFamily: FONTS.body }}>
             Please fill in all required fields before continuing.
           </Text>
         )}
@@ -1320,7 +1337,7 @@ export default function OnboardingScreen({ route, navigation }) {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000' },
+  container: { flex: 1, backgroundColor: COLORS.background },
 
   // Top bar
   topBar: {
@@ -1328,35 +1345,40 @@ const s = StyleSheet.create({
     paddingHorizontal: 16, paddingTop: Platform.OS === 'ios' ? 56 : 36, paddingBottom: 8,
   },
   backBtn: {
-    width: 40, height: 40, borderRadius: 20, backgroundColor: '#2A2A2A',
+    width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1, borderColor: COLORS.border,
     alignItems: 'center', justifyContent: 'center',
   },
-  stepName: { color: '#fff', fontWeight: '700', fontSize: 15 },
-  stepCount: { color: COLORS.textMuted, fontSize: 11, marginTop: 1 },
+  stepName: { fontFamily: FONTS.headline, color: COLORS.textPrimary, fontSize: 16, letterSpacing: 0.5 },
+  stepCount: { fontFamily: FONTS.body, color: COLORS.textMuted, fontSize: 11, marginTop: 2 },
   stepIcon: { width: 40, height: 40, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
 
   // Progress
   progressRow: { flexDirection: 'row', gap: 6, paddingHorizontal: 16, paddingVertical: 12 },
-  progressSeg:  { flex: 1, height: 5, borderRadius: 3, backgroundColor: '#333' },
+  progressSeg:  { flex: 1, height: 5, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.12)' },
 
   // Content
   scrollContent: { padding: 20, paddingBottom: 40 },
-  stepTitle: { fontSize: 24, fontWeight: '900', color: '#fff', marginBottom: 4 },
-  stepSub:   { fontSize: 14, color: COLORS.textSecondary, marginBottom: 28 },
+  stepTitle: { fontFamily: FONTS.headline, fontSize: 26, color: COLORS.textPrimary, letterSpacing: 0.5, marginBottom: 6 },
+  stepSub:   { fontFamily: FONTS.body, fontSize: 14, color: COLORS.textSecondary, marginBottom: 28, lineHeight: 20 },
 
-  // Label
-  label:    { fontSize: 10, fontWeight: '700', color: COLORS.secondary, letterSpacing: 2 },
-  optional: { fontSize: 10, fontWeight: '700', color: COLORS.textMuted },
+  // Label (uppercase caps)
+  label:    { fontFamily: FONTS.label, fontSize: 11, color: COLORS.secondary, letterSpacing: 1.5, textTransform: 'uppercase' },
+  optional: { fontFamily: FONTS.label, fontSize: 10, color: COLORS.textMuted, textTransform: 'uppercase' },
 
-  // Input
+  // Input — mockup underline style (filled, bottom border only, rounded top)
   input: {
-    backgroundColor: COLORS.surface, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border,
-    paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, color: '#fff',
+    backgroundColor: COLORS.surface,
+    borderTopLeftRadius: 6, borderTopRightRadius: 6,
+    borderBottomWidth: 1, borderBottomColor: COLORS.borderStrong,
+    paddingHorizontal: 16, paddingVertical: 14,
+    fontFamily: FONTS.body, fontSize: 16, color: COLORS.textPrimary,
   },
+  inputFocused: { borderBottomColor: COLORS.secondary },
 
   // Strength
   strengthRow: { flexDirection: 'row', gap: 4 },
-  strengthSeg: { flex: 1, height: 4, borderRadius: 2, backgroundColor: '#333' },
+  strengthSeg: { flex: 1, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.12)' },
 
   // Chips
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
@@ -1364,18 +1386,18 @@ const s = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999,
     borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.surface,
   },
-  chipActive:     { borderColor: COLORS.secondary, backgroundColor: 'rgba(233,99,22,0.1)' },
-  chipText:       { fontSize: 13, color: COLORS.textMuted, fontWeight: '500' },
-  chipTextActive: { color: COLORS.secondary, fontWeight: '600' },
+  chipActive:     { borderColor: COLORS.secondary, backgroundColor: COLORS.primarySoft },
+  chipText:       { fontFamily: FONTS.body, fontSize: 13, color: COLORS.textMuted },
+  chipTextActive: { fontFamily: FONTS.bodyBold, color: COLORS.secondary },
 
   // Fitness Level Cards
   fitnessCard: {
     width: '47%', backgroundColor: COLORS.surface, borderRadius: 14,
     borderWidth: 1, borderColor: COLORS.border, padding: 14, alignItems: 'center',
   },
-  fitnessCardActive: { borderWidth: 2, borderColor: COLORS.secondary, backgroundColor: 'rgba(233,99,22,0.07)' },
-  fitnessName: { color: '#fff', fontWeight: '700', fontSize: 13, marginBottom: 3 },
-  fitnessDesc: { color: COLORS.textMuted, fontSize: 10, textAlign: 'center' },
+  fitnessCardActive: { borderWidth: 2, borderColor: COLORS.secondary, backgroundColor: COLORS.primarySoft },
+  fitnessName: { fontFamily: FONTS.bodyBold, color: COLORS.textPrimary, fontSize: 13, marginBottom: 3 },
+  fitnessDesc: { fontFamily: FONTS.body, color: COLORS.textMuted, fontSize: 10, textAlign: 'center' },
 
   // Radio
   radioRow: {
@@ -1383,8 +1405,8 @@ const s = StyleSheet.create({
     backgroundColor: COLORS.surface, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border,
     paddingHorizontal: 16, paddingVertical: 14,
   },
-  radioRowActive: { borderColor: COLORS.secondary },
-  radioText:      { fontSize: 14, color: COLORS.textSecondary },
+  radioRowActive: { borderColor: COLORS.secondary, backgroundColor: COLORS.primarySoft },
+  radioText:      { fontFamily: FONTS.body, fontSize: 14, color: COLORS.textSecondary },
   radioCircle:    { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
   radioCircleActive: { borderColor: COLORS.secondary },
   radioInner:     { width: 10, height: 10, borderRadius: 5, backgroundColor: COLORS.secondary },
@@ -1392,81 +1414,81 @@ const s = StyleSheet.create({
   // Toggle
   toggleBtn:       { paddingHorizontal: 16, paddingVertical: 6, borderRadius: 6 },
   toggleBtnActive: { backgroundColor: COLORS.secondary },
-  toggleText:      { fontSize: 11, fontWeight: '700', color: COLORS.textMuted },
+  toggleText:      { fontFamily: FONTS.label, fontSize: 11, color: COLORS.textMuted },
 
   // Section header
-  sectionTitle:    { fontSize: 11, fontWeight: '800', color: COLORS.secondary, letterSpacing: 3 },
-  sectionSub:      { fontSize: 11, color: COLORS.textMuted },
+  sectionTitle:    { fontFamily: FONTS.label, fontSize: 11, color: COLORS.secondary, letterSpacing: 2, textTransform: 'uppercase' },
+  sectionSub:      { fontFamily: FONTS.body, fontSize: 11, color: COLORS.textMuted },
 
   // Scroll chip
   scrollChip:       { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 999, borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.surface },
   scrollChipActive: { backgroundColor: COLORS.secondary, borderColor: COLORS.secondary },
-  scrollChipText:   { fontSize: 13, color: COLORS.textMuted, fontWeight: '600' },
+  scrollChipText:   { fontFamily: FONTS.bodyMedium, fontSize: 13, color: COLORS.textMuted },
 
   // Goal card
   goalCard: {
     width: '47%', backgroundColor: COLORS.surface, borderRadius: 14,
     borderWidth: 1, borderColor: COLORS.border, padding: 14,
   },
-  goalCardActive: { borderWidth: 2, borderColor: COLORS.secondary, backgroundColor: 'rgba(233,99,22,0.07)' },
+  goalCardActive: { borderWidth: 2, borderColor: COLORS.secondary, backgroundColor: COLORS.primarySoft },
   goalCheck: {
     position: 'absolute', top: -6, right: -6, width: 20, height: 20,
     backgroundColor: COLORS.secondary, borderRadius: 10,
-    borderWidth: 3, borderColor: '#000', alignItems: 'center', justifyContent: 'center',
+    borderWidth: 3, borderColor: COLORS.background, alignItems: 'center', justifyContent: 'center',
   },
-  goalLabel: { color: '#fff', fontWeight: '700', fontSize: 13, lineHeight: 18 },
+  goalLabel: { fontFamily: FONTS.bodyBold, color: COLORS.textPrimary, fontSize: 13, lineHeight: 18 },
 
   // Freq chip
   freqChip: {
     paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12,
     borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.surface, minWidth: 110,
   },
-  freqText: { fontSize: 12, fontWeight: '700', color: COLORS.textMuted, textAlign: 'center' },
+  freqText: { fontFamily: FONTS.bodyBold, fontSize: 12, color: COLORS.textMuted, textAlign: 'center' },
 
   // Injury status
   statusBtn: {
     flex: 1, paddingVertical: 8, borderRadius: 8,
     backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'transparent', alignItems: 'center',
   },
-  statusBtnActive: { backgroundColor: 'rgba(233,99,22,0.1)', borderColor: COLORS.secondary },
-  statusText: { fontSize: 10, color: COLORS.textMuted },
+  statusBtnActive: { backgroundColor: COLORS.primarySoft, borderColor: COLORS.secondary },
+  statusText: { fontFamily: FONTS.body, fontSize: 10, color: COLORS.textMuted },
 
   // Doctor clear
   clearBtn: {
     flex: 1, paddingVertical: 14, borderRadius: 12,
     borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.surface, alignItems: 'center',
   },
-  clearBtnActive: { borderColor: COLORS.secondary, backgroundColor: 'rgba(233,99,22,0.1)' },
-  clearText: { fontSize: 13, color: COLORS.textMuted },
+  clearBtnActive: { borderColor: COLORS.secondary, backgroundColor: COLORS.primarySoft },
+  clearText: { fontFamily: FONTS.body, fontSize: 13, color: COLORS.textMuted },
 
   // Info Banner
   infoBanner: {
-    flexDirection: 'row', gap: 10, backgroundColor: 'rgba(233,99,22,0.1)',
-    borderRadius: 12, borderWidth: 1, borderColor: 'rgba(233,99,22,0.3)',
+    flexDirection: 'row', gap: 10, backgroundColor: COLORS.primarySoft,
+    borderRadius: 12, borderWidth: 1, borderColor: COLORS.primaryBorder,
     padding: 14, alignItems: 'flex-start',
   },
-  infoBannerText: { flex: 1, fontSize: 12, color: COLORS.textSecondary, lineHeight: 18 },
+  infoBannerText: { flex: 1, fontFamily: FONTS.body, fontSize: 12, color: COLORS.textSecondary, lineHeight: 18 },
 
   // Declaration
   declarationCard: {
     backgroundColor: COLORS.surface, borderRadius: 14, borderWidth: 1,
     borderColor: COLORS.border, padding: 16, marginBottom: 24,
   },
-  declarationText: { color: COLORS.textSecondary, fontSize: 13, lineHeight: 20 },
+  declarationText: { fontFamily: FONTS.body, color: COLORS.textSecondary, fontSize: 13, lineHeight: 20 },
 
   // Checkbox
   checkRow:    { flexDirection: 'row', alignItems: 'flex-start', gap: 14 },
   checkBox:    { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center', marginTop: 2 },
   checkBoxChecked: { backgroundColor: COLORS.secondary, borderColor: COLORS.secondary },
-  checkLabel:  { color: '#fff', fontSize: 14, lineHeight: 20, flex: 1 },
-  checkSub:    { color: COLORS.textMuted, fontSize: 12, marginTop: 2 },
-  badgeText:   { fontSize: 10, color: COLORS.textMuted, backgroundColor: COLORS.surface3, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, borderWidth: 1, borderColor: COLORS.border },
+  checkLabel:  { fontFamily: FONTS.body, color: COLORS.textPrimary, fontSize: 14, lineHeight: 20, flex: 1 },
+  checkSub:    { fontFamily: FONTS.body, color: COLORS.textMuted, fontSize: 12, marginTop: 2 },
+  badgeText:   { fontFamily: FONTS.label, fontSize: 10, color: COLORS.textMuted, backgroundColor: COLORS.surface3, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, borderWidth: 1, borderColor: COLORS.border },
 
   // Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
-  modalSheet:   { backgroundColor: '#1C1C1E', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 40 },
-  modalTitle:   { color: '#fff', fontWeight: '800', fontSize: 16, marginBottom: 16 },
-  modalOption:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#333' },
+  modalSheet:   { backgroundColor: COLORS.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 40 },
+  modalTitle:   { fontFamily: FONTS.headline, color: COLORS.textPrimary, fontSize: 18, marginBottom: 16 },
+  modalOption:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: COLORS.border },
 
   // Bottom
   bottomBar: {
@@ -1474,12 +1496,12 @@ const s = StyleSheet.create({
     paddingBottom: Platform.OS === 'ios' ? 36 : 24,
     paddingTop: 14,
     borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)',
-    backgroundColor: '#000',
+    backgroundColor: COLORS.background,
   },
   ctaBtn: {
-    backgroundColor: COLORS.secondary, borderRadius: 14, height: 56,
+    backgroundColor: COLORS.secondaryDeep, borderRadius: 12, height: 56,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
   },
-  ctaText: { color: '#fff', fontWeight: '800', fontSize: 14, letterSpacing: 2 },
+  ctaText: { fontFamily: FONTS.label, color: COLORS.white, fontSize: 14, letterSpacing: 2 },
 });
 

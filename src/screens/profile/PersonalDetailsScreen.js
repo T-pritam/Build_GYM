@@ -7,7 +7,21 @@ import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import dayjs from 'dayjs';
 import { useFocusEffect } from '@react-navigation/native';
-import { COLORS } from '../../constants/colors';
+import { COLORS as THEME, FONTS } from '../../theme';
+
+// Theme-compat: legacy colour keys -> new "Holographic Noir" palette so the
+// whole screen restyles without rewriting the render. Accent (orange) -> purple.
+const COLORS = {
+  primary: THEME.background, primaryLight: THEME.surface, primaryDark: THEME.black,
+  orange: THEME.primaryLight, orangeLight: THEME.primarySoft, orangeBorder: THEME.primaryBorder, orangeGlow: THEME.primaryGlow,
+  secondary: THEME.primaryLight, secondaryLight: THEME.primaryNeon, secondaryDark: THEME.primary, secondaryGlow: THEME.primarySoft, secondaryBorder: THEME.primaryBorder,
+  background: THEME.background, surface: '#1B191E', surface2: THEME.surface2, surface3: THEME.surface3, card: '#1B191E',
+  textPrimary: THEME.textPrimary, textSecondary: THEME.textSecondary, textMuted: THEME.textMuted, textDim: THEME.textDim,
+  success: THEME.success, successLight: THEME.successSoft, error: THEME.error, errorLight: THEME.errorSoft, warning: THEME.warning, warningLight: THEME.warningSoft,
+  border: THEME.border, borderLight: THEME.borderStrong, overlay: THEME.overlay, overlayLight: THEME.overlayLight,
+  white: THEME.white, black: THEME.black, transparent: 'transparent',
+  primarySoft: THEME.primarySoft, primaryBorder: THEME.primaryBorder, primaryNeon: THEME.primaryNeon,
+};
 import SafeBottomBar from '../../components/SafeBottomBar';
 import { useAuthStore } from '../../store/authStore';
 import {
@@ -522,7 +536,7 @@ const s = StyleSheet.create({
     width: 40, height: 40, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.06)',
     alignItems: 'center', justifyContent: 'center',
   },
-  headerTitle: { fontSize: 14, fontWeight: '800', color: COLORS.secondary, letterSpacing: 4 },
+  headerTitle: { fontFamily: FONTS.headline, fontSize: 16, color: COLORS.textPrimary, letterSpacing: 3 },
   avatarSmall: {
     width: 36, height: 36, borderRadius: 10, backgroundColor: COLORS.secondary,
     alignItems: 'center', justifyContent: 'center',
@@ -540,9 +554,11 @@ const s = StyleSheet.create({
   req: { color: '#EF4444' },
   fieldError: { fontSize: 11, color: '#EF4444', marginTop: 6 },
   input: {
-    backgroundColor: '#1C1C1E', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 12, paddingHorizontal: 16, paddingVertical: 15,
-    fontSize: 14, color: '#fff', fontWeight: '500',
+    backgroundColor: '#1B191E',
+    borderTopLeftRadius: 6, borderTopRightRadius: 6,
+    borderBottomWidth: 1, borderBottomColor: COLORS.borderStrong,
+    paddingHorizontal: 16, paddingVertical: 15,
+    fontFamily: FONTS.body, fontSize: 16, color: COLORS.textPrimary,
   },
 
   datePickerBtn: {
@@ -558,13 +574,13 @@ const s = StyleSheet.create({
   emailRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   emailInput: { flex: 1 },
   verifyBtn: {
-    backgroundColor: 'rgba(233,99,22,0.12)', borderWidth: 1, borderColor: 'rgba(233,99,22,0.3)',
+    backgroundColor: 'rgba(127,41,130,0.12)', borderWidth: 1, borderColor: 'rgba(127,41,130,0.3)',
     borderRadius: 10, paddingHorizontal: 14, paddingVertical: 13,
   },
   verifyBtnText: { fontSize: 12, fontWeight: '700', color: COLORS.secondary },
 
   emailOtpCard: {
-    backgroundColor: '#1A1A1A', borderWidth: 1, borderColor: 'rgba(233,99,22,0.2)',
+    backgroundColor: '#1A1A1A', borderWidth: 1, borderColor: 'rgba(127,41,130,0.2)',
     borderRadius: 12, padding: 16, marginTop: 12,
   },
   emailOtpHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 16 },

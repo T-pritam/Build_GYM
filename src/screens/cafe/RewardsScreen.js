@@ -4,7 +4,16 @@ import {
   StatusBar, ActivityIndicator, RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../../constants/colors';
+import { COLORS as THEME, FONTS } from '../../theme';
+
+// Theme-compat: legacy colour keys -> new "Holographic Noir" palette.
+const COLORS = {
+  secondary: THEME.primaryLight, secondaryDeep: THEME.primary,
+  secondaryGlow: THEME.primarySoft, secondaryBorder: THEME.primaryBorder,
+  background: THEME.background, surface: '#1B191E', surface2: THEME.surface2,
+  white: THEME.white, textPrimary: THEME.textPrimary, textSecondary: THEME.textSecondary,
+  textMuted: THEME.textMuted, border: THEME.border, primarySoft: THEME.primarySoft,
+};
 import { fetchRewardBalance, fetchRewardTransactions } from '../../services/cafeService';
 import SafeBottomBar from '../../components/SafeBottomBar';
 
@@ -180,29 +189,29 @@ export default function RewardsScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
-  glow: { position: 'absolute', top: 0, left: 0, right: 0, height: 260, backgroundColor: 'rgba(233,99,22,0.07)' },
+  glow: { position: 'absolute', top: 0, left: 0, right: 0, height: 260, backgroundColor: 'rgba(127,41,130,0.10)' },
 
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 16, paddingTop: 56, paddingBottom: 16,
   },
   backBtn: {
-    width: 40, height: 40, borderRadius: 20, backgroundColor: '#1C1C1E',
-    alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#333',
+    width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.06)',
+    alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.border,
   },
-  headerTitle: { fontSize: 18, fontWeight: '800', color: COLORS.white },
+  headerTitle: { fontFamily: FONTS.headline, fontSize: 16, color: COLORS.textPrimary, letterSpacing: 3 },
 
   balanceCard: {
     alignItems: 'center', marginHorizontal: 16, marginBottom: 8,
     backgroundColor: COLORS.surface, borderRadius: 16,
     borderWidth: 1, borderColor: COLORS.secondaryBorder, paddingVertical: 22,
   },
-  balanceValue: { fontSize: 38, fontWeight: '900', color: COLORS.white, marginTop: 4 },
+  balanceValue: { fontFamily: FONTS.display, fontSize: 40, color: COLORS.white, marginTop: 6 },
   balanceLabel: {
-    fontSize: 10, fontWeight: '800', color: COLORS.secondary,
-    letterSpacing: 1.5, textTransform: 'uppercase',
+    fontFamily: FONTS.label, fontSize: 10, color: COLORS.secondary,
+    letterSpacing: 1.5, textTransform: 'uppercase', marginTop: 2,
   },
-  balanceWorth: { fontSize: 12, fontWeight: '700', color: COLORS.textMuted, marginTop: 4 },
+  balanceWorth: { fontFamily: FONTS.bodyMedium, fontSize: 12, color: COLORS.textMuted, marginTop: 4 },
 
   list: { paddingHorizontal: 16, paddingBottom: 40 },
 
@@ -212,16 +221,16 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   txnInfo: { flex: 1, gap: 2 },
-  txnLabel: { fontSize: 14, fontWeight: '700', color: COLORS.white },
-  txnSub: { fontSize: 12, color: COLORS.textMuted },
-  txnNote: { fontSize: 12, color: COLORS.textMuted, fontStyle: 'italic' },
+  txnLabel: { fontFamily: FONTS.bodyBold, fontSize: 14, color: COLORS.white },
+  txnSub: { fontFamily: FONTS.body, fontSize: 12, color: COLORS.textMuted },
+  txnNote: { fontFamily: FONTS.body, fontSize: 12, color: COLORS.textMuted, fontStyle: 'italic' },
   txnRight: { alignItems: 'flex-end' },
-  txnDelta: { fontSize: 14, fontWeight: '800' },
-  txnRate: { fontSize: 10, color: COLORS.textMuted },
+  txnDelta: { fontFamily: FONTS.bodyBold, fontSize: 14 },
+  txnRate: { fontFamily: FONTS.body, fontSize: 10, color: COLORS.textMuted },
   separator: { height: 1, backgroundColor: COLORS.border },
 
   empty: { alignItems: 'center', paddingTop: 80, gap: 12 },
-  emptyText: { color: COLORS.textSecondary, fontSize: 16, fontWeight: '700' },
-  emptySubText: { color: COLORS.textMuted, fontSize: 13 },
-  endText: { color: COLORS.textMuted, fontSize: 11, textAlign: 'center', marginVertical: 16 },
+  emptyText: { fontFamily: FONTS.bodyBold, color: COLORS.textSecondary, fontSize: 16 },
+  emptySubText: { fontFamily: FONTS.body, color: COLORS.textMuted, fontSize: 13 },
+  endText: { fontFamily: FONTS.body, color: COLORS.textMuted, fontSize: 11, textAlign: 'center', marginVertical: 16 },
 });

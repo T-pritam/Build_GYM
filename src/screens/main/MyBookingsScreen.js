@@ -1,21 +1,30 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, Alert,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar,
   ActivityIndicator, RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../../constants/colors';
-import { fetchMyBookings, cancelBooking } from '../../services/activityService';
+import { COLORS, FONTS } from '../../theme';
+import { fetchMyBookings } from '../../services/activityService';
 import SafeBottomBar from '../../components/SafeBottomBar';
-import { logEvent } from '../../services/analyticsService';
+
+const TABS = ['All', 'Upcoming', 'Past', 'Cancelled'];
+
+// Display badge from booking status + bucket (upcoming list vs past list).
+function statusMeta(status, bucket) {
+  if (status === 'cancelled') return { label: 'CANCELLED', color: '#F87171', bg: 'rgba(248,113,113,0.12)', border: 'rgba(248,113,113,0.4)' };
+  if (bucket === 'upcoming')  return { label: 'UPCOMING',  color: COLORS.primaryLight, bg: COLORS.primarySoft, border: COLORS.primaryBorder };
+  if (status === 'completed') return { label: 'COMPLETED', color: '#4ADE80', bg: 'rgba(74,222,128,0.12)', border: 'rgba(74,222,128,0.4)' };
+  if (status === 'no_show')   return { label: 'NO SHOW',   color: '#F5B041', bg: 'rgba(245,176,65,0.12)', border: 'rgba(245,176,65,0.4)' };
+  return { label: String(status).toUpperCase(), color: COLORS.textMuted, bg: 'rgba(255,255,255,0.06)', border: COLORS.border };
+}
 
 export default function MyBookingsScreen({ navigation }) {
-  const [tab, setTab] = useState('upcoming');
+  const [tab, setTab] = useState('All');
   const [upcoming, setUpcoming] = useState([]);
   const [past, setPast] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [cancellingId, setCancellingId] = useState(null);
 
   const loadBookings = useCallback(async () => {
     try {
@@ -35,11 +44,9 @@ export default function MyBookingsScreen({ navigation }) {
 
   useEffect(() => { loadBookings(); }, [loadBookings]);
 
-  // Reload when screen comes into focus
+  // Reload when screen comes into focus (e.g. after a cancellation)
   useEffect(() => {
-    const unsubscribe = navigation.addListener('focus', () => {
-      loadBookings();
-    });
+    const unsubscribe = navigation.addListener('focus', () => loadBookings());
     return unsubscribe;
   }, [navigation, loadBookings]);
 
@@ -48,91 +55,35 @@ export default function MyBookingsScreen({ navigation }) {
     loadBookings();
   }, [loadBookings]);
 
-  // Returns true if the booking can still be cancelled (> 2 hours before slot start)
-  const canCancel = (row) => {
-    try {
-      const [h, m] = row.slotStartTime.split(':').map(Number);
-      const slotDate = new Date(row.slotDate);
-      slotDate.setHours(h, m, 0, 0);
-      return slotDate - Date.now() > 2 * 60 * 60 * 1000;
-    } catch {
-      return false;
-    }
-  };
-
-  const handleCancel = (row) => {
-    const bookingData = row.booking;
-    Alert.alert(
-      'Cancel Booking',
-      `Cancel your ${row.activityName} session on ${row.slotDate} at ${row.slotStartTime}?\n\n₿ ${bookingData.coinsPaid} coins will be refunded to your wallet.\n\nCancellations must be made at least 2 hours before the session.`,
-      [
-        { text: 'Keep Booking', style: 'cancel' },
-        {
-          text: 'Cancel Booking',
-          style: 'destructive',
-          onPress: async () => {
-            setCancellingId(bookingData.id);
-            const hoursBefore = (() => {
-              try {
-                const [h, m] = row.slotStartTime.split(':').map(Number);
-                const slotDate = new Date(row.slotDate);
-                slotDate.setHours(h, m, 0, 0);
-                return Math.round(((slotDate - Date.now()) / 3.6e6) * 10) / 10;
-              } catch { return null; }
-            })();
-            try {
-              await cancelBooking(bookingData.id);
-              logEvent('activity_cancelled_by_member', {
-                activity_type: row.activityName,
-                coins_refunded: bookingData.coinsPaid,
-                time_before_slot_hours: hoursBefore,
-              }).catch(() => {});
-              Alert.alert('Cancelled', `${bookingData.coinsPaid} coins have been refunded to your wallet.`);
-              loadBookings();
-            } catch (err) {
-              const msg = err.response?.data?.message || err.message;
-              Alert.alert('Cancel Failed', msg);
-            } finally {
-              setCancellingId(null);
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  const getStatusStyle = (status) => {
-    switch (status) {
-      case 'confirmed':
-        return { color: '#22C55E', bg: 'rgba(34,197,94,0.1)', border: '#22C55E44' };
-      case 'cancelled':
-        return { color: '#EF4444', bg: 'rgba(239,68,68,0.1)', border: '#EF444444' };
-      case 'completed':
-        return { color: '#3B82F6', bg: 'rgba(59,130,246,0.1)', border: '#3B82F644' };
-      case 'no_show':
-        return { color: '#F59E0B', bg: 'rgba(245,158,11,0.1)', border: '#F59E0B44' };
-      default:
-        return { color: '#888', bg: 'rgba(136,136,136,0.1)', border: '#88888844' };
-    }
-  };
+  // Tag each row with its bucket, then filter by tab.
+  const tagged = [
+    ...upcoming.map((r) => ({ ...r, _bucket: 'upcoming' })),
+    ...past.map((r) => ({ ...r, _bucket: 'past' })),
+  ];
+  const rows = tagged.filter((r) => {
+    if (tab === 'All') return true;
+    if (tab === 'Upcoming') return r._bucket === 'upcoming';
+    if (tab === 'Cancelled') return r.booking?.status === 'cancelled';
+    if (tab === 'Past') return r._bucket === 'past';
+    return true;
+  });
 
   if (loading) {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color={COLORS.secondary} />
+        <ActivityIndicator size="large" color={COLORS.primaryLight} />
       </View>
     );
   }
 
   return (
     <SafeBottomBar style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#000" />
-      <View style={styles.glowTop} />
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
 
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={20} color="#fff" />
+          <Ionicons name="arrow-back" size={20} color={COLORS.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>My Bookings</Text>
         <View style={{ width: 40 }} />
@@ -140,170 +91,54 @@ export default function MyBookingsScreen({ navigation }) {
 
       {/* Tabs */}
       <View style={styles.tabsRow}>
-        <TouchableOpacity
-          style={[styles.tab, tab === 'upcoming' && styles.tabActive]}
-          onPress={() => setTab('upcoming')}
-        >
-          <Text style={[styles.tabText, tab === 'upcoming' && styles.tabTextActive]}>
-            Upcoming {upcoming.length > 0 ? `(${upcoming.length})` : ''}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, tab === 'past' && styles.tabActive]}
-          onPress={() => setTab('past')}
-        >
-          <Text style={[styles.tabText, tab === 'past' && styles.tabTextActive]}>Past</Text>
-        </TouchableOpacity>
+        {TABS.map((t) => (
+          <TouchableOpacity key={t} style={styles.tab} onPress={() => setTab(t)}>
+            <Text style={[styles.tabText, tab === t && styles.tabTextActive]}>{t}</Text>
+            {tab === t && <View style={styles.tabUnderline} />}
+          </TouchableOpacity>
+        ))}
       </View>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scroll}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.secondary} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primaryLight} />}
       >
-        {tab === 'upcoming' ? (
-          upcoming.length > 0 ? upcoming.map((row) => {
+        {rows.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Ionicons name="calendar-outline" size={56} color={COLORS.textMuted} />
+            <Text style={styles.emptyTitle}>No {tab !== 'All' ? tab.toLowerCase() : ''} bookings</Text>
+            <Text style={styles.emptySub}>Book a session from the Activities tab</Text>
+            <TouchableOpacity style={styles.emptyBtn} onPress={() => navigation.navigate('Activities')}>
+              <Text style={styles.emptyBtnText}>Browse Activities</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          rows.map((row) => {
             const b = row.booking;
-            const ss = getStatusStyle(b.status);
+            const meta = statusMeta(b.status, row._bucket);
+            const cancelled = b.status === 'cancelled';
             return (
-              <View key={b.id} style={styles.bookingCard}>
-                <View style={[styles.accentBar, { backgroundColor: COLORS.secondary }]} />
-                <View style={styles.bookingContent}>
-                  <View style={styles.bookingTopRow}>
-                    <Text style={styles.bookingTitle}>{row.activityName}</Text>
-                    <View style={[styles.statusBadge, { backgroundColor: ss.bg, borderColor: ss.border }]}>
-                      <Text style={[styles.statusText, { color: ss.color }]}>
-                        {b.status.charAt(0).toUpperCase() + b.status.slice(1)}
-                      </Text>
-                    </View>
-                  </View>
-                  <Text style={styles.bookingDateTime}>{row.slotDate} · {row.slotStartTime} – {row.slotEndTime}</Text>
-                  {row.trainers?.length > 0 && (
-                    <Text style={styles.bookingTrainer}>
-                      Instructor: {row.trainers.map(t => t.name).join(', ')}
-                    </Text>
-                  )}
-                  <Text style={styles.bookingRef}>Ref: {b.ref} · ₿ {b.coinsPaid}</Text>
-
-                  <View style={styles.bookingActions}>
-                    <TouchableOpacity
-                      style={styles.qrBtn}
-                      onPress={() => navigation.navigate('BookingQR', {
-                        booking: { ...b, slotDate: row.slotDate, slotTime: row.slotStartTime },
-                        activityName: row.activityName,
-                      })}
-                    >
-                      <Ionicons name="qr-code-outline" size={14} color={COLORS.secondary} />
-                      <Text style={styles.qrBtnText}>QR</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={styles.receiptBtn}
-                      onPress={() => navigation.navigate('TransactionDetail', {
-                        transaction: {
-                          transactionType: b.status === 'cancelled' ? 'REFUND' : 'DEBIT',
-                          itemCategory: 'SESSION',
-                          itemName: row.activityName,
-                          activityName: row.activityName,
-                          coinAmount: b.coinsPaid,
-                          referenceId: b.id,
-                          createdAt: b.createdAt,
-                          slotDate: row.slotDate,
-                          slotStartTime: row.slotStartTime,
-                          slotEndTime: row.slotEndTime,
-                          bookingRef: b.ref,
-                          bookingStatus: b.status,
-                          qrCode: b.qrCode,
-                          trainers: row.trainers,
-                        },
-                      })}
-                    >
-                      <Ionicons name="receipt-outline" size={14} color="#888" />
-                    </TouchableOpacity>
-
-                    {b.status === 'confirmed' && (
-                      cancellingId === b.id ? (
-                        <ActivityIndicator size="small" color="#EF4444" />
-                      ) : canCancel(row) ? (
-                        <TouchableOpacity onPress={() => handleCancel(row)}>
-                          <Text style={styles.cancelText}>Cancel</Text>
-                        </TouchableOpacity>
-                      ) : (
-                        <Text style={styles.cancelDisabledText}>Cannot cancel{'\n'}within 2 hrs</Text>
-                      )
-                    )}
+              <TouchableOpacity
+                key={b.id}
+                style={[styles.card, cancelled && styles.cardDim]}
+                activeOpacity={0.8}
+                onPress={() => navigation.navigate('BookingDetail', { row })}
+              >
+                <View style={styles.cardTop}>
+                  <Text style={[styles.cardTitle, cancelled && { color: COLORS.textMuted }]}>
+                    {row.activityName}
+                  </Text>
+                  <View style={[styles.badge, { backgroundColor: meta.bg, borderColor: meta.border }]}>
+                    <Text style={[styles.badgeText, { color: meta.color }]}>{meta.label}</Text>
                   </View>
                 </View>
-              </View>
-            );
-          }) : (
-            <View style={styles.emptyState}>
-              <Ionicons name="calendar-outline" size={56} color="#444" />
-              <Text style={styles.emptyTitle}>No Upcoming Bookings</Text>
-              <Text style={styles.emptySub}>Book a session from the Activities tab</Text>
-              <TouchableOpacity
-                style={styles.emptyBtn}
-                onPress={() => navigation.navigate('Activities')}
-              >
-                <Text style={styles.emptyBtnText}>Browse Activities</Text>
+                <Text style={[styles.cardDate, cancelled && { color: COLORS.textDim }]}>
+                  {row.slotDate} · {row.slotStartTime}
+                </Text>
               </TouchableOpacity>
-            </View>
-          )
-        ) : (
-          past.length > 0 ? (
-            <>
-              <Text style={styles.pastSectionLabel}>Recently Completed</Text>
-              {past.map((row) => {
-                const b = row.booking;
-                const ss = getStatusStyle(b.status);
-                return (
-                  <TouchableOpacity
-                    key={b.id}
-                    style={[styles.bookingCard, styles.bookingCardPast]}
-                    activeOpacity={0.75}
-                    onPress={() => navigation.navigate('TransactionDetail', {
-                      transaction: {
-                        transactionType: b.status === 'cancelled' ? 'REFUND' : 'DEBIT',
-                        itemCategory: 'SESSION',
-                        itemName: row.activityName,
-                        activityName: row.activityName,
-                        coinAmount: b.coinsPaid,
-                        referenceId: b.id,
-                        createdAt: b.createdAt,
-                        slotDate: row.slotDate,
-                        slotStartTime: row.slotStartTime,
-                        slotEndTime: row.slotEndTime,
-                        bookingRef: b.ref,
-                        bookingStatus: b.status,
-                        qrCode: b.qrCode,
-                        trainers: row.trainers,
-                      },
-                    })}
-                  >
-                    <View style={styles.bookingContent}>
-                      <View style={styles.bookingTopRow}>
-                        <Text style={styles.bookingTitle}>{row.activityName}</Text>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                          <Text style={[styles.pastStatusText, { color: ss.color }]}>
-                            {b.status.charAt(0).toUpperCase() + b.status.slice(1)}
-                          </Text>
-                          <Ionicons name="chevron-forward" size={14} color="#555" />
-                        </View>
-                      </View>
-                      <Text style={styles.bookingDateTime}>{row.slotDate} · {row.slotStartTime}</Text>
-                      <Text style={styles.bookingRef}>Ref: {b.ref} · ₿ {b.coinsPaid}</Text>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </>
-          ) : (
-            <View style={styles.emptyState}>
-              <Ionicons name="time-outline" size={56} color="#444" />
-              <Text style={styles.emptyTitle}>No Past Bookings</Text>
-              <Text style={styles.emptySub}>Your completed sessions will appear here</Text>
-            </View>
-          )
+            );
+          })
         )}
 
         <View style={{ height: 100 }} />
@@ -313,74 +148,49 @@ export default function MyBookingsScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000' },
-  glowTop: { position: 'absolute', top: 0, left: 0, right: 0, height: 200, backgroundColor: 'rgba(233,99,22,0.07)' },
+  container: { flex: 1, backgroundColor: COLORS.background },
 
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 16, paddingTop: 52, paddingBottom: 12,
   },
   backBtn: {
-    width: 40, height: 40, borderRadius: 20, backgroundColor: '#1C1C1E',
-    alignItems: 'center', justifyContent: 'center',
+    width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center',
   },
-  headerTitle: { fontSize: 18, fontWeight: '800', color: '#fff' },
+  headerTitle: { fontFamily: FONTS.headline, fontSize: 18, color: COLORS.white },
 
   tabsRow: {
-    flexDirection: 'row', paddingHorizontal: 24, borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.08)', gap: 28, marginBottom: 4,
+    flexDirection: 'row', paddingHorizontal: 16, gap: 22,
+    borderBottomWidth: 1, borderBottomColor: COLORS.border, marginBottom: 8,
   },
-  tab: { paddingVertical: 14, borderBottomWidth: 2, borderBottomColor: 'transparent' },
-  tabActive: { borderBottomColor: COLORS.secondary },
-  tabText: { fontSize: 14, fontWeight: '700', color: '#666' },
-  tabTextActive: { color: COLORS.secondary },
-
-  scroll: { padding: 20 },
-
-  bookingCard: {
-    flexDirection: 'row', backgroundColor: '#1C1C1E', borderRadius: 18,
-    borderWidth: 1, borderColor: '#333', marginBottom: 14, overflow: 'hidden',
-  },
-  bookingCardPast: { opacity: 0.75 },
-  accentBar: { width: 5, borderRadius: 0 },
-  bookingContent: { flex: 1, padding: 16, paddingLeft: 14 },
-  bookingTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 },
-  bookingTitle: { fontSize: 17, fontWeight: '800', color: '#fff' },
-  statusBadge: {
-    borderWidth: 1, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 3,
-  },
-  statusText: { fontSize: 10, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 },
-  bookingDateTime: { fontSize: 13, fontWeight: '600', color: '#aaa', marginBottom: 3 },
-  bookingTrainer: { fontSize: 12, color: '#888', marginBottom: 3 },
-  bookingRef: { fontSize: 11, color: '#666', marginBottom: 10 },
-  bookingActions: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-
-  qrBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    borderWidth: 1, borderColor: COLORS.secondary + '44', borderRadius: 10,
-    paddingHorizontal: 10, paddingVertical: 5,
-  },
-  qrBtnText: { fontSize: 12, fontWeight: '700', color: COLORS.secondary },
-
-  cancelText: { fontSize: 13, fontWeight: '700', color: '#EF4444' },
-  cancelDisabledText: { fontSize: 10, fontWeight: '600', color: '#555', textAlign: 'right', lineHeight: 14 },
-  receiptBtn: {
-    width: 30, height: 30, borderRadius: 8, backgroundColor: '#2A2A2A',
-    alignItems: 'center', justifyContent: 'center',
+  tab: { paddingVertical: 14, alignItems: 'center' },
+  tabText: { fontFamily: FONTS.bodyMedium, fontSize: 14, color: COLORS.textMuted },
+  tabTextActive: { fontFamily: FONTS.bodyBold, color: COLORS.white },
+  tabUnderline: {
+    position: 'absolute', bottom: 0, left: 0, right: 0, height: 2,
+    backgroundColor: COLORS.primaryNeon, borderRadius: 2,
   },
 
-  pastSectionLabel: {
-    fontSize: 11, fontWeight: '800', color: '#555', textTransform: 'uppercase',
-    letterSpacing: 2, marginBottom: 12,
-  },
-  pastStatusText: { fontSize: 12, fontWeight: '600' },
+  scroll: { padding: 16 },
 
-  emptyState: { alignItems: 'center', paddingVertical: 60, gap: 12 },
-  emptyTitle: { fontSize: 18, fontWeight: '800', color: '#fff' },
-  emptySub: { fontSize: 13, color: '#666' },
+  card: {
+    backgroundColor: COLORS.surface, borderRadius: 16, borderWidth: 1, borderColor: COLORS.border,
+    padding: 18, marginBottom: 12,
+  },
+  cardDim: { opacity: 0.6 },
+  cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  cardTitle: { fontFamily: FONTS.headline, fontSize: 18, color: COLORS.white, flex: 1 },
+  badge: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
+  badgeText: { fontFamily: FONTS.label, fontSize: 9, letterSpacing: 1 },
+  cardDate: { fontFamily: FONTS.bodyMedium, fontSize: 13, color: COLORS.textSecondary },
+
+  emptyState: { alignItems: 'center', paddingVertical: 70, gap: 12 },
+  emptyTitle: { fontFamily: FONTS.headline, fontSize: 18, color: COLORS.white, textTransform: 'capitalize' },
+  emptySub: { fontFamily: FONTS.body, fontSize: 13, color: COLORS.textMuted },
   emptyBtn: {
-    marginTop: 8, borderWidth: 1, borderColor: COLORS.secondary,
+    marginTop: 8, borderWidth: 1, borderColor: COLORS.primaryBorder,
     borderRadius: 12, paddingHorizontal: 24, paddingVertical: 10,
   },
-  emptyBtnText: { fontSize: 14, fontWeight: '700', color: COLORS.secondary },
+  emptyBtnText: { fontFamily: FONTS.label, fontSize: 12, color: COLORS.primaryLight, letterSpacing: 1 },
 });

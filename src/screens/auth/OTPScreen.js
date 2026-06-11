@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
-  View, Text, StyleSheet, TextInput, TouchableOpacity,
-  KeyboardAvoidingView, Platform, StatusBar, Alert, ActivityIndicator,
+  View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../../constants/colors';
+import { COLORS, TYPE } from '../../theme';
+import { AuthBackground, GlassCard, HoloButton, OtpInput } from '../../components/auth';
 import { verifyOTP, resendOTP } from '../../services/authService';
 import { useAuthStore } from '../../store/authStore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -25,7 +25,7 @@ export default function OTPScreen({ navigation, route }) {
   const [attemptsLeft, setAttemptsLeft] = useState(null);
   const [locked, setLocked] = useState(false);
   const [resending, setResending] = useState(false);
-  const inputRefs = useRef([]);
+  const otpRef = useRef(null);
 
   const setAuth = useAuthStore((s) => s.setAuth);
 
@@ -43,20 +43,6 @@ export default function OTPScreen({ navigation, route }) {
     return () => clearInterval(interval);
   };
 
-  const handleChange = (text, index) => {
-    const newOtp = [...otp];
-    newOtp[index] = text.slice(-1);
-    setOtp(newOtp);
-    if (text && index < 5) inputRefs.current[index + 1]?.focus();
-    if (newOtp.every((d) => d !== '')) handleVerify(newOtp);
-  };
-
-  const handleKeyPress = (e, index) => {
-    if (e.nativeEvent.key === 'Backspace' && !otp[index] && index > 0) {
-      inputRefs.current[index - 1]?.focus();
-    }
-  };
-
   const handleResend = async () => {
     if (!canResend || !phone || resending) return;
     setCanResend(false);
@@ -67,7 +53,7 @@ export default function OTPScreen({ navigation, route }) {
       setAttemptsLeft(null);
       setLocked(false);
       setOtp(['', '', '', '', '', '']);
-      inputRefs.current[0]?.focus();
+      otpRef.current?.focus(0);
     } catch {
       Alert.alert('Error', 'Could not resend OTP. Please try again.');
     } finally {
@@ -76,7 +62,7 @@ export default function OTPScreen({ navigation, route }) {
   };
 
   const handleVerify = async (digits = otp) => {
-    const code = digits.join('');
+    const code = Array.isArray(digits) ? digits.join('') : digits;
     if (code.length < 6 || loading || !phone) return;
 
     setLoading(true);
@@ -90,7 +76,7 @@ export default function OTPScreen({ navigation, route }) {
           'This app is for members only. Please use the BuildGym Staff app to sign in.'
         );
         setOtp(['', '', '', '', '', '']);
-        inputRefs.current[0]?.focus();
+        otpRef.current?.focus(0);
         return;
       }
 
@@ -162,7 +148,7 @@ export default function OTPScreen({ navigation, route }) {
       } else {
         Alert.alert('Verification Failed', msg);
         setOtp(['', '', '', '', '', '']);
-        inputRefs.current[0]?.focus();
+        otpRef.current?.focus(0);
       }
     } finally {
       setLoading(false);
@@ -170,58 +156,35 @@ export default function OTPScreen({ navigation, route }) {
   };
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#000" />
+    <AuthBackground scroll={false}>
+      {/* Back */}
+      <View style={styles.topNav}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={22} color={COLORS.textPrimary} />
+        </TouchableOpacity>
+      </View>
 
-      {/* Corner glow */}
-      <View style={styles.cornerGlow} />
-
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={{ flex: 1 }}
-      >
-        {/* Back */}
-        <View style={styles.topNav}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={22} color="#fff" />
-          </TouchableOpacity>
+      <View style={styles.content}>
+        {/* Icon */}
+        <View style={styles.iconBox}>
+          <Ionicons name="shield-checkmark" size={34} color={COLORS.primaryLight} />
         </View>
 
-        <View style={styles.content}>
-          {/* Icon */}
-          <View style={styles.iconBox}>
-            <Ionicons name="shield-checkmark" size={38} color="#fff" />
-          </View>
+        {/* Title */}
+        <Text style={[TYPE.headlineMd, styles.title]}>Verify OTP</Text>
+        <Text style={[TYPE.bodySm, styles.subtitle]}>
+          We sent a 6-digit code to{' '}
+          <Text style={styles.mobileText}>{displayPhone}</Text>
+        </Text>
 
-          {/* Title */}
-          <Text style={styles.title}>Verify OTP</Text>
-          <Text style={styles.subtitle}>
-            We sent a 6-digit code to{' '}
-            <Text style={styles.mobileText}>{displayPhone}</Text>
-          </Text>
-
-          {/* OTP Boxes */}
-          <View style={styles.otpRow}>
-            {otp.map((digit, i) => (
-              <TextInput
-                key={i}
-                ref={(r) => { inputRefs.current[i] = r; }}
-                style={[
-                  styles.otpBox,
-                  digit ? styles.otpBoxFilled : styles.otpBoxEmpty,
-                  i === otp.findIndex((d) => d === '') && styles.otpBoxActive,
-                ]}
-                value={digit}
-                onChangeText={(t) => handleChange(t, i)}
-                onKeyPress={(e) => handleKeyPress(e, i)}
-                keyboardType="number-pad"
-                maxLength={1}
-                selectTextOnFocus
-                caretHidden={false}
-                editable={!loading && !locked}
-              />
-            ))}
-          </View>
+        <GlassCard style={styles.card}>
+          <OtpInput
+            ref={otpRef}
+            value={otp}
+            onChange={setOtp}
+            onComplete={(code) => handleVerify(code)}
+            editable={!loading && !locked}
+          />
 
           {/* Attempts remaining indicator */}
           {attemptsLeft !== null && attemptsLeft > 0 && (
@@ -235,7 +198,7 @@ export default function OTPScreen({ navigation, route }) {
             {canResend ? (
               <TouchableOpacity onPress={handleResend} disabled={resending}>
                 {resending
-                  ? <ActivityIndicator color={COLORS.secondary} size="small" />
+                  ? <ActivityIndicator color={COLORS.primaryLight} size="small" />
                   : <Text style={styles.resendBtn}>Resend OTP</Text>
                 }
               </TouchableOpacity>
@@ -245,83 +208,54 @@ export default function OTPScreen({ navigation, route }) {
               </Text>
             )}
           </View>
+        </GlassCard>
 
-          {/* Verify button */}
-          <TouchableOpacity
-            style={[styles.verifyBtn, (otp.join('').length < 6 || loading) && styles.verifyBtnDisabled]}
-            onPress={() => handleVerify()}
-            activeOpacity={0.85}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <>
-                <Text style={styles.verifyBtnText}>VERIFY &amp; CONTINUE</Text>
-                <Ionicons name="arrow-forward" size={20} color="#fff" />
-              </>
-            )}
-          </TouchableOpacity>
-
-        </View>
-      </KeyboardAvoidingView>
-    </View>
+        {/* Verify button */}
+        <HoloButton
+          label="VERIFY & ENTER"
+          icon="arrow-forward"
+          onPress={() => handleVerify()}
+          loading={loading}
+          disabled={otp.join('').length < 6}
+          style={styles.cta}
+        />
+      </View>
+    </AuthBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000' },
-  cornerGlow: {
-    position: 'absolute', top: -80, right: -80, width: 280, height: 280,
-    borderRadius: 140, backgroundColor: COLORS.secondary + '33',
-    opacity: 0.5,
-  },
-  topNav: { padding: 24, paddingTop: 52 },
+  topNav: { paddingTop: 52, paddingBottom: 8 },
   backBtn: {
-    width: 48, height: 48, borderRadius: 24, backgroundColor: '#2A2A2A',
+    width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.glass,
+    borderWidth: 1, borderColor: COLORS.border,
     alignItems: 'center', justifyContent: 'center',
   },
-  content: { flex: 1, paddingHorizontal: 24 },
+  content: { flex: 1, paddingTop: 24 },
 
   iconBox: {
-    width: 64, height: 64, borderRadius: 18, backgroundColor: COLORS.secondary,
+    width: 64, height: 64, borderRadius: 18, backgroundColor: COLORS.primarySoft,
+    borderWidth: 1, borderColor: COLORS.primaryBorder,
     alignItems: 'center', justifyContent: 'center', marginBottom: 24,
-    shadowColor: COLORS.secondary, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 12,
   },
 
-  title: { fontSize: 32, fontWeight: '900', color: '#fff', marginBottom: 8 },
-  subtitle: { fontSize: 15, color: '#9A9A9A', lineHeight: 22, marginBottom: 36 },
-  mobileText: { color: '#fff', fontWeight: '700' },
+  title: { marginBottom: 8 },
+  subtitle: { marginBottom: 32 },
+  mobileText: { color: COLORS.textPrimary, fontWeight: '700' },
 
-  otpRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 24 },
-  otpBox: {
-    width: 48, height: 58, borderRadius: 12, textAlign: 'center',
-    fontSize: 22, fontWeight: '800', color: '#fff',
-    borderWidth: 1.5,
-  },
-  otpBoxEmpty: { backgroundColor: '#1C1C1E', borderColor: '#444' },
-  otpBoxFilled: { backgroundColor: '#1C1C1E', borderColor: COLORS.secondary, color: COLORS.secondary },
-  otpBoxActive: { borderColor: '#2DD4BF' },
+  card: { marginBottom: 28 },
+
   attemptsText: {
-    color: COLORS.secondary,
-    fontSize: 12,
-    fontWeight: '600',
+    ...TYPE.bodySm,
+    color: COLORS.primaryLight,
     textAlign: 'center',
-    marginBottom: 8,
+    marginTop: 16,
   },
 
-  timerRow: { alignItems: 'center', marginBottom: 36 },
-  timerText: { fontSize: 13, color: '#9A9A9A' },
-  timerCount: { color: COLORS.secondary, fontWeight: '700' },
-  resendBtn: { fontSize: 14, color: COLORS.secondary, fontWeight: '700' },
+  timerRow: { alignItems: 'center', marginTop: 20 },
+  timerText: { ...TYPE.bodySm, color: COLORS.textMuted },
+  timerCount: { color: COLORS.primaryLight, fontWeight: '700' },
+  resendBtn: { ...TYPE.bodySm, color: COLORS.primaryLight, fontWeight: '700' },
 
-  verifyBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    backgroundColor: COLORS.secondary, borderRadius: 14, height: 56, gap: 10,
-  },
-  verifyBtnDisabled: { opacity: 0.5 },
-  verifyBtnText: { fontSize: 14, fontWeight: '900', color: '#fff', letterSpacing: 2 },
-
-  demoHint: { textAlign: 'center', fontSize: 12, color: '#9A9A9A', marginTop: 24 },
-  demoHighlight: { color: COLORS.secondary, fontWeight: '600' },
+  cta: {},
 });

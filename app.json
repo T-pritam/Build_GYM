@@ -20,7 +20,9 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.buildgym.app",
       "infoPlist": {
-        "UIBackgroundModes": ["remote-notification"]
+        "UIBackgroundModes": [
+          "remote-notification"
+        ]
       }
     },
     "android": {
@@ -64,7 +66,8 @@
             "useFrameworks": "static"
           }
         }
-      ]
+      ],
+      "expo-font"
     ]
   }
 }

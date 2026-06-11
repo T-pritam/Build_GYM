@@ -7,7 +7,8 @@ import {
   Modal,
   TouchableOpacity,
 } from 'react-native';
-import { COLORS } from '../constants/colors';
+import { COLORS, FONTS } from '../theme';
+import { HoloButton } from './auth';
 
 // ─────────────────────────────────────────────────────────────────────────────
 const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -184,9 +185,7 @@ export default function DatePickerModal({ visible, value, onConfirm, onClose }) 
             </View>
           </View>
 
-          <TouchableOpacity style={dp.confirmBtn} onPress={handleConfirm} activeOpacity={0.85}>
-            <Text style={dp.confirmText}>CONFIRM DATE</Text>
-          </TouchableOpacity>
+          <HoloButton label="CONFIRM DATE" onPress={handleConfirm} style={dp.confirmBtn} />
         </TouchableOpacity>
       </TouchableOpacity>
     </Modal>
@@ -195,18 +194,18 @@ export default function DatePickerModal({ visible, value, onConfirm, onClose }) 
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const dp = StyleSheet.create({
-  overlay:  { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'flex-end' },
+  overlay:  { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
   sheet:    {
-    backgroundColor: '#1A1A1A',
+    backgroundColor: '#1B191E',
     borderTopLeftRadius: 28, borderTopRightRadius: 28,
     paddingBottom: 44,
   },
   handle:   {
-    width: 40, height: 4, backgroundColor: '#444',
+    width: 40, height: 4, backgroundColor: 'rgba(255,255,255,0.2)',
     borderRadius: 2, alignSelf: 'center', marginTop: 14,
   },
   title:    {
-    color: '#fff', fontWeight: '800', fontSize: 17,
+    fontFamily: FONTS.headline, color: COLORS.textPrimary, fontSize: 18,
     textAlign: 'center', marginTop: 18, marginBottom: 4, letterSpacing: 0.5,
   },
   colLabels: {
@@ -214,8 +213,8 @@ const dp = StyleSheet.create({
     gap: 4, marginBottom: 6, paddingHorizontal: 20,
   },
   colLabel:  {
-    textAlign: 'center', fontSize: 10, fontWeight: '700',
-    color: COLORS.secondary, letterSpacing: 2,
+    textAlign: 'center', fontFamily: FONTS.label, fontSize: 10,
+    color: COLORS.primaryLight, letterSpacing: 2, textTransform: 'uppercase',
   },
   sep: { color: 'rgba(255,255,255,0.25)', fontSize: 20, fontWeight: '300', marginBottom: 4 },
   band: {
@@ -223,17 +222,12 @@ const dp = StyleSheet.create({
     left: 12, right: 12,
     height: ITEM_H,
     top: ITEM_H * 2,
-    backgroundColor: 'rgba(233,99,22,0.10)',
+    backgroundColor: COLORS.primarySoft,
     borderRadius: 12,
-    borderWidth: 1, borderColor: 'rgba(233,99,22,0.30)',
+    borderWidth: 1, borderColor: COLORS.primaryBorder,
     zIndex: 10,
   },
-  colItem:       { fontSize: 15, color: 'rgba(255,255,255,0.25)', fontWeight: '400' },
-  colItemActive: { fontSize: 19, color: '#fff', fontWeight: '800' },
-  confirmBtn: {
-    marginHorizontal: 20, marginTop: 20, height: 54,
-    backgroundColor: COLORS.secondary, borderRadius: 14,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  confirmText: { color: '#fff', fontWeight: '800', fontSize: 14, letterSpacing: 2 },
+  colItem:       { fontFamily: FONTS.body, fontSize: 15, color: 'rgba(255,255,255,0.25)' },
+  colItemActive: { fontFamily: FONTS.headline, fontSize: 19, color: COLORS.textPrimary },
+  confirmBtn: { marginHorizontal: 20, marginTop: 20 },
 });
