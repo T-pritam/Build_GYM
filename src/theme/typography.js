@@ -75,7 +75,7 @@ export const TYPE = {
     lineHeight: 14,
     letterSpacing: 2.4,
     fontWeight: '800',
-    color: COLORS.textPrimary,
+    color: COLORS.white,
     textTransform: 'uppercase',
   },
 

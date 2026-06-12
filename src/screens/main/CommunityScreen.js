@@ -5,16 +5,24 @@ import {
   ActivityIndicator, FlatList, RefreshControl, TextInput, Modal,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
-import { COLORS } from '../../constants/colors';
+import { COLORS as THEME, FONTS } from '../../theme';
 import SafeBottomBar from '../../components/SafeBottomBar';
 import { useAuthStore } from '../../store/authStore';
 import { useAnnouncementStore } from '../../store/announcementStore';
 import { faqs, reviews } from '../../constants/dummyData';
-import { fetchPublishedBlogs } from '../../services/blogService';
 import { fetchCommunityPosts, votePost, fetchCommunityMembers } from '../../services/communityService';
+
+// Theme-compat: legacy colour keys → new "Holographic Noir" palette.
+const COLORS = {
+  background: THEME.background, surface: '#1B191E', surface2: THEME.surface2, card: '#1B191E',
+  secondary: THEME.primaryLight, secondaryGlow: THEME.primarySoft, secondaryBorder: THEME.primaryBorder,
+  primary: THEME.primary, primaryBright: THEME.primaryBright, cyan: THEME.cyan, cyanNeon: THEME.cyanNeon,
+  textPrimary: THEME.textPrimary, textSecondary: THEME.textSecondary, textMuted: THEME.textMuted,
+  border: THEME.border, glass: 'rgba(255,255,255,0.03)', glassBorder: 'rgba(255,255,255,0.08)',
+  white: THEME.white, warning: THEME.warning,
+};
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -46,21 +54,20 @@ function SearchBar({ value, onChangeText, onClear, placeholder }) {
 }
 
 const TABS = [
-  { key: 'community', label: 'Community', icon: 'document-text-outline' },
-  { key: 'reviews', label: 'Reviews', icon: 'star-outline' },
-  { key: 'blog', label: 'Blog', icon: 'newspaper-outline' },
+  { key: 'community', label: 'POSTS', icon: 'document-text-outline' },
+  { key: 'reviews', label: 'REVIEWS', icon: 'star-outline' },
   { key: 'faq', label: 'FAQ', icon: 'help-circle-outline' },
 ];
 
 const COMMUNITY_SORT_TABS = [
-  { key: 'hot', label: 'Hot', icon: 'flame-outline' },
-  { key: 'new', label: 'New', icon: 'time-outline' },
-  { key: 'top', label: 'Top', icon: 'trending-up-outline' },
+  { key: 'hot', label: 'HOT' },
+  { key: 'new', label: 'NEW' },
+  { key: 'top', label: 'TOP' },
 ];
 
 const COMMUNITY_CATEGORY_COLORS = {
   transformation: '#A855F7',
-  workout: COLORS.secondary,
+  workout: THEME.primaryLight,
   nutrition: '#22C55E',
   question: '#3B82F6',
   motivation: '#F59E0B',
@@ -240,7 +247,6 @@ function CommunityFeedTab({ navigation }) {
   }, [posts]);
 
   const renderPost = ({ item: post }) => {
-    const score = (post.upvotes || 0) - (post.downvotes || 0);
     const badgeColor = COMMUNITY_CATEGORY_COLORS[post.category] || COLORS.secondary;
 
     return (
@@ -255,14 +261,14 @@ function CommunityFeedTab({ navigation }) {
               <Image source={{ uri: post.author_avatar }} style={styles.communityAvatar} />
             ) : (
               <View style={[styles.communityAvatar, styles.communityAvatarPlaceholder]}>
-                <Ionicons name="person" size={14} color={COLORS.textMuted} />
+                <Ionicons name="person" size={16} color={COLORS.textMuted} />
               </View>
             )}
             <View style={{ flex: 1 }}>
               <Text style={styles.communityAuthorName}>{post.author_name || '[Deleted Member]'}</Text>
-              <Text style={styles.communityTimestamp}>{communityTimeAgo(post.created_at)}</Text>
+              <Text style={styles.communityTimestamp}>{communityTimeAgo(post.created_at).toUpperCase()}</Text>
             </View>
-            <View style={[styles.communityCategoryBadge, { backgroundColor: badgeColor + '22' }]}>
+            <View style={[styles.communityCategoryBadge, { borderColor: badgeColor + '80', backgroundColor: badgeColor + '0D' }]}>
               <Text style={[styles.communityCategoryText, { color: badgeColor }]}>{post.category}</Text>
             </View>
           </View>
@@ -276,7 +282,7 @@ function CommunityFeedTab({ navigation }) {
 
         {post.is_poll && (
           <View style={styles.communityPollBadge}>
-            <Ionicons name="bar-chart-outline" size={14} color={COLORS.secondary} />
+            <Ionicons name="bar-chart-outline" size={14} color={COLORS.cyan} />
             <Text style={styles.communityPollBadgeText}>Poll — Tap to vote</Text>
           </View>
         )}
@@ -285,34 +291,31 @@ function CommunityFeedTab({ navigation }) {
           <View style={styles.communityVoteRow}>
             <TouchableOpacity
               onPress={(e) => { e.stopPropagation(); handleVote(post.id, 'up'); }}
-              style={styles.communityVoteBtn}
-              hitSlop={8}
+              style={[styles.voteChip, post.user_vote === 'up' && styles.voteChipUpActive]}
+              hitSlop={6}
             >
               <Ionicons
-                name={post.user_vote === 'up' ? 'arrow-up-circle' : 'arrow-up-circle-outline'}
-                size={22}
+                name="arrow-up"
+                size={16}
                 color={post.user_vote === 'up' ? COLORS.secondary : COLORS.textMuted}
               />
+              <Text style={[styles.voteChipCount, post.user_vote === 'up' && { color: COLORS.secondary }]}>
+                {post.upvotes || 0}
+              </Text>
             </TouchableOpacity>
-            <Text
-              style={[
-                styles.communityScoreText,
-                score > 0 && styles.communityScorePositive,
-                score < 0 && styles.communityScoreNegative,
-              ]}
-            >
-              {score}
-            </Text>
             <TouchableOpacity
               onPress={(e) => { e.stopPropagation(); handleVote(post.id, 'down'); }}
-              style={styles.communityVoteBtn}
-              hitSlop={8}
+              style={[styles.voteChip, post.user_vote === 'down' && styles.voteChipDownActive]}
+              hitSlop={6}
             >
               <Ionicons
-                name={post.user_vote === 'down' ? 'arrow-down-circle' : 'arrow-down-circle-outline'}
-                size={22}
+                name="arrow-down"
+                size={16}
                 color={post.user_vote === 'down' ? '#FF4444' : COLORS.textMuted}
               />
+              <Text style={[styles.voteChipCount, post.user_vote === 'down' && { color: '#FF4444' }]}>
+                {post.downvotes || 0}
+              </Text>
             </TouchableOpacity>
           </View>
 
@@ -320,8 +323,8 @@ function CommunityFeedTab({ navigation }) {
             style={styles.communityCommentBtn}
             onPress={() => navigation.navigate('PostDetail', { postId: post.id })}
           >
-            <Ionicons name="chatbubble-outline" size={18} color={COLORS.textMuted} />
-            <Text style={styles.communityCommentCount}>{post.comment_count || 0}</Text>
+            <Ionicons name="chatbubble-outline" size={16} color={COLORS.textMuted} />
+            <Text style={styles.communityCommentCount}>{post.comment_count || 0} COMMENTS</Text>
           </TouchableOpacity>
         </View>
       </TouchableOpacity>
@@ -357,15 +360,11 @@ function CommunityFeedTab({ navigation }) {
           {COMMUNITY_SORT_TABS.map((tab) => (
             <TouchableOpacity
               key={tab.key}
-              style={[styles.communitySortTab, sort === tab.key && styles.communitySortTabActive]}
+              style={[styles.filterPill, sort === tab.key && styles.filterPillActive]}
               onPress={() => setSort(tab.key)}
+              activeOpacity={0.8}
             >
-              <Ionicons
-                name={tab.icon}
-                size={15}
-                color={sort === tab.key ? COLORS.secondary : COLORS.textMuted}
-              />
-              <Text style={[styles.communitySortLabel, sort === tab.key && styles.communitySortLabelActive]}>
+              <Text style={[styles.filterPillText, sort === tab.key && styles.filterPillTextActive]}>
                 {tab.label}
               </Text>
             </TouchableOpacity>
@@ -373,15 +372,14 @@ function CommunityFeedTab({ navigation }) {
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <TouchableOpacity
-            style={styles.membersBadge}
+            style={styles.toolbarIconBtn}
             onPress={handleOpenMembers}
             hitSlop={8}
           >
-            <Ionicons name="people-outline" size={15} color={COLORS.textMuted} />
-            <Text style={styles.membersBadgeText}>Members</Text>
+            <Ionicons name="people-outline" size={17} color={COLORS.textMuted} />
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.searchIconBtn, searchActive && styles.searchIconBtnActive]}
+            style={[styles.toolbarIconBtn, searchActive && styles.toolbarIconBtnActive]}
             onPress={toggleSearch}
             hitSlop={8}
           >
@@ -433,9 +431,13 @@ function CommunityFeedTab({ navigation }) {
             activeOpacity={0.85}
             onPress={() => navigation.navigate('CreatePost')}
           >
-            <Ionicons name="create-outline" size={18} color={COLORS.secondary} />
-            <Text style={styles.communityCreateFieldText}>Share with community...</Text>
-            <Ionicons name="arrow-forward" size={16} color={COLORS.secondary} />
+            <View style={styles.composerAvatar}>
+              <Ionicons name="person" size={16} color={COLORS.textMuted} />
+            </View>
+            <Text style={styles.communityCreateFieldText}>What's on your mind?</Text>
+            <View style={styles.composerSendChip}>
+              <Ionicons name="arrow-forward" size={16} color={COLORS.white} />
+            </View>
           </TouchableOpacity>
         }
         ListFooterComponent={
@@ -543,7 +545,7 @@ function ReviewsTab() {
         {(reviews || []).map((review) => (
           <View key={review.id} style={styles.reviewCard}>
             <View style={styles.reviewHeader}>
-              <View style={[styles.reviewAvatar, { backgroundColor: COLORS.secondary }]}>
+              <View style={[styles.reviewAvatar, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>
                 <Text style={styles.reviewAvatarText}>{review.name.charAt(0)}</Text>
               </View>
               <View style={{ flex: 1 }}>
@@ -573,250 +575,22 @@ function FAQItem({ faq }) {
   };
 
   return (
-    <TouchableOpacity
-      style={[styles.faqItem, expanded && styles.faqItemExpanded]}
-      onPress={toggle}
-      activeOpacity={0.85}
-    >
-      <View style={styles.faqHeader}>
+    <View style={[styles.faqItem, expanded && styles.faqItemExpanded]}>
+      <TouchableOpacity style={styles.faqHeader} onPress={toggle} activeOpacity={0.85}>
         <Text style={[styles.faqQuestion, expanded && styles.faqQuestionExpanded]} numberOfLines={expanded ? 0 : 2}>
           {faq.question}
         </Text>
-        <View style={[styles.faqToggle, expanded && styles.faqToggleExpanded]}>
-          <Ionicons
-            name={expanded ? 'chevron-up' : 'chevron-down'}
-            size={16}
-            color={expanded ? COLORS.secondary : COLORS.textMuted}
-          />
-        </View>
-      </View>
+        <Ionicons
+          name={expanded ? 'remove' : 'add'}
+          size={20}
+          color={expanded ? COLORS.secondary : COLORS.white}
+        />
+      </TouchableOpacity>
       {expanded && (
         <View style={styles.faqAnswer}>
           <Text style={styles.faqAnswerText}>{faq.answer}</Text>
         </View>
       )}
-    </TouchableOpacity>
-  );
-}
-
-const BLOG_TAG_COLORS = {
-  Fitness: COLORS.secondary,
-  Training: COLORS.secondary,
-  Nutrition: '#22C55E',
-  Recovery: '#A855F7',
-  Motivation: '#F59E0B',
-};
-
-function blogTagColor(tag) {
-  return BLOG_TAG_COLORS[tag] || COLORS.secondary;
-}
-
-function formatBlogDate(dateStr) {
-  if (!dateStr) return '';
-  const d = new Date(dateStr);
-  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
-}
-
-// Blog tab — inline blog list fetched from API
-function BlogTab({ navigation }) {
-  const [posts, setPosts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [nextCursor, setNextCursor] = useState(null);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [error, setError] = useState(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchActive, setSearchActive] = useState(false);
-
-  const filteredPosts = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return posts;
-    const tokens = q.split(/\s+/);
-    return posts.filter((post) => {
-      const hay = [
-        post.title || '',
-        (post.tags || []).join(' '),
-        post.authorName || '',
-      ].join(' ').toLowerCase();
-      return tokens.every((t) => hay.includes(t));
-    });
-  }, [posts, searchQuery]);
-
-  const toggleSearch = () => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    if (searchActive) setSearchQuery('');
-    setSearchActive((v) => !v);
-  };
-
-  const loadBlogs = useCallback(async (cursor = null, isRefresh = false) => {
-    try {
-      if (!cursor) setError(null);
-      const result = await fetchPublishedBlogs({ cursor, limit: 20 });
-      if (cursor && !isRefresh) {
-        setPosts((prev) => [...prev, ...result.data]);
-      } else {
-        setPosts(result.data);
-      }
-      setNextCursor(result.nextCursor);
-    } catch (err) {
-      if (!cursor) setError(err?.response?.data?.message || err?.message || 'Failed to load blogs');
-    }
-  }, []);
-
-  useEffect(() => {
-    setLoading(true);
-    loadBlogs().finally(() => setLoading(false));
-  }, [loadBlogs]);
-
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await loadBlogs(null, true);
-    setRefreshing(false);
-  }, [loadBlogs]);
-
-  const handleLoadMore = useCallback(() => {
-    if (!nextCursor || loadingMore) return;
-    setLoadingMore(true);
-    loadBlogs(nextCursor).finally(() => setLoadingMore(false));
-  }, [nextCursor, loadingMore, loadBlogs]);
-
-  if (loading) {
-    return (
-      <View style={styles.blogLoadingContainer}>
-        <ActivityIndicator size="large" color={COLORS.secondary} />
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={styles.blogLoadingContainer}>
-        <Ionicons name="cloud-offline-outline" size={40} color={COLORS.textMuted} />
-        <Text style={styles.blogErrorTitle}>Couldn't load blogs</Text>
-        <Text style={styles.blogErrorMsg}>{error}</Text>
-        <TouchableOpacity
-          style={styles.blogRetryBtn}
-          activeOpacity={0.85}
-          onPress={() => { setLoading(true); loadBlogs().finally(() => setLoading(false)); }}
-        >
-          <Ionicons name="refresh" size={14} color={COLORS.white} />
-          <Text style={styles.blogRetryText}>Retry</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
-  const renderBlogCard = ({ item: post }) => {
-    const primaryTag = post.tags?.[0] || 'Fitness';
-    const color = blogTagColor(primaryTag);
-    return (
-      <TouchableOpacity
-        style={styles.blogCard}
-        activeOpacity={0.85}
-        onPress={() => navigation.navigate('BlogFeed', { postId: post.id, slug: post.slug })}
-      >
-        {post.coverImageUrl ? (
-          <View style={styles.blogCover}>
-            <Image source={{ uri: post.coverImageUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
-            <LinearGradient colors={['transparent', 'rgba(0,0,0,0.5)']} style={StyleSheet.absoluteFill} />
-          </View>
-        ) : (
-          <View style={[styles.blogCover, { backgroundColor: color }]}>
-            <LinearGradient colors={['transparent', 'rgba(0,0,0,0.5)']} style={StyleSheet.absoluteFill} />
-          </View>
-        )}
-        <View style={styles.blogBody}>
-          <View style={styles.blogBadgeRow}>
-            <View style={[styles.badge, { backgroundColor: color + '22' }]}>
-              <Text style={[styles.badgeText, { color }]}>{primaryTag.toUpperCase()}</Text>
-            </View>
-            <Text style={styles.blogMetaText}>{post.estimatedReadTime || 1} min read</Text>
-          </View>
-          <Text style={styles.blogTitle} numberOfLines={2}>{post.title}</Text>
-          <View style={styles.blogMeta}>
-            <Text style={styles.blogMetaText}>{post.authorName || 'Build Gym'} · {formatBlogDate(post.publishedAt)}</Text>
-            <View style={styles.blogReadBtn}>
-              <Ionicons name="book-outline" size={11} color={COLORS.secondary} />
-              <Text style={styles.blogReadBtnText}>Read</Text>
-            </View>
-          </View>
-        </View>
-      </TouchableOpacity>
-    );
-  };
-
-  return (
-    <View style={{ flex: 1 }}>
-      {/* Blog search row */}
-      <View style={styles.blogSearchRow}>
-        <Text style={styles.blogSearchLabel}>
-          {searchActive && searchQuery.trim()
-            ? `${filteredPosts.length} result${filteredPosts.length !== 1 ? 's' : ''}`
-            : 'Latest Articles'}
-        </Text>
-        <TouchableOpacity
-          style={[styles.searchIconBtn, searchActive && styles.searchIconBtnActive]}
-          onPress={toggleSearch}
-          hitSlop={8}
-        >
-          <Ionicons
-            name={searchActive ? 'close' : 'search-outline'}
-            size={18}
-            color={searchActive ? COLORS.secondary : COLORS.textMuted}
-          />
-        </TouchableOpacity>
-      </View>
-
-      {searchActive && (
-        <View style={{ paddingHorizontal: 20, paddingBottom: 6 }}>
-          <SearchBar
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            onClear={() => setSearchQuery('')}
-            placeholder="Search articles, topics, authors…"
-          />
-          {searchQuery.trim().length > 0 && (
-            <Text style={styles.searchResultCount}>
-              {filteredPosts.length} result{filteredPosts.length !== 1 ? 's' : ''}{' '}
-              for <Text style={{ color: COLORS.secondary }}>"{searchQuery.trim()}"</Text>
-            </Text>
-          )}
-        </View>
-      )}
-
-      <FlatList
-        data={filteredPosts}
-        keyExtractor={(p) => p.id}
-        renderItem={renderBlogCard}
-        contentContainerStyle={styles.blogListContent}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={COLORS.secondary} colors={[COLORS.secondary]} />
-        }
-        onEndReached={!searchQuery.trim() ? handleLoadMore : undefined}
-        onEndReachedThreshold={0.5}
-        ListHeaderComponent={
-          !searchActive ? (
-            <TouchableOpacity style={styles.blogViewAllBtn} activeOpacity={0.85} onPress={() => navigation.navigate('BlogList')}>
-              <Text style={styles.blogViewAllText}>View All with Filters</Text>
-              <Ionicons name="arrow-forward" size={14} color={COLORS.secondary} />
-            </TouchableOpacity>
-          ) : null
-        }
-        ListFooterComponent={loadingMore && !searchQuery.trim() ? <ActivityIndicator size="small" color={COLORS.secondary} style={{ paddingVertical: 16 }} /> : null}
-        ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Ionicons
-              name={searchQuery.trim() ? 'search-outline' : 'newspaper-outline'}
-              size={40}
-              color={COLORS.textMuted}
-            />
-            <Text style={styles.emptyText}>
-              {searchQuery.trim() ? `No articles match "${searchQuery.trim()}"` : 'No blog posts yet.'}
-            </Text>
-          </View>
-        }
-      />
     </View>
   );
 }
@@ -826,7 +600,7 @@ export default function CommunityScreen({ navigation }) {
   const refreshUser = useAuthStore((s) => s.refreshUser);
   const unreadCount = useAnnouncementStore((s) => s.unreadCount);
   const visibleTabs = TABS.filter((t) => t.key !== 'community' || optCommunity);
-  const [activeTab, setActiveTab] = useState(optCommunity ? 'community' : 'blog');
+  const [activeTab, setActiveTab] = useState(optCommunity ? 'community' : 'reviews');
   const userPickedTab = useRef(false);
 
   // Refresh consent on focus so the Community tab appears promptly after login.
@@ -845,12 +619,12 @@ export default function CommunityScreen({ navigation }) {
 
       {/* Header */}
       <View style={styles.header}>
-        <View>
-          <Text style={styles.headerTitle}>Community</Text>
-          <Text style={styles.headerSub}>Articles & updates from Build Gym</Text>
-        </View>
-        <TouchableOpacity style={styles.notifBtn} onPress={() => navigation.navigate('Notifications')}>
-          <Ionicons name="notifications-outline" size={24} color={COLORS.white} />
+        <TouchableOpacity style={styles.headerIconBtn} onPress={() => navigation.goBack()} hitSlop={8}>
+          <Ionicons name="arrow-back" size={24} color={COLORS.cyan} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Community</Text>
+        <TouchableOpacity style={styles.headerIconBtn} onPress={() => navigation.navigate('Notifications')} hitSlop={8}>
+          <Ionicons name="notifications-outline" size={22} color={COLORS.cyan} />
           {unreadCount > 0 && (
             <View style={styles.notifBadge}>
               <Text style={styles.notifBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
@@ -880,10 +654,6 @@ export default function CommunityScreen({ navigation }) {
 
       {activeTab === 'reviews' && <ReviewsTab />}
 
-      {activeTab === 'blog' && (
-        <BlogTab navigation={navigation} />
-      )}
-
       {activeTab === 'faq' && (
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.tabScrollContent}>
           <View style={styles.faqHeadingRow}>
@@ -891,9 +661,6 @@ export default function CommunityScreen({ navigation }) {
               <Text style={styles.faqMainHeading}>FAQs</Text>
               <Text style={styles.faqMainSub}>Common questions answered</Text>
             </View>
-            {/* <View style={styles.faqHelpIcon}>
-              <Ionicons name="help-circle-outline" size={22} color={COLORS.textMuted} />
-            </View> */}
           </View>
           {(faqs || []).map((faq) => (
             <FAQItem key={faq.id} faq={faq} />
@@ -910,103 +677,118 @@ const styles = StyleSheet.create({
   communityFeedContainer: { flex: 1 },
   communitySortRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8,
+    paddingHorizontal: 20, paddingTop: 14, paddingBottom: 8,
   },
 
   // Search
-  searchIconBtn: {
+  toolbarIconBtn: {
     width: 34, height: 34, borderRadius: 17,
-    backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border,
+    backgroundColor: COLORS.glass, borderWidth: 1, borderColor: COLORS.glassBorder,
     alignItems: 'center', justifyContent: 'center',
   },
-  searchIconBtnActive: { borderColor: COLORS.secondary, backgroundColor: COLORS.secondaryGlow },
+  toolbarIconBtnActive: { borderColor: COLORS.secondaryBorder, backgroundColor: COLORS.secondaryGlow },
   searchBar: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     backgroundColor: COLORS.surface, borderRadius: 12,
     borderWidth: 1, borderColor: COLORS.secondaryBorder,
     paddingHorizontal: 12, paddingVertical: 10,
   },
-  searchInput: { flex: 1, fontSize: 14, color: COLORS.white, padding: 0 },
-  searchResultCount: { fontSize: 11, color: COLORS.textMuted, marginTop: 6, marginLeft: 2 },
+  searchInput: { flex: 1, fontSize: 14, color: COLORS.white, padding: 0, fontFamily: FONTS.body },
+  searchResultCount: { fontSize: 11, color: COLORS.textMuted, marginTop: 6, marginLeft: 2, fontFamily: FONTS.body },
 
-  // Blog search row
-  blogSearchRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 20, paddingTop: 10, paddingBottom: 6,
+  // Filter pills
+  filterPill: {
+    paddingHorizontal: 18, paddingVertical: 6, borderRadius: 999,
+    borderWidth: 1, borderColor: COLORS.glassBorder,
   },
-  blogSearchLabel: { fontSize: 13, fontWeight: '700', color: COLORS.textSecondary },
-  communitySortTab: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    paddingHorizontal: 12, paddingVertical: 7,
-    borderRadius: 18, backgroundColor: COLORS.surface,
-  },
-  communitySortTabActive: { backgroundColor: COLORS.secondaryGlow },
-  communitySortLabel: { fontSize: 12, fontWeight: '700', color: COLORS.textMuted },
-  communitySortLabelActive: { color: COLORS.secondary },
+  filterPillActive: { borderColor: COLORS.primary, backgroundColor: 'rgba(255,169,250,0.06)' },
+  filterPillText: { fontSize: 10, color: COLORS.textMuted, fontFamily: FONTS.label, letterSpacing: 1.5 },
+  filterPillTextActive: { color: COLORS.primary },
+
   communityListContent: { paddingHorizontal: 20, paddingBottom: 100 },
+
+  // Composer
   communityCreateField: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: COLORS.surface, borderRadius: 12,
-    borderWidth: 1, borderColor: COLORS.secondaryBorder,
-    paddingHorizontal: 14, paddingVertical: 12, marginBottom: 12,
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: COLORS.glass, borderRadius: 12,
+    borderWidth: 1, borderColor: COLORS.glassBorder,
+    paddingHorizontal: 12, paddingVertical: 10, marginBottom: 14,
   },
-  communityCreateFieldText: { flex: 1, marginLeft: 10, color: COLORS.textMuted, fontSize: 13 },
+  composerAvatar: {
+    width: 32, height: 32, borderRadius: 16, backgroundColor: COLORS.surface2,
+    alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.glassBorder,
+  },
+  communityCreateFieldText: { flex: 1, color: COLORS.textMuted, fontSize: 13, fontFamily: FONTS.body },
+  composerSendChip: {
+    width: 32, height: 32, borderRadius: 16, backgroundColor: COLORS.primaryBright,
+    alignItems: 'center', justifyContent: 'center',
+  },
+
+  // Post card (glass)
   communityPostCard: {
-    backgroundColor: COLORS.surface, borderRadius: 14,
-    padding: 14, marginBottom: 12,
+    backgroundColor: COLORS.glass, borderRadius: 14,
+    borderWidth: 1, borderColor: COLORS.glassBorder,
+    padding: 16, marginBottom: 14,
   },
-  communityPostHeader: { marginBottom: 10 },
+  communityPostHeader: { marginBottom: 12 },
   communityAuthorRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  communityAvatar: { width: 34, height: 34, borderRadius: 17 },
+  communityAvatar: { width: 38, height: 38, borderRadius: 19 },
   communityAvatarPlaceholder: {
     backgroundColor: COLORS.surface2, justifyContent: 'center', alignItems: 'center',
   },
-  communityAuthorName: { fontSize: 14, fontWeight: '600', color: COLORS.white },
-  communityTimestamp: { fontSize: 11, color: COLORS.textMuted, marginTop: 1 },
-  communityCategoryBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
-  communityCategoryText: { fontSize: 11, fontWeight: '600', textTransform: 'capitalize' },
-  communityPostBody: { fontSize: 14, color: COLORS.textSecondary, lineHeight: 20, marginBottom: 10 },
+  communityAuthorName: { fontSize: 14, color: COLORS.white, fontFamily: FONTS.bodyBold },
+  communityTimestamp: { fontSize: 10, color: COLORS.textMuted, marginTop: 2, fontFamily: FONTS.label, letterSpacing: 0.5 },
+  communityCategoryBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, borderWidth: 1 },
+  communityCategoryText: { fontSize: 9, fontFamily: FONTS.label, textTransform: 'uppercase', letterSpacing: 1 },
+  communityPostBody: { fontSize: 14, color: COLORS.textSecondary, lineHeight: 21, marginBottom: 14, fontFamily: FONTS.body },
   communityPostImage: {
-    width: '100%', height: 200, borderRadius: 10, marginBottom: 10,
+    width: '100%', height: 200, borderRadius: 10, marginBottom: 14,
     backgroundColor: COLORS.surface2,
   },
   communityPollBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: COLORS.secondary + '15', paddingHorizontal: 10,
-    paddingVertical: 6, borderRadius: 8, marginBottom: 10, alignSelf: 'flex-start',
+    backgroundColor: 'rgba(6,182,212,0.10)', paddingHorizontal: 10,
+    paddingVertical: 6, borderRadius: 8, marginBottom: 14, alignSelf: 'flex-start',
   },
-  communityPollBadgeText: { fontSize: 12, fontWeight: '600', color: COLORS.secondary },
+  communityPollBadgeText: { fontSize: 12, color: COLORS.cyan, fontFamily: FONTS.label },
   communityPostFooter: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingTop: 14, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)',
   },
-  communityVoteRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  communityVoteBtn: { padding: 2 },
-  communityScoreText: { fontSize: 14, fontWeight: '700', color: COLORS.textMuted, minWidth: 20, textAlign: 'center' },
-  communityScorePositive: { color: COLORS.secondary },
-  communityScoreNegative: { color: '#FF4444' },
-  communityCommentBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  communityCommentCount: { fontSize: 13, color: COLORS.textMuted },
+  communityVoteRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  voteChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 999,
+    paddingHorizontal: 12, paddingVertical: 5,
+  },
+  voteChipUpActive: { backgroundColor: 'rgba(167,139,250,0.12)' },
+  voteChipDownActive: { backgroundColor: 'rgba(255,68,68,0.12)' },
+  voteChipCount: { fontSize: 12, color: COLORS.textMuted, fontFamily: FONTS.bodyBold },
+  communityCommentBtn: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  communityCommentCount: { fontSize: 10, color: COLORS.textMuted, fontFamily: FONTS.label, letterSpacing: 0.5 },
   communityEmptyState: { alignItems: 'center', paddingVertical: 40, gap: 10 },
+
   glowTop: {
     position: 'absolute', top: 0, left: 0, right: 0, height: 260,
-    backgroundColor: 'rgba(233,99,22,0.08)',
+    backgroundColor: 'rgba(127,41,130,0.06)',
   },
+
+  // Header
   header: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start',
-    paddingHorizontal: 20, paddingTop: 56, paddingBottom: 12,
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingHorizontal: 20, paddingTop: 52, paddingBottom: 10,
   },
-  headerTitle: { fontSize: 28, fontWeight: '800', color: COLORS.white },
-  headerSub: { fontSize: 13, color: COLORS.textMuted, marginTop: 2 },
-  notifBtn: { position: 'relative' },
+  headerIconBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', position: 'relative' },
+  headerTitle: { fontSize: 18, color: COLORS.white, fontFamily: FONTS.bodyBold },
   notifBadge: {
-    position: 'absolute', top: -4, right: -4,
+    position: 'absolute', top: 4, right: 4,
     minWidth: 16, height: 16, borderRadius: 8,
-    backgroundColor: COLORS.secondary,
+    backgroundColor: COLORS.primaryBright,
     borderWidth: 1.5, borderColor: COLORS.background,
     alignItems: 'center', justifyContent: 'center',
     paddingHorizontal: 3,
   },
-  notifBadgeText: { fontSize: 9, fontWeight: '900', color: '#fff' },
+  notifBadgeText: { fontSize: 9, color: '#fff', fontFamily: FONTS.bodyBold },
 
   // Tab bar
   tabBar: {
@@ -1014,150 +796,104 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   tabItem: {
-    paddingBottom: 12, paddingTop: 4, marginRight: 28,
-    borderBottomWidth: 2, borderBottomColor: 'transparent',
+    flex: 1, paddingBottom: 12, paddingTop: 4,
+    borderBottomWidth: 2, borderBottomColor: 'transparent', alignItems: 'center',
   },
-  tabItemActive: { borderBottomColor: COLORS.secondary },
-  tabLabel: { fontSize: 14, fontWeight: '700', color: COLORS.textMuted },
-  tabLabelActive: { color: COLORS.secondary },
+  tabItemActive: { borderBottomColor: COLORS.primary },
+  tabLabel: { fontSize: 12, color: COLORS.textMuted, fontFamily: FONTS.label, letterSpacing: 1.5 },
+  tabLabelActive: { color: COLORS.white },
 
   // Scroll content
   tabScrollContent: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 100 },
 
-  badge: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
-  badgeText: { fontSize: 9, fontWeight: '800', letterSpacing: 1 },
-
   // Reviews
   rateCard: {
-    backgroundColor: COLORS.surface, borderRadius: 14, borderWidth: 1, borderColor: COLORS.secondaryBorder,
+    backgroundColor: COLORS.glass, borderRadius: 14, borderWidth: 1, borderColor: COLORS.secondaryBorder,
     padding: 24, alignItems: 'center', gap: 10, marginBottom: 20,
   },
   rateIconWrap: {
     width: 48, height: 48, borderRadius: 24, backgroundColor: COLORS.secondaryGlow,
     alignItems: 'center', justifyContent: 'center', marginBottom: 4,
   },
-  rateTitle: { fontSize: 20, fontWeight: '800', color: COLORS.white },
-  rateSub: { fontSize: 13, color: COLORS.textMuted, textAlign: 'center' },
+  rateTitle: { fontSize: 20, color: COLORS.white, fontFamily: FONTS.headline },
+  rateSub: { fontSize: 13, color: COLORS.textMuted, textAlign: 'center', fontFamily: FONTS.body },
   starsRow: { flexDirection: 'row', gap: 4 },
   rateBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6, width: '100%',
     paddingVertical: 14, borderRadius: 14, justifyContent: 'center',
     borderWidth: 1, borderColor: COLORS.secondaryBorder, backgroundColor: 'transparent',
   },
-  rateBtnText: { fontSize: 12, fontWeight: '900', color: COLORS.white, letterSpacing: 1.5 },
-  reviewsHeading: { fontSize: 20, fontWeight: '800', color: COLORS.white, marginBottom: 2 },
-  reviewsSub: { fontSize: 13, color: COLORS.textMuted, marginBottom: 14 },
+  rateBtnText: { fontSize: 12, color: COLORS.white, fontFamily: FONTS.bodyBold, letterSpacing: 1.5 },
+  reviewsHeading: { fontSize: 20, color: COLORS.white, marginBottom: 2, fontFamily: FONTS.headline },
+  reviewsSub: { fontSize: 13, color: COLORS.textMuted, marginBottom: 14, fontFamily: FONTS.body },
   reviewCard: {
-    backgroundColor: COLORS.surface, borderRadius: 14, borderWidth: 1, borderColor: COLORS.border,
+    backgroundColor: COLORS.glass, borderRadius: 14, borderWidth: 1, borderColor: COLORS.glassBorder,
     padding: 20, marginBottom: 10, gap: 10,
   },
   reviewHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   reviewAvatar: {
     width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center',
   },
-  reviewAvatarText: { fontSize: 18, fontWeight: '800', color: COLORS.white },
-  reviewName: { fontSize: 14, fontWeight: '700', color: COLORS.white, marginBottom: 2 },
+  reviewAvatarText: { fontSize: 18, color: COLORS.white, fontFamily: FONTS.bodyBold },
+  reviewName: { fontSize: 14, color: COLORS.white, marginBottom: 2, fontFamily: FONTS.bodyBold },
   reviewMeta: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  reviewStars: { fontSize: 12, fontWeight: '800', color: COLORS.secondary },
-  reviewDate: { fontSize: 10, fontWeight: '600', color: COLORS.secondary + 'BB', letterSpacing: 0.5 },
-  reviewText: { fontSize: 13, color: COLORS.textSecondary, lineHeight: 20 },
+  reviewStars: { fontSize: 12, color: COLORS.secondary, fontFamily: FONTS.bodyBold },
+  reviewDate: { fontSize: 10, color: COLORS.secondary + 'BB', letterSpacing: 0.5, fontFamily: FONTS.label },
+  reviewText: { fontSize: 13, color: COLORS.textSecondary, lineHeight: 20, fontFamily: FONTS.body },
 
   // FAQ
   faqHeadingRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16,
   },
-  faqMainHeading: { fontSize: 22, fontWeight: '800', color: COLORS.white },
-  faqMainSub: { fontSize: 13, color: COLORS.textMuted, marginTop: 2 },
-  faqHelpIcon: {
-    width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.05)',
-    alignItems: 'center', justifyContent: 'center',
-  },
+  faqMainHeading: { fontSize: 22, color: COLORS.white, fontFamily: FONTS.headline },
+  faqMainSub: { fontSize: 13, color: COLORS.textMuted, marginTop: 2, fontFamily: FONTS.body },
   faqItem: {
-    backgroundColor: COLORS.surface, borderRadius: 14, borderWidth: 1, borderColor: COLORS.border,
-    padding: 16, marginBottom: 10,
+    backgroundColor: COLORS.glass, borderRadius: 14, borderWidth: 1, borderColor: COLORS.glassBorder,
+    paddingHorizontal: 16, paddingVertical: 14, marginBottom: 10,
   },
   faqItemExpanded: { borderColor: COLORS.secondaryBorder },
-  faqHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  faqQuestion: { flex: 1, fontSize: 14, fontWeight: '700', color: COLORS.white },
-  faqQuestionExpanded: { color: COLORS.secondary },
-  faqToggle: {
-    width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.05)',
-    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-  },
-  faqToggleExpanded: { backgroundColor: COLORS.secondaryGlow },
+  faqHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  faqQuestion: { flex: 1, fontSize: 14, color: COLORS.white, fontFamily: FONTS.bodyBold },
+  faqQuestionExpanded: { color: COLORS.white },
   faqAnswer: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)' },
-  faqAnswerText: { fontSize: 13, color: COLORS.textMuted, lineHeight: 20 },
+  faqAnswerText: { fontSize: 13, color: COLORS.textSecondary, lineHeight: 20, fontFamily: FONTS.body },
 
-  emptyState: { alignItems: 'center', paddingVertical: 40, gap: 10 },
-  emptyText: { fontSize: 14, color: COLORS.textMuted },
+  emptyText: { fontSize: 14, color: COLORS.textMuted, fontFamily: FONTS.body },
 
-  // Blog tab
-  blogListContent: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 100 },
+  // Loading / error
   blogLoadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10 },
-  blogErrorTitle: { fontSize: 16, fontWeight: '700', color: COLORS.white, marginTop: 4 },
-  blogErrorMsg: { fontSize: 12, color: COLORS.textMuted, textAlign: 'center' },
+  blogErrorTitle: { fontSize: 16, color: COLORS.white, marginTop: 4, fontFamily: FONTS.bodyBold },
+  blogErrorMsg: { fontSize: 12, color: COLORS.textMuted, textAlign: 'center', fontFamily: FONTS.body },
   blogRetryBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: COLORS.secondary, borderRadius: 10,
+    backgroundColor: COLORS.primaryBright, borderRadius: 10,
     paddingHorizontal: 16, paddingVertical: 10, marginTop: 6,
   },
-  blogRetryText: { fontSize: 13, fontWeight: '700', color: COLORS.white },
-  blogViewAllBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    paddingVertical: 10, marginBottom: 12,
-    borderWidth: 1, borderColor: COLORS.secondaryBorder, borderRadius: 10,
-    backgroundColor: COLORS.secondaryGlow,
-  },
-  blogViewAllText: { fontSize: 12, fontWeight: '700', color: COLORS.secondary },
-  blogCard: {
-    backgroundColor: COLORS.surface, borderRadius: 14, borderWidth: 1, borderColor: COLORS.border,
-    overflow: 'hidden', marginBottom: 12,
-  },
-  blogCover: { width: '100%', height: 130 },
-  blogBody: { padding: 14, gap: 6 },
-  blogBadgeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  blogTitle: { fontSize: 14, fontWeight: '800', color: COLORS.white, lineHeight: 20 },
-  blogMeta: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)', paddingTop: 8, marginTop: 2,
-  },
-  blogMetaText: { fontSize: 10, color: COLORS.textMuted },
-  blogReadBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    paddingHorizontal: 10, paddingVertical: 5,
-    borderRadius: 7, borderWidth: 1, borderColor: COLORS.secondaryBorder,
-    backgroundColor: COLORS.secondaryGlow,
-  },
-  blogReadBtnText: { fontSize: 11, fontWeight: '700', color: COLORS.secondary },
-  membersBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    paddingHorizontal: 10, paddingVertical: 5,
-    borderRadius: 16, backgroundColor: COLORS.surface,
-    borderWidth: 1, borderColor: COLORS.border,
-  },
-  membersBadgeText: { fontSize: 12, color: COLORS.textMuted },
+  blogRetryText: { fontSize: 13, color: COLORS.white, fontFamily: FONTS.bodyBold },
+
+  // Members sheet
   modalOverlay: {
     flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end',
   },
   membersSheet: {
-    backgroundColor: COLORS.card,
+    backgroundColor: '#1A1A2E',
     borderTopLeftRadius: 20, borderTopRightRadius: 20,
     padding: 20, maxHeight: '70%',
   },
   membersSheetHandle: {
     width: 36, height: 4, borderRadius: 2,
-    backgroundColor: COLORS.textMuted, alignSelf: 'center', marginBottom: 14,
+    backgroundColor: 'rgba(255,255,255,0.2)', alignSelf: 'center', marginBottom: 14,
   },
   membersSheetTitle: {
-    fontSize: 16, fontWeight: '700', color: COLORS.white, marginBottom: 16,
+    fontSize: 16, color: COLORS.white, marginBottom: 16, fontFamily: FONTS.bodyBold,
   },
   membersEmptyState: { alignItems: 'center', paddingVertical: 30, gap: 8 },
-  emptyStateText: { fontSize: 13, color: COLORS.textMuted },
+  emptyStateText: { fontSize: 13, color: COLORS.textMuted, fontFamily: FONTS.body },
   memberRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10 },
   memberAvatar: { width: 38, height: 38, borderRadius: 19 },
   memberAvatarPlaceholder: {
     backgroundColor: COLORS.surface, justifyContent: 'center', alignItems: 'center',
     borderWidth: 1, borderColor: COLORS.border,
   },
-  memberName: { fontSize: 14, color: COLORS.white, flex: 1 },
+  memberName: { fontSize: 14, color: COLORS.white, flex: 1, fontFamily: FONTS.body },
 });

@@ -2,7 +2,6 @@ import React, { useEffect, useRef } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useAuthStore } from '../store/authStore';
 import { useMembershipStore } from '../store/membershipStore';
 import { navigationRef } from './navigationRef';
@@ -19,16 +18,19 @@ import ResetPasswordScreen from '../screens/auth/ResetPasswordScreen';
 import OnboardingScreen from '../screens/auth/OnboardingScreen';
 import WelcomeScreen from '../screens/auth/WelcomeScreen';
 
-// Main Tab Screens
+// Main hub + reachable screens
 import HomeScreen from '../screens/main/HomeScreen';
 import CafeScreen from '../screens/main/CafeScreen';
-import AccessScreen from '../screens/main/AccessScreen';
 import PresenceScreen from '../screens/main/PresenceScreen';
+import AccessScreen from '../screens/main/AccessScreen';
+import AccessGrantedScreen from '../screens/main/AccessGrantedScreen';
+import AccessDeniedScreen from '../screens/main/AccessDeniedScreen';
 
 // Cafe sub-screens
 import ItemDetailScreen from '../screens/cafe/ItemDetailScreen';
 import CartScreen from '../screens/cafe/CartScreen';
 import OrderConfirmationScreen from '../screens/cafe/OrderConfirmationScreen';
+import CafeOrderFailedScreen from '../screens/cafe/CafeOrderFailedScreen';
 import OrderTrackingScreen from '../screens/cafe/OrderTrackingScreen';
 import OrderHistoryScreen from '../screens/cafe/OrderHistoryScreen';
 import CafeRewardsScreen from '../screens/cafe/RewardsScreen';
@@ -39,6 +41,9 @@ import MembershipScreen from '../screens/profile/MembershipScreen';
 import MembershipPlansScreen from '../screens/profile/MembershipPlansScreen';
 import PauseSubscriptionScreen from '../screens/profile/PauseSubscriptionScreen';
 import BuildCoinTransactionsScreen from '../screens/profile/BuildCoinTransactionsScreen';
+import AddBuildCoinsScreen from '../screens/profile/AddBuildCoinsScreen';
+import PaymentSuccessScreen from '../screens/profile/PaymentSuccessScreen';
+import PaymentFailedScreen from '../screens/profile/PaymentFailedScreen';
 import TransactionDetailScreen from '../screens/profile/TransactionDetailScreen';
 import ActivityDashboardScreen from '../screens/profile/ActivityDashboardScreen';
 import ComplaintScreen from '../screens/profile/ComplaintScreen';
@@ -88,36 +93,19 @@ import BookingConfirmationScreen from '../screens/main/BookingConfirmationScreen
 import BookingQRScreen from '../screens/main/BookingQRScreen';
 import TrainersScreen from '../screens/main/TrainersScreen';
 
-// Custom tab bar
-import CustomTabBar from '../components/CustomTabBar';
-
 const Stack = createNativeStackNavigator();
-const Tab = createBottomTabNavigator();
-
-// Bottom tab navigator for main app
-function MainTabs() {
-  return (
-    <Tab.Navigator
-      tabBar={(props) => <CustomTabBar {...props} />}
-      screenOptions={{ headerShown: false }}
-    >
-      <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Cafe" component={CafeScreen} />
-      <Tab.Screen name="Access" component={PresenceScreen} />
-      {/* Extra tabs handled by custom bar (navigated programmatically) */}
-      <Tab.Screen name="NotificationsTab" component={NotificationsScreen} />
-      <Tab.Screen name="ProfileTab" component={ProfileScreen} />
-    </Tab.Navigator>
-  );
-}
 
 /**
  * Gate around the main app: when the member's membership is `frozen`
  * (admin- or member-initiated pause) the entire app is replaced by a single
  * static lock screen (v1 hard lock per BA sheet 4.1). Status is refreshed on
  * mount and whenever a MEMBERSHIP_* push arrives (via membershipStore.refresh).
+ *
+ * The redesign drops the bottom tab bar: Home is the hub and Café/Access/etc.
+ * are reached as pushed stack screens. The route name stays `MainTabs` because
+ * the auth flow + apiService reset/replace to it.
  */
-function MainTabsGate() {
+function MainTabsGate(props) {
   const status  = useMembershipStore((s) => s.status);
   const loaded  = useMembershipStore((s) => s.loaded);
   const refresh = useMembershipStore((s) => s.refresh);
@@ -131,14 +119,14 @@ function MainTabsGate() {
   // loaded=true (status stays null) so offline users are not locked out.
   if (!loaded) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#000000', alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator color="#E96316" />
+      <View style={{ flex: 1, backgroundColor: '#080608', alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator color="#A78BFA" />
       </View>
     );
   }
 
   if (status === 'frozen') return <FrozenLockScreen />;
-  return <MainTabs />;
+  return <HomeScreen {...props} />;
 }
 
 export default function AppNavigator() {
@@ -205,6 +193,23 @@ export default function AppNavigator() {
         {/* Main app (gated by membership freeze status) */}
         <Stack.Screen name="MainTabs" component={MainTabsGate} />
 
+        {/* Hub destinations (formerly bottom tabs) */}
+        <Stack.Screen name="Cafe" component={CafeScreen} />
+        <Stack.Screen name="Access" component={PresenceScreen} />
+        {/* Real door-access screen (BLE + AxTraxPro). Reached via a temp chip on
+            PresenceScreen for now; the live route is swapped Presence → Access later. */}
+        <Stack.Screen name="AccessControl" component={AccessScreen} />
+        <Stack.Screen
+          name="AccessGranted"
+          component={AccessGrantedScreen}
+          options={{ animation: 'fade', gestureEnabled: false }}
+        />
+        <Stack.Screen
+          name="AccessDenied"
+          component={AccessDeniedScreen}
+          options={{ animation: 'fade', gestureEnabled: false }}
+        />
+
         {/* Cafe sub screens */}
         <Stack.Screen
           name="ItemDetail"
@@ -219,6 +224,11 @@ export default function AppNavigator() {
         <Stack.Screen
           name="OrderConfirmation"
           component={OrderConfirmationScreen}
+          options={{ animation: 'fade', gestureEnabled: false }}
+        />
+        <Stack.Screen
+          name="CafeOrderFailed"
+          component={CafeOrderFailedScreen}
           options={{ animation: 'fade', gestureEnabled: false }}
         />
         <Stack.Screen
@@ -247,6 +257,21 @@ export default function AppNavigator() {
           options={{ animation: 'slide_from_bottom' }}
         />
         <Stack.Screen name="BuildCoinTransactions" component={BuildCoinTransactionsScreen} />
+        <Stack.Screen
+          name="AddBuildCoins"
+          component={AddBuildCoinsScreen}
+          options={{ animation: 'slide_from_bottom' }}
+        />
+        <Stack.Screen
+          name="PaymentSuccess"
+          component={PaymentSuccessScreen}
+          options={{ animation: 'fade', gestureEnabled: false }}
+        />
+        <Stack.Screen
+          name="PaymentFailed"
+          component={PaymentFailedScreen}
+          options={{ animation: 'fade', gestureEnabled: false }}
+        />
         <Stack.Screen
           name="TransactionDetail"
           component={TransactionDetailScreen}

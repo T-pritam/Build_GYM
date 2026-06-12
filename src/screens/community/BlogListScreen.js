@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -6,33 +6,71 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
+  LayoutAnimation,
+  UIManager,
+  Platform,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../../constants/colors';
+import { COLORS, FONTS } from '../../theme';
 import { fetchPublishedBlogs } from '../../services/blogService';
 
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
 const TAG_COLORS = {
-  Fitness: COLORS.secondary,
-  Training: COLORS.secondary,
-  Nutrition: '#22C55E',
+  Fitness: COLORS.primaryLight,
+  Training: COLORS.primaryLight,
+  Nutrition: '#4ADE80',
   Recovery: '#A855F7',
-  Motivation: '#F59E0B',
+  Motivation: '#F5B041',
 };
 
 const CATEGORIES = ['All', 'Fitness', 'Training', 'Nutrition', 'Recovery', 'Motivation'];
 
 function tagColor(tag) {
-  return TAG_COLORS[tag] || COLORS.secondary;
+  return TAG_COLORS[tag] || COLORS.primaryLight;
 }
 
 function formatDate(dateStr) {
   if (!dateStr) return '';
   const d = new Date(dateStr);
   return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function getInitials(name) {
+  if (!name) return 'BG';
+  return name.split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
+}
+
+// Local search bar (mirrors the Community Blog-tab pattern)
+function SearchBar({ value, onChangeText, onClear }) {
+  return (
+    <View style={styles.searchBar}>
+      <Ionicons name="search-outline" size={16} color={COLORS.textMuted} />
+      <TextInput
+        style={styles.searchInput}
+        value={value}
+        onChangeText={onChangeText}
+        placeholder="Search articles, topics, authors…"
+        placeholderTextColor={COLORS.textMuted}
+        autoCapitalize="none"
+        autoCorrect={false}
+        returnKeyType="search"
+        autoFocus
+      />
+      {value.length > 0 && (
+        <TouchableOpacity onPress={onClear} hitSlop={8}>
+          <Ionicons name="close-circle" size={18} color={COLORS.textMuted} />
+        </TouchableOpacity>
+      )}
+    </View>
+  );
 }
 
 export default function BlogListScreen({ navigation }) {
@@ -43,6 +81,8 @@ export default function BlogListScreen({ navigation }) {
   const [nextCursor, setNextCursor] = useState(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchActive, setSearchActive] = useState(false);
 
   const fetchBlogs = useCallback(async (cursor = null, isRefresh = false) => {
     try {
@@ -78,11 +118,11 @@ export default function BlogListScreen({ navigation }) {
   }, [fetchBlogs]);
 
   const handleLoadMore = useCallback(async () => {
-    if (!nextCursor || loadingMore) return;
+    if (!nextCursor || loadingMore || searchQuery.trim()) return;
     setLoadingMore(true);
     await fetchBlogs(nextCursor);
     setLoadingMore(false);
-  }, [nextCursor, loadingMore, fetchBlogs]);
+  }, [nextCursor, loadingMore, fetchBlogs, searchQuery]);
 
   const handleRetry = useCallback(() => {
     setLoading(true);
@@ -90,6 +130,27 @@ export default function BlogListScreen({ navigation }) {
     setError(null);
     fetchBlogs().finally(() => setLoading(false));
   }, [fetchBlogs]);
+
+  const toggleSearch = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    if (searchActive) setSearchQuery('');
+    setSearchActive((v) => !v);
+  };
+
+  // Client-side filter on the loaded list (title / tags / author)
+  const filteredPosts = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return posts;
+    const tokens = q.split(/\s+/);
+    return posts.filter((post) => {
+      const hay = [
+        post.title || '',
+        (post.tags || []).join(' '),
+        post.authorName || '',
+      ].join(' ').toLowerCase();
+      return tokens.every((t) => hay.includes(t));
+    });
+  }, [posts, searchQuery]);
 
   function renderCard({ item: post }) {
     const primaryTag = post.tags?.[0] || 'Fitness';
@@ -102,53 +163,30 @@ export default function BlogListScreen({ navigation }) {
         activeOpacity={0.85}
         onPress={() => navigation.navigate('BlogFeed', { postId: post.id, slug: post.slug })}
       >
-        {/* Cover */}
-        {post.coverImageUrl ? (
-          <View style={styles.cover}>
-            <Image
-              source={{ uri: post.coverImageUrl }}
-              style={StyleSheet.absoluteFill}
-              contentFit="cover"
-            />
-            <LinearGradient
-              colors={['transparent', 'rgba(0,0,0,0.5)']}
-              style={StyleSheet.absoluteFill}
-            />
+        {/* Cover + category pill overlay */}
+        <View style={[styles.cover, !post.coverImageUrl && { backgroundColor: color }]}>
+          {post.coverImageUrl ? (
+            <Image source={{ uri: post.coverImageUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
+          ) : null}
+          <LinearGradient colors={['transparent', 'rgba(8,6,8,0.85)']} style={StyleSheet.absoluteFill} />
+          <View style={styles.coverPill}>
+            <Text style={styles.coverPillText}>{primaryTag.toUpperCase()}</Text>
           </View>
-        ) : (
-          <View style={[styles.cover, { backgroundColor: color }]}>
-            <LinearGradient
-              colors={['transparent', 'rgba(0,0,0,0.5)']}
-              style={StyleSheet.absoluteFill}
-            />
-          </View>
-        )}
+        </View>
 
         {/* Content */}
         <View style={styles.cardContent}>
-          <View style={styles.topRow}>
-            <View style={[styles.categoryBadge, { backgroundColor: color + '22' }]}>
-              <Text style={[styles.categoryBadgeText, { color }]}>
-                {primaryTag.toUpperCase()}
-              </Text>
-            </View>
-            <Text style={styles.readTime}>{readTime} min</Text>
-          </View>
-
           <Text style={styles.postTitle} numberOfLines={2}>{post.title}</Text>
-          <Text style={styles.postMeta}>
-            {post.authorName || 'Build Gym'} · {formatDate(post.publishedAt)}
-          </Text>
 
-          <View style={styles.actionsRow}>
-            <TouchableOpacity
-              style={styles.readBtn}
-              activeOpacity={0.8}
-              onPress={() => navigation.navigate('BlogFeed', { postId: post.id, slug: post.slug })}
-            >
-              <Ionicons name="book-outline" size={13} color={COLORS.secondary} />
-              <Text style={styles.readBtnText}>Read Article</Text>
-            </TouchableOpacity>
+          <View style={styles.authorRow}>
+            <View style={styles.authorAvatar}>
+              <Text style={styles.authorInitials}>{getInitials(post.authorName)}</Text>
+            </View>
+            <Text style={styles.authorText} numberOfLines={1}>
+              By {post.authorName || 'Build Gym'}
+              <Text style={styles.authorDim}>  ·  {readTime} min read</Text>
+            </Text>
+            <Text style={styles.authorDate}>{formatDate(post.publishedAt)}</Text>
           </View>
         </View>
       </TouchableOpacity>
@@ -157,9 +195,9 @@ export default function BlogListScreen({ navigation }) {
 
   return (
     <View style={styles.root}>
-      {/* Orange glow */}
+      {/* Purple glow */}
       <LinearGradient
-        colors={['rgba(233,99,22,0.12)', 'transparent']}
+        colors={['rgba(127,41,130,0.15)', 'transparent']}
         style={styles.glow}
         pointerEvents="none"
       />
@@ -167,13 +205,38 @@ export default function BlogListScreen({ navigation }) {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={22} color={COLORS.white} />
+          <Ionicons name="arrow-back" size={22} color={COLORS.primaryLight} />
         </TouchableOpacity>
-        <View>
-          <Text style={styles.eyebrow}>Build Gym</Text>
-          <Text style={styles.title}>Blog & Updates</Text>
-        </View>
+        <Text style={styles.title}>Blogs</Text>
+        <TouchableOpacity
+          style={[styles.searchIconBtn, searchActive && styles.searchIconBtnActive]}
+          onPress={toggleSearch}
+          hitSlop={8}
+        >
+          <Ionicons
+            name={searchActive ? 'close' : 'search-outline'}
+            size={20}
+            color={searchActive ? COLORS.primaryLight : COLORS.textSecondary}
+          />
+        </TouchableOpacity>
       </View>
+
+      {/* Search bar (toggle) */}
+      {searchActive && (
+        <View style={styles.searchWrap}>
+          <SearchBar
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            onClear={() => setSearchQuery('')}
+          />
+          {searchQuery.trim().length > 0 && (
+            <Text style={styles.searchResultCount}>
+              {filteredPosts.length} result{filteredPosts.length !== 1 ? 's' : ''}{' '}
+              for <Text style={{ color: COLORS.primaryLight }}>"{searchQuery.trim()}"</Text>
+            </Text>
+          )}
+        </View>
+      )}
 
       {/* Category filter pills */}
       <ScrollView
@@ -203,7 +266,7 @@ export default function BlogListScreen({ navigation }) {
       {/* List */}
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={COLORS.secondary} />
+          <ActivityIndicator size="large" color={COLORS.primaryLight} />
         </View>
       ) : error ? (
         <View style={styles.errorContainer}>
@@ -217,7 +280,7 @@ export default function BlogListScreen({ navigation }) {
         </View>
       ) : (
         <FlatList
-          data={posts}
+          data={filteredPosts}
           keyExtractor={(a) => a.id}
           renderItem={renderCard}
           style={{ flex: 1 }}
@@ -227,8 +290,8 @@ export default function BlogListScreen({ navigation }) {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={handleRefresh}
-              tintColor={COLORS.secondary}
-              colors={[COLORS.secondary]}
+              tintColor={COLORS.primaryLight}
+              colors={[COLORS.primaryLight]}
             />
           }
           onEndReached={handleLoadMore}
@@ -236,14 +299,22 @@ export default function BlogListScreen({ navigation }) {
           ListFooterComponent={
             loadingMore ? (
               <View style={styles.footerLoader}>
-                <ActivityIndicator size="small" color={COLORS.secondary} />
+                <ActivityIndicator size="small" color={COLORS.primaryLight} />
               </View>
             ) : null
           }
           ListEmptyComponent={
             <View style={styles.emptyState}>
-              <Ionicons name="newspaper-outline" size={40} color={COLORS.textMuted} />
-              <Text style={styles.emptyText}>No articles in this category.</Text>
+              <Ionicons
+                name={searchQuery.trim() ? 'search-outline' : 'newspaper-outline'}
+                size={40}
+                color={COLORS.textMuted}
+              />
+              <Text style={styles.emptyText}>
+                {searchQuery.trim()
+                  ? `No articles match "${searchQuery.trim()}"`
+                  : 'No articles in this category.'}
+              </Text>
             </View>
           }
         />
@@ -257,34 +328,43 @@ const styles = StyleSheet.create({
   glow: { position: 'absolute', top: 0, left: 0, right: 0, height: 300 },
 
   header: {
-    flexDirection: 'row', alignItems: 'center', gap: 14,
-    paddingTop: 56, paddingBottom: 20, paddingHorizontal: 20,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingTop: 56, paddingBottom: 16, paddingHorizontal: 20,
   },
   backBtn: {
     width: 40, height: 40, borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: COLORS.glass, borderWidth: 1, borderColor: COLORS.border,
     alignItems: 'center', justifyContent: 'center',
   },
-  eyebrow: {
-    fontSize: 10, fontWeight: '700', color: COLORS.secondary,
-    letterSpacing: 2, textTransform: 'uppercase', marginBottom: 2,
+  title: { fontFamily: FONTS.headline, fontSize: 20, color: COLORS.white },
+  searchIconBtn: {
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: COLORS.glass, borderWidth: 1, borderColor: COLORS.border,
+    alignItems: 'center', justifyContent: 'center',
   },
-  title: { fontSize: 24, fontWeight: '800', color: COLORS.white, letterSpacing: -0.3 },
+  searchIconBtnActive: { borderColor: COLORS.primaryBorder, backgroundColor: COLORS.primarySoft },
+
+  searchWrap: { paddingHorizontal: 20, paddingBottom: 12 },
+  searchBar: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: COLORS.surfaceLow, borderRadius: 14,
+    borderWidth: 1, borderColor: COLORS.primaryBorder,
+    paddingHorizontal: 14, paddingVertical: 11,
+  },
+  searchInput: { flex: 1, fontFamily: FONTS.body, fontSize: 14, color: COLORS.white, padding: 0 },
+  searchResultCount: { fontFamily: FONTS.body, fontSize: 11, color: COLORS.textMuted, marginTop: 8, marginLeft: 2 },
 
   filterScroll: { flexGrow: 0 },
-  filterRow: { paddingHorizontal: 20, paddingBottom: 20, gap: 10 },
+  filterRow: { paddingHorizontal: 20, paddingBottom: 18, gap: 10 },
   chip: {
     height: 36, borderRadius: 999,
     alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20,
   },
-  chipActive: { backgroundColor: COLORS.secondary },
-  chipInactive: {
-    backgroundColor: COLORS.surface,
-    borderWidth: 1, borderColor: COLORS.border,
-  },
-  chipText: { fontSize: 13 },
-  chipTextActive: { color: COLORS.white, fontWeight: '700' },
-  chipTextInactive: { color: COLORS.textMuted, fontWeight: '500' },
+  chipActive: { backgroundColor: COLORS.primary },
+  chipInactive: { backgroundColor: COLORS.surfaceLow, borderWidth: 1, borderColor: COLORS.border },
+  chipText: { fontFamily: FONTS.bodyMedium, fontSize: 13 },
+  chipTextActive: { color: COLORS.white, fontFamily: FONTS.bodyBold },
+  chipTextInactive: { color: COLORS.textMuted },
 
   list: { paddingHorizontal: 20, paddingBottom: 100 },
 
@@ -295,50 +375,41 @@ const styles = StyleSheet.create({
     flex: 1, alignItems: 'center', justifyContent: 'center',
     paddingHorizontal: 32, gap: 10,
   },
-  errorTitle: { fontSize: 18, fontWeight: '700', color: COLORS.white, marginTop: 8 },
-  errorMessage: { fontSize: 13, color: COLORS.textMuted, textAlign: 'center', lineHeight: 20 },
+  errorTitle: { fontFamily: FONTS.headline, fontSize: 18, color: COLORS.white, marginTop: 8 },
+  errorMessage: { fontFamily: FONTS.body, fontSize: 13, color: COLORS.textMuted, textAlign: 'center', lineHeight: 20 },
   retryBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: COLORS.secondary, borderRadius: 12,
+    backgroundColor: COLORS.primary, borderRadius: 12,
     paddingHorizontal: 20, paddingVertical: 12, marginTop: 10,
   },
-  retryBtnText: { fontSize: 14, fontWeight: '700', color: COLORS.white },
+  retryBtnText: { fontFamily: FONTS.bodyBold, fontSize: 14, color: COLORS.white },
 
   card: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: COLORS.surfaceLow,
     borderWidth: 1, borderColor: COLORS.border,
-    borderRadius: 14, overflow: 'hidden', marginBottom: 16,
+    borderRadius: 16, overflow: 'hidden', marginBottom: 16,
   },
-  cover: { width: '100%', height: 160 },
-
-  cardContent: { padding: 16 },
-
-  topRow: {
-    flexDirection: 'row', alignItems: 'center',
-    justifyContent: 'space-between', marginBottom: 8,
+  cover: { width: '100%', height: 180 },
+  coverPill: {
+    position: 'absolute', top: 14, left: 14,
+    backgroundColor: 'rgba(8,6,8,0.6)', borderWidth: 1, borderColor: COLORS.borderStrong,
+    borderRadius: 6, paddingHorizontal: 10, paddingVertical: 5,
   },
-  categoryBadge: {
-    borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3,
-  },
-  categoryBadgeText: { fontSize: 9, fontWeight: '800', letterSpacing: 1 },
-  readTime: { fontSize: 10, color: COLORS.textMuted, fontWeight: '600' },
+  coverPillText: { fontFamily: FONTS.label, fontSize: 9, color: COLORS.primaryLight, letterSpacing: 1.5 },
 
-  postTitle: {
-    fontSize: 15, fontWeight: '800', color: COLORS.white,
-    lineHeight: 21, marginBottom: 4,
-  },
-  postMeta: { fontSize: 11, color: COLORS.textMuted },
+  cardContent: { padding: 18, gap: 14 },
+  postTitle: { fontFamily: FONTS.headline, fontSize: 19, color: COLORS.white, lineHeight: 25 },
 
-  actionsRow: { marginTop: 12 },
-  readBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    alignSelf: 'flex-start',
-    paddingHorizontal: 14, paddingVertical: 7,
-    borderRadius: 8, borderWidth: 1, borderColor: COLORS.secondaryBorder,
-    backgroundColor: COLORS.secondaryGlow,
+  authorRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  authorAvatar: {
+    width: 24, height: 24, borderRadius: 12, backgroundColor: COLORS.surface3,
+    borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center',
   },
-  readBtnText: { fontSize: 12, fontWeight: '600', color: COLORS.secondary },
+  authorInitials: { fontFamily: FONTS.label, fontSize: 9, color: COLORS.textSecondary },
+  authorText: { flex: 1, fontFamily: FONTS.bodyMedium, fontSize: 12, color: COLORS.textSecondary },
+  authorDim: { color: COLORS.textMuted },
+  authorDate: { fontFamily: FONTS.body, fontSize: 11, color: COLORS.textMuted },
 
-  emptyState: { alignItems: 'center', paddingVertical: 40, gap: 10 },
-  emptyText: { fontSize: 14, color: COLORS.textMuted },
+  emptyState: { alignItems: 'center', paddingVertical: 60, gap: 10 },
+  emptyText: { fontFamily: FONTS.body, fontSize: 14, color: COLORS.textMuted, textAlign: 'center' },
 });

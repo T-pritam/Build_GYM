@@ -1,20 +1,19 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar,
-  ActivityIndicator, Alert, RefreshControl, Dimensions,
+  ActivityIndicator, RefreshControl,
 } from 'react-native';
-
-const { width: W } = Dimensions.get('window');
-const PACK_W = Math.floor((W - 48 - 20) / 3); // 48 = scroll paddingH*2, 20 = 2 gaps
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../../constants/colors';
+import { LinearGradient } from 'expo-linear-gradient';
+import { COLORS, FONTS } from '../../theme';
 import { useWalletStore } from '../../store/walletStore';
-import { useAuthStore } from '../../store/authStore';
-import { fetchPackages } from '../../services/walletService';
-import { logEvent, logScreenView } from '../../services/analyticsService';
 import SafeBottomBar from '../../components/SafeBottomBar';
 
-export default function BuildCoinTransactionsScreen({ navigation, route }) {
+const GOLD = '#FFD700';
+const AMBER = '#F59E0B';
+const LOW_BALANCE_THRESHOLD = 200;
+
+export default function BuildCoinTransactionsScreen({ navigation }) {
   const {
     balance,
     transactions,
@@ -24,25 +23,14 @@ export default function BuildCoinTransactionsScreen({ navigation, route }) {
     fetchBalance,
     fetchTransactions,
     fetchMoreTransactions,
-    purchasePackage,
-    purchaseWithRazorpay,
   } = useWalletStore();
 
-  const { user } = useAuthStore();
-
-  const [packages, setPackages] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [lowBalance, setLowBalance] = useState(false);
-  const [purchasingId, setPurchasingId] = useState(null);
-
-  const LOW_BALANCE_THRESHOLD = 200;
 
   useEffect(() => {
     fetchBalance();
     fetchTransactions();
-    fetchPackages()
-      .then(setPackages)
-      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -54,58 +42,6 @@ export default function BuildCoinTransactionsScreen({ navigation, route }) {
     await Promise.all([fetchBalance(), fetchTransactions()]);
     setRefreshing(false);
   }, [fetchBalance, fetchTransactions]);
-
-  const handleBuyPackage = async (pkg) => {
-    if (purchasingId !== null) return;
-    setPurchasingId(pkg.id);
-    const coinsAmount = pkg.coins + (pkg.bonusCoins ?? 0);
-    const amountInr = parseFloat(pkg.priceInr);
-    // Screen #14 — Buy Coins (Razorpay funnel) entry.
-    logScreenView('BuyCoinsRazorpay').catch(() => {});
-    logEvent('coins_purchase_started', {
-      package_id: pkg.id,
-      coins_amount: coinsAmount,
-      amount_inr: amountInr,
-    }).catch(() => {});
-    try {
-      const result = await purchaseWithRazorpay(pkg.id, {
-        phone: user?.phone ?? '',
-        name:  user?.firstName ?? user?.fullName ?? user?.name ?? '',
-      });
-      await fetchTransactions();
-      logEvent('coins_purchased', {
-        coins_amount: result.coinsAdded,
-        amount_inr: amountInr,
-        new_balance: result.newBalance,
-      }).catch(() => {});
-      Alert.alert(
-        'Payment Successful!',
-        `${result.coinsAdded.toLocaleString()} Build Coins have been added to your wallet.`,
-        [{
-          text: 'OK',
-          onPress: () => { if (route?.params?.returnTo) navigation.goBack(); },
-        }],
-      );
-    } catch (err) {
-      // Silent on user-initiated cancellation (Razorpay SDK may use code 0 or the string)
-      if (
-        err?.code === 'PAYMENT_CANCELLED' ||
-        err?.code === 0 ||
-        err?.description?.toLowerCase?.().includes('cancel')
-      ) return;
-      logEvent('coins_purchase_failed', {
-        error_reason: err?.description ?? err?.message ?? 'unknown',
-        package_id: pkg.id,
-        amount_inr: amountInr,
-      }).catch(() => {});
-      Alert.alert(
-        'Payment Unsuccessful',
-        'Your payment could not be completed. Please try a different payment method or try again later.',
-      );
-    } finally {
-      setPurchasingId(null);
-    }
-  };
 
   const formatDate = (dateStr) => {
     if (!dateStr) return '';
@@ -120,22 +56,22 @@ export default function BuildCoinTransactionsScreen({ navigation, route }) {
 
   return (
     <SafeBottomBar style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#000" />
-      <View style={styles.glowTop} />
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
+      <LinearGradient colors={['rgba(127,41,130,0.15)', 'transparent']} style={styles.glowTop} pointerEvents="none" />
 
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={20} color="#fff" />
+          <Ionicons name="arrow-back" size={20} color={COLORS.primaryLight} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Wallet</Text>
+        <Text style={styles.headerTitle}>Transaction History</Text>
         <View style={{ width: 40 }} />
       </View>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scroll}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.secondary} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primaryLight} />}
         onScroll={({ nativeEvent }) => {
           const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
           const isNearBottom = layoutMeasurement.height + contentOffset.y >= contentSize.height - 80;
@@ -145,74 +81,37 @@ export default function BuildCoinTransactionsScreen({ navigation, route }) {
       >
         {/* Balance hero */}
         <View style={styles.balanceSection}>
+          <Text style={styles.balanceLabel}>YOUR BALANCE</Text>
           {isLoading ? (
-            <ActivityIndicator color={COLORS.secondary} size="large" style={{ marginVertical: 20 }} />
+            <ActivityIndicator color={COLORS.primaryLight} size="large" style={{ marginVertical: 16 }} />
           ) : (
-            <>
-              <View style={styles.balanceRow}>
-                <Ionicons name="logo-bitcoin" size={40} color={COLORS.secondary} />
-                <Text style={styles.balanceNum}>{balance.toLocaleString('en-IN')}</Text>
-              </View>
-              <Text style={styles.balanceSub}>Build Coins</Text>
-            </>
-          )}
-          {/* <TouchableOpacity
-            style={styles.buyBtn}
-            onPress={() => packages.length > 0 && handleBuyPackage(packages[0])}
-            disabled={packages.length === 0}
-          >
-            <Text style={styles.buyBtnText}>BUY COINS</Text>
-            <Ionicons name="arrow-forward" size={18} color="#fff" />
-          </TouchableOpacity> */}
-        </View>
-
-        {/* Top-Up Packages */}
-        {packages.length > 0 && (
-          <>
-            <Text style={styles.sectionLabel}>TOP UP COINS</Text>
-            <View style={styles.packsGrid}>
-              {packages.map((p) => (
-                <TouchableOpacity
-                  key={p.id}
-                  style={[styles.packCard, p.popular && styles.packCardPopular]}
-                  activeOpacity={0.8}
-                  onPress={() => handleBuyPackage(p)}
-                  disabled={purchasingId !== null}
-                >
-                  {p.popular && (
-                    <View style={styles.popularBanner}>
-                      <Text style={styles.popularText}>★ POPULAR</Text>
-                    </View>
-                  )}
-                  <View style={[styles.packIconWrap, p.popular && { marginTop: 22 }]}>
-                    {purchasingId === p.id ? (
-                      <ActivityIndicator color={COLORS.secondary} size="small" />
-                    ) : (
-                      <Ionicons name="logo-bitcoin" size={20} color={COLORS.secondary} />
-                    )}
-                  </View>
-                  <Text style={styles.packCoins}>
-                    {(p.coins + (p.bonusCoins ?? 0)).toLocaleString()}
-                  </Text>
-                  <Text style={styles.packCoinsLabel}>coins</Text>
-                  {p.bonusCoins > 0 && (
-                    <View style={styles.packBonusBadge}>
-                      <Text style={styles.packBonus}>+{p.bonusCoins} bonus</Text>
-                    </View>
-                  )}
-                  <View style={styles.packPricePill}>
-                    <Text style={styles.packPrice}>₹{parseFloat(p.priceInr).toLocaleString('en-IN')}</Text>
-                  </View>
-                </TouchableOpacity>
-              ))}
+            <View style={styles.balanceRow}>
+              <Text style={styles.balanceNum}>{balance.toLocaleString('en-IN')}</Text>
+              <Ionicons name="ellipse" size={22} color={GOLD} style={{ marginLeft: 8 }} />
             </View>
-          </>
-        )}
+          )}
+
+          <TouchableOpacity
+            activeOpacity={0.9}
+            onPress={() => navigation.navigate('AddBuildCoins')}
+            style={styles.addBtnWrap}
+          >
+            <LinearGradient
+              colors={[AMBER, GOLD]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.addBtn}
+            >
+              <Ionicons name="add" size={20} color="#1A1206" />
+              <Text style={styles.addBtnText}>ADD COINS</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
 
         {/* Low balance banner */}
         {lowBalance && (
           <View style={styles.lowBanner}>
-            <Ionicons name="warning-outline" size={20} color={COLORS.secondary} />
+            <Ionicons name="warning-outline" size={20} color={AMBER} />
             <Text style={styles.lowBannerText}>
               Low Balance. Top up to continue booking sessions without interruption.
             </Text>
@@ -223,10 +122,10 @@ export default function BuildCoinTransactionsScreen({ navigation, route }) {
         <Text style={styles.sectionLabel}>RECENT TRANSACTIONS</Text>
 
         {isTxnLoading && transactions.length === 0 ? (
-          <ActivityIndicator color={COLORS.secondary} style={{ marginVertical: 20 }} />
+          <ActivityIndicator color={COLORS.primaryLight} style={{ marginVertical: 20 }} />
         ) : transactions.length === 0 ? (
           <View style={styles.emptyState}>
-            <Ionicons name="receipt-outline" size={40} color="#444" />
+            <Ionicons name="receipt-outline" size={40} color={COLORS.textMuted} />
             <Text style={styles.emptyText}>No transactions yet</Text>
           </View>
         ) : (
@@ -240,27 +139,27 @@ export default function BuildCoinTransactionsScreen({ navigation, route }) {
               // Formatted label per category
               let label = t.itemName;
               let iconName = isCredit ? 'add' : 'remove';
-              let iconColor = isCredit ? '#22C55E' : '#EF4444';
-              let iconBg    = isCredit ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)';
+              let iconColor = isCredit ? '#4ADE80' : '#F87171';
+              let iconBg    = isCredit ? 'rgba(74,222,128,0.12)' : 'rgba(248,113,113,0.12)';
               let sublabel  = null;
 
               if (isSession) {
                 label     = isRefund ? `Refund: ${t.itemName}` : `Activity: ${t.itemName}`;
                 sublabel  = isRefund ? 'Session refund' : 'Session booking';
                 iconName  = isRefund ? 'refresh-circle-outline' : 'fitness-outline';
-                iconColor = isRefund ? '#3B82F6' : COLORS.secondary;
-                iconBg    = isRefund ? 'rgba(59,130,246,0.1)' : COLORS.secondaryGlow;
+                iconColor = isRefund ? '#3B82F6' : COLORS.primaryLight;
+                iconBg    = isRefund ? 'rgba(59,130,246,0.12)' : COLORS.primarySoft;
               } else if (isCafe) {
                 label     = isRefund ? `Refund: ${t.itemName}` : t.itemName;
                 sublabel  = isRefund ? 'Café refund' : 'Café order';
                 iconName  = isRefund ? 'refresh-circle-outline' : 'restaurant-outline';
-                iconColor = isRefund ? '#3B82F6' : '#22C55E';
-                iconBg    = isRefund ? 'rgba(59,130,246,0.1)' : 'rgba(34,197,94,0.12)';
+                iconColor = isRefund ? '#3B82F6' : '#4ADE80';
+                iconBg    = isRefund ? 'rgba(59,130,246,0.12)' : 'rgba(74,222,128,0.12)';
               } else if (t.itemCategory === 'PURCHASE' || t.transactionType === 'CREDIT') {
                 sublabel = 'Coins added';
                 iconName  = 'add-circle-outline';
-                iconColor = '#22C55E';
-                iconBg    = 'rgba(34,197,94,0.1)';
+                iconColor = '#4ADE80';
+                iconBg    = 'rgba(74,222,128,0.12)';
               }
 
               return (
@@ -279,16 +178,16 @@ export default function BuildCoinTransactionsScreen({ navigation, route }) {
                       {sublabel ? `${sublabel} · ` : ''}{formatDate(t.createdAt)}
                     </Text>
                   </View>
-                  <Text style={[styles.txnAmount, { color: isCredit ? '#22C55E' : '#EF4444' }]}>
+                  <Text style={[styles.txnAmount, { color: isCredit ? '#4ADE80' : '#F87171' }]}>
                     {isCredit ? '+ ₿ ' : '− ₿ '}{t.coinAmount}
                   </Text>
-                  <Ionicons name="chevron-forward" size={14} color="#444" style={{ marginLeft: 4 }} />
+                  <Ionicons name="chevron-forward" size={14} color={COLORS.textMuted} style={{ marginLeft: 4 }} />
                 </TouchableOpacity>
               );
             })}
 
             {isTxnLoading && (
-              <ActivityIndicator color={COLORS.secondary} style={{ marginVertical: 16 }} />
+              <ActivityIndicator color={COLORS.primaryLight} style={{ marginVertical: 16 }} />
             )}
 
             {!hasMore && transactions.length > 0 && (
@@ -304,87 +203,56 @@ export default function BuildCoinTransactionsScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000' },
-  glowTop: { position: 'absolute', top: 0, left: 0, right: 0, height: 260, backgroundColor: 'rgba(233,99,22,0.1)' },
+  container: { flex: 1, backgroundColor: COLORS.background },
+  glowTop: { position: 'absolute', top: 0, left: 0, right: 0, height: 280 },
 
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 24, paddingTop: 52, paddingBottom: 12,
+    paddingHorizontal: 20, paddingTop: 52, paddingBottom: 12,
   },
   backBtn: {
-    width: 40, height: 40, borderRadius: 20, backgroundColor: '#1C1C1E',
-    alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#333',
+    width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.glass,
+    alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.border,
   },
-  headerTitle: { fontSize: 17, fontWeight: '800', color: '#fff' },
+  headerTitle: { fontFamily: FONTS.bodyBold, fontSize: 15, color: COLORS.white },
 
-  scroll: { paddingHorizontal: 24, paddingBottom: 20 },
+  scroll: { paddingHorizontal: 20, paddingBottom: 20 },
 
   // Balance
-  balanceSection: { alignItems: 'center', paddingVertical: 28 },
-  balanceRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6 },
-  balanceNum: { fontSize: 52, fontWeight: '900', color: '#fff' },
-  balanceSub: { fontSize: 13, color: '#666', fontWeight: '600', marginBottom: 20 },
-  buyBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: COLORS.secondary,
-    borderRadius: 16, paddingVertical: 14, paddingHorizontal: 24,
-    width: '100%', justifyContent: 'center',
+  balanceSection: { alignItems: 'center', paddingVertical: 24 },
+  balanceLabel: { fontFamily: FONTS.label, fontSize: 11, color: COLORS.textMuted, letterSpacing: 2, marginBottom: 12 },
+  balanceRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
+  balanceNum: { fontFamily: FONTS.headline, fontSize: 44, color: COLORS.white },
+  addBtnWrap: { borderRadius: 999, overflow: 'hidden' },
+  addBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    paddingVertical: 11, paddingHorizontal: 28,
   },
-  buyBtnText: { fontSize: 14, fontWeight: '900', color: '#fff', letterSpacing: 2 },
+  addBtnText: { fontFamily: FONTS.bodyBold, fontSize: 13, color: '#1A1206', letterSpacing: 1 },
 
-  sectionLabel: {
-    fontSize: 10, fontWeight: '800', color: COLORS.secondary,
-    letterSpacing: 2.5, marginBottom: 12, marginTop: 8,
-  },
-
-  // Packs grid — 3 per row
-  packsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 },
-  packCard: {
-    width: PACK_W, backgroundColor: '#1C1C1E', borderRadius: 14, borderWidth: 1,
-    borderColor: '#2A2A2A', padding: 12, alignItems: 'center', gap: 3, overflow: 'hidden',
-  },
-  packCardPopular: { borderColor: COLORS.secondary + '80', backgroundColor: '#1F1800' },
-  popularBanner: {
-    position: 'absolute', top: 0, left: 0, right: 0, backgroundColor: COLORS.secondary,
-    paddingVertical: 3, alignItems: 'center',
-  },
-  popularText: { fontSize: 7, fontWeight: '900', color: '#fff', letterSpacing: 1 },
-  packIconWrap: {
-    width: 36, height: 36, borderRadius: 18, backgroundColor: COLORS.secondaryGlow,
-    alignItems: 'center', justifyContent: 'center', marginBottom: 2,
-  },
-  packCoins: { fontSize: 17, fontWeight: '900', color: '#fff', lineHeight: 20 },
-  packCoinsLabel: { fontSize: 9, color: '#555', fontWeight: '600', marginBottom: 2 },
-  packBonusBadge: {
-    backgroundColor: 'rgba(34,197,94,0.12)', borderRadius: 6,
-    paddingHorizontal: 6, paddingVertical: 2, marginBottom: 2,
-  },
-  packBonus: { fontSize: 9, color: '#22C55E', fontWeight: '800' },
-  packPricePill: {
-    backgroundColor: '#2A2A2A', borderRadius: 8,
-    paddingHorizontal: 10, paddingVertical: 4, marginTop: 2,
-  },
-  packPrice: { fontSize: 12, color: '#ccc', fontWeight: '700' },
+  sectionLabel: { fontFamily: FONTS.label, fontSize: 10, color: COLORS.primaryLight, letterSpacing: 2.5, marginBottom: 12, marginTop: 8 },
 
   // Low balance
   lowBanner: {
-    flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#2A1A0A',
-    borderWidth: 1, borderColor: COLORS.secondary + '55', borderRadius: 12, padding: 14, marginBottom: 24,
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: 'rgba(245,158,11,0.08)', borderWidth: 1, borderColor: 'rgba(245,158,11,0.3)',
+    borderRadius: 12, padding: 14, marginBottom: 24,
   },
-  lowBannerText: { flex: 1, fontSize: 12, color: '#ccc', lineHeight: 18 },
+  lowBannerText: { flex: 1, fontFamily: FONTS.body, fontSize: 12, color: COLORS.textSecondary, lineHeight: 18 },
 
   // Transactions
   txnRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: 'rgba(28,28,30,0.4)', borderRadius: 12, borderWidth: 1, borderColor: '#333',
+    backgroundColor: COLORS.surfaceLow, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border,
     padding: 14, marginBottom: 8,
   },
   txnIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   txnInfo: { flex: 1 },
-  txnLabel: { fontSize: 13, fontWeight: '700', color: '#fff', marginBottom: 2 },
-  txnDate: { fontSize: 10, color: '#666' },
-  txnAmount: { fontSize: 14, fontWeight: '800' },
+  txnLabel: { fontFamily: FONTS.bodyBold, fontSize: 13, color: COLORS.white, marginBottom: 2 },
+  txnDate: { fontFamily: FONTS.body, fontSize: 10, color: COLORS.textMuted },
+  txnAmount: { fontFamily: FONTS.bodyBold, fontSize: 14 },
 
   emptyState: { alignItems: 'center', paddingVertical: 40, gap: 12 },
-  emptyText: { fontSize: 14, color: '#555' },
-  endText: { textAlign: 'center', fontSize: 11, color: '#444', paddingVertical: 16 },
+  emptyText: { fontFamily: FONTS.body, fontSize: 14, color: COLORS.textMuted },
+  endText: { textAlign: 'center', fontFamily: FONTS.body, fontSize: 11, color: COLORS.textMuted, paddingVertical: 16 },
 });

@@ -35,7 +35,7 @@ export async function handleInsufficientCoins({ required, balance, navigation })
       { text: 'Not Now', style: 'cancel' },
       {
         text: 'Top Up',
-        onPress: () => navigation.navigate('BuildCoinTransactions', { returnTo: true }),
+        onPress: () => navigation.navigate('AddBuildCoins', { returnTo: true }),
       },
     ],
   );

@@ -30,6 +30,29 @@ import { logEvent } from '../../services/analyticsService';
 
 const fmtPrice = (v) => { const n = Number(v) || 0; return n % 1 === 0 ? String(n) : n.toFixed(2); };
 
+/**
+ * Maps a Razorpay / cafe-backend error into a short, human-readable reason for
+ * the CafeOrderFailed screen. Avoids surfacing raw SDK / server strings.
+ */
+function friendlyCafeReason(err) {
+  const raw = (
+    err?.description ??
+    err?.response?.data?.error ??
+    err?.response?.data?.message ??
+    err?.message ??
+    ''
+  ).toString().toLowerCase();
+
+  if (!raw || raw === 'undefined') return 'Payment could not be processed.';
+  if (raw.includes('network') || raw.includes('timeout') || raw.includes('internet')) {
+    return 'Network error. Please check your connection.';
+  }
+  if (raw.includes('declin') || raw.includes('bank') || raw.includes('insufficient')) {
+    return 'Payment declined by bank.';
+  }
+  return 'Payment could not be processed.';
+}
+
 export default function CartScreen({ navigation }) {
   const { items, addItem, removeItem, clearCart } = useCartStore();
   const markUnavailable = useCartStore(s => s.markUnavailable);
@@ -173,20 +196,34 @@ export default function CartScreen({ navigation }) {
         orderPlacedRef.current = true;
         finalizeAndNavigate({ orderId, deliveryPin, orderSource, totalAmount: payableTotal });
       } catch (rzpErr) {
-        // User dismissed or payment failed — order is in PAYMENT_PENDING and can
-        // be retried from OrderTracking. Surface gentle message, keep the cart.
-        const msg = rzpErr?.description || rzpErr?.message || 'Payment was cancelled.';
+        // Payment dismissed or failed — order is in PAYMENT_PENDING and can be
+        // resumed via retryPayment from the failure screen / Order History.
         logEvent('cafe_payment_failed', {
-          error_reason: msg,
+          error_reason: rzpErr?.description || rzpErr?.message || 'unknown',
           order_value_inr: payableTotal,
         }).catch(() => {});
-        Alert.alert('Payment not completed', msg + ' You can retry from Order History.');
-        // Persist the pending order so tracking screen can show retry option
+        // Persist the pending order so it can be resumed (tracking / retry).
         setActiveOrder({ orderId, deliveryPin, orderSource, status: 'PAYMENT_PENDING', totalAmount: payableTotal });
+
+        // User-dismissed checkout → stay on cart silently.
+        const cancelled =
+          rzpErr?.code === 'PAYMENT_CANCELLED' ||
+          rzpErr?.code === 0 ||
+          (rzpErr?.description?.toLowerCase?.().includes('cancel') ?? false);
+        if (cancelled) return;
+
+        // Genuine payment failure → dedicated result screen (offers in-place retry).
+        navigation.navigate('CafeOrderFailed', {
+          orderId, amountPaise, reason: friendlyCafeReason(rzpErr),
+          deliveryPin, orderSource, totalAmount: payableTotal,
+        });
       }
     } catch (e) {
-      const msg = e?.response?.data?.error || e?.response?.data?.message || 'Failed to place order. Please try again.';
-      Alert.alert('Order Failed', msg);
+      // Order creation failed (no order on backend yet) — TRY AGAIN returns to cart.
+      navigation.navigate('CafeOrderFailed', {
+        reason: friendlyCafeReason(e),
+        totalAmount: payableTotal,
+      });
     } finally {
       setPlacing(false);
     }

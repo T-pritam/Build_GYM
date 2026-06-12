@@ -75,7 +75,10 @@ const styles = StyleSheet.create({
   box: {
     flex: 1,
     minWidth: 0,
-    height: 56,
+    // Height tracks width so cells stay roughly square instead of becoming
+    // tall, narrow rectangles when six of them share a small screen's width.
+    aspectRatio: 1,
+    maxHeight: 56,
     textAlign: 'center',
     borderRadius: RADIUS.lg,
     borderWidth: 1.5,

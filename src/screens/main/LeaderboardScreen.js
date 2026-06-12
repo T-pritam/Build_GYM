@@ -12,36 +12,35 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../../constants/colors';
-import { getLeaderboard, getHallOfFame } from '../../services/leaderboardService';
+import { COLORS as THEME, FONTS } from '../../theme';
+import { getLeaderboard } from '../../services/leaderboardService';
 import { logEvent } from '../../services/analyticsService';
 
-const MEDAL_COLORS = ['#FFB400', '#B0B0B0', '#CD7F32'];
-const MEDAL_EMOJIS = ['🥇', '🥈', '🥉'];
-const MONTH_NAMES = [
-  '', 'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
-];
+// ── Theme-compat remap (keeps legacy key names readable in styles) ───────────
+const COLORS = {
+  ...THEME,
+  secondary: THEME.primaryLight,
+  secondaryGlow: THEME.primarySoft,
+  secondaryBorder: THEME.primaryBorder,
+  surface: THEME.surfaceLow,
+};
+
+const MEDAL_COLORS = ['#FFD700', '#C0C0C0', '#CD7F32']; // gold / silver / bronze
+const PERIODS = ['This Week', 'This Month', 'All Time'];
 
 export default function LeaderboardScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [data, setData] = useState(null);
-  const [hallOfFame, setHallOfFame] = useState([]);
-  const [hofLoading, setHofLoading] = useState(false);
 
   const viewLogged = useRef(false);
 
   const fetchData = useCallback(async () => {
     try {
       setError(null);
-      const [lb, hof] = await Promise.all([
-        getLeaderboard(),
-        getHallOfFame(0),
-      ]);
+      const lb = await getLeaderboard();
       setData(lb);
-      setHallOfFame(hof);
       if (!viewLogged.current) {
         viewLogged.current = true;
         logEvent('leaderboard_viewed', {
@@ -67,8 +66,8 @@ export default function LeaderboardScreen({ navigation }) {
   if (loading) {
     return (
       <View style={[styles.container, styles.center]}>
-        <ActivityIndicator size="large" color={COLORS.secondary} />
-        <Text style={styles.loadingText}>Loading leaderboard...</Text>
+        <ActivityIndicator size="large" color={COLORS.primaryLight} />
+        <Text style={styles.loadingText}>Loading rankings…</Text>
       </View>
     );
   }
@@ -76,7 +75,7 @@ export default function LeaderboardScreen({ navigation }) {
   if (error) {
     return (
       <View style={[styles.container, styles.center]}>
-        <Ionicons name="alert-circle-outline" size={48} color={COLORS.secondary} />
+        <Ionicons name="alert-circle-outline" size={48} color={COLORS.primaryLight} />
         <Text style={styles.errorText}>{error}</Text>
         <TouchableOpacity style={styles.retryBtn} onPress={fetchData}>
           <Text style={styles.retryText}>Retry</Text>
@@ -90,55 +89,55 @@ export default function LeaderboardScreen({ navigation }) {
   const rest = top10.slice(3);
   const myRank = data?.myRank;
   const totalParticipants = data?.totalParticipants || 0;
-  const month = data?.month;
-  const year = data?.year;
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
-      {/* Header */}
-      <LinearGradient colors={['#1A0800', '#0D0D0D']} style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={20} color={COLORS.white} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Leaderboard</Text>
-        <Text style={styles.headerSub}>
-          {MONTH_NAMES[month]} {year} · Monthly Rankings
-        </Text>
-      </LinearGradient>
+      {/* Back button */}
+      <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} activeOpacity={0.7}>
+        <Ionicons name="arrow-back" size={22} color={COLORS.cyan} />
+      </TouchableOpacity>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scroll}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.secondary} />}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primaryLight} />
+        }
       >
+        {/* Header */}
+        <View style={styles.headerWrap}>
+          <Text style={styles.headerTitle}>RANKINGS</Text>
+          <Text style={styles.headerSub}>CONNECT AND COMPETE</Text>
 
-        {/* My rank strip — always shown */}
-        {myRank ? (
-          <LinearGradient
-            colors={[COLORS.secondaryGlow, 'transparent']}
-            style={styles.myRankStrip}
-            start={{ x: 0, y: 0.5 }}
-            end={{ x: 1, y: 0.5 }}
-          >
-            <View style={styles.myRankBadge}>
-              <Text style={styles.myRankNum}>#{myRank.rank}</Text>
+          {/* Period toggle — only "This Month" active (backend is monthly-only) */}
+          <View style={styles.toggleRow}>
+            {PERIODS.map((p) => {
+              const active = p === 'This Month';
+              return (
+                <View key={p} style={[styles.toggleItem, active && styles.toggleItemActive]}>
+                  <Text style={[styles.toggleText, active && styles.toggleTextActive]}>{p}</Text>
+                </View>
+              );
+            })}
+          </View>
+        </View>
+
+        {/* Podium */}
+        {topThree.length >= 3 && (
+          <View style={styles.podiumSection}>
+            <View style={styles.podiumGlow} pointerEvents="none" />
+            <View style={styles.podiumRow}>
+              <PodiumCard entry={topThree[1]} height={104} place={2} medalColor={MEDAL_COLORS[1]} myId={myRank?.memberId} />
+              <PodiumCard entry={topThree[0]} height={150} place={1} medalColor={MEDAL_COLORS[0]} highlight myId={myRank?.memberId} />
+              <PodiumCard entry={topThree[2]} height={80} place={3} medalColor={MEDAL_COLORS[2]} myId={myRank?.memberId} />
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.myRankLabel}>YOUR RANKING</Text>
-              <Text style={styles.myRankName}>{myRank.name}</Text>
-            </View>
-            <View style={styles.myRankStats}>
-              <Text style={styles.myRankVisits}>{myRank.attendance} visits</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                <Ionicons name="flame" size={12} color="#EF4444" />
-                <Text style={styles.myRankCoins}>{myRank.streak}-day streak</Text>
-              </View>
-              <Text style={styles.myRankScore}>Score: {myRank.score}</Text>
-            </View>
-          </LinearGradient>
-        ) : (
+          </View>
+        )}
+
+        {/* Not-ranked hint */}
+        {!myRank && (
           <View style={styles.notRankedStrip}>
             <Ionicons name="information-circle-outline" size={18} color={COLORS.textMuted} />
             <Text style={styles.notRankedText}>
@@ -155,49 +154,42 @@ export default function LeaderboardScreen({ navigation }) {
           </View>
         )}
 
-        {/* Top 3 podium */}
-        {topThree.length >= 3 && (
-          <View style={styles.podiumRow}>
-            <PodiumCard entry={topThree[1]} height={90} medalColor={MEDAL_COLORS[1]} myId={myRank?.memberId} />
-            <PodiumCard entry={topThree[0]} height={120} medalColor={MEDAL_COLORS[0]} highlight myId={myRank?.memberId} />
-            <PodiumCard entry={topThree[2]} height={70} medalColor={MEDAL_COLORS[2]} myId={myRank?.memberId} />
-          </View>
-        )}
-
-        {/* Rest of leaderboard (4-10) */}
+        {/* Leaderboard list (rank 4+) */}
         {rest.length > 0 && (
           <View style={styles.listSection}>
-            <Text style={styles.listTitle}>Full Rankings</Text>
             {rest.map((entry) => {
               const isMe = myRank && entry.memberId === myRank.memberId;
               return (
-                <View
-                  key={entry.rank}
-                  style={[styles.rankRow, isMe && styles.rankRowMe]}
-                >
-                  <Text style={[styles.rankNum, isMe && { color: COLORS.secondary }]}>
-                    #{entry.rank}
-                  </Text>
-                  <View style={styles.rankAvatar}>
+                <View key={entry.rank} style={[styles.rankRow, isMe && styles.rankRowMe]}>
+                  {isMe && (
+                    <LinearGradient
+                      colors={[COLORS.primarySoft, 'transparent']}
+                      start={{ x: 0, y: 0.5 }}
+                      end={{ x: 1, y: 0.5 }}
+                      style={StyleSheet.absoluteFill}
+                      pointerEvents="none"
+                    />
+                  )}
+                  <Text style={[styles.rankNum, isMe && { color: COLORS.primaryLight }]}>#{entry.rank}</Text>
+                  <View style={[styles.rankAvatar, isMe && styles.rankAvatarMe]}>
                     {entry.avatarUrl ? (
                       <Image source={{ uri: entry.avatarUrl }} style={styles.rankAvatarImg} />
                     ) : (
                       <Text style={styles.rankAvatarText}>{(entry.name || '?').charAt(0)}</Text>
                     )}
                   </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.rankName, isMe && { color: COLORS.secondary }]}>
-                      {entry.name}{isMe ? ' (You)' : ''}
+                  <View style={styles.rankNameWrap}>
+                    <Text style={[styles.rankName, isMe && { color: COLORS.textPrimary }]} numberOfLines={1}>
+                      {entry.name}
                     </Text>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <Text style={styles.rankDetail}>{entry.attendance} visits</Text>
-                      <Ionicons name="flame" size={10} color="#EF4444" />
-                      <Text style={styles.rankDetail}>{entry.streak}-day streak</Text>
-                    </View>
+                    {isMe && (
+                      <View style={styles.youChip}>
+                        <Text style={styles.youChipText}>YOU</Text>
+                      </View>
+                    )}
                   </View>
-                  <Text style={styles.rankScore}>
-                    {entry.score}{' '}
-                    <Text style={styles.rankScoreUnit}>pts</Text>
+                  <Text style={[styles.rankScore, isMe && { color: COLORS.primaryLight }]}>
+                    {entry.score} <Text style={styles.rankScoreUnit}>pts</Text>
                   </Text>
                 </View>
               );
@@ -205,70 +197,64 @@ export default function LeaderboardScreen({ navigation }) {
           </View>
         )}
 
-        {/* Info */}
+        {/* Scoring info */}
         <View style={styles.infoBox}>
-          <Ionicons name="information-circle-outline" size={16} color={COLORS.secondary} />
+          <Ionicons name="information-circle-outline" size={16} color={COLORS.primaryLight} />
           <Text style={styles.infoText}>
             Score = (Attendance × 0.4) + (Streak × 0.35) + (Volume × 0.25).
             Streak capped at 30 for scoring. Rankings reset on the 1st of every month.
           </Text>
         </View>
 
-        {/* Hall of Fame */}
-        {hallOfFame.length > 0 && (
-          <View style={styles.hofSection}>
-            <Text style={styles.hofTitle}>🏛️ Hall of Fame</Text>
-            {hallOfFame.map((monthData, idx) => (
-              <View key={`${monthData.year}-${monthData.month}`} style={styles.hofCard}>
-                <Text style={styles.hofMonth}>
-                  {MONTH_NAMES[monthData.month]} {monthData.year}
-                </Text>
-                {monthData.winners.map((w, i) => (
-                  <View key={w.id || i} style={styles.hofRow}>
-                    <Text style={styles.hofEmoji}>{MEDAL_EMOJIS[w.rank - 1] || ''}</Text>
-                    <Text style={styles.hofName}>
-                      {w.profileSnapshot?.name || 'Unknown'}
-                    </Text>
-                    <Text style={styles.hofScore}>
-                      {w.score} pts · {w.streakAtEnd}-day streak
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            ))}
-          </View>
-        )}
-
-        <View style={{ height: 100 }} />
+        <View style={{ height: myRank ? 110 : 40 }} />
       </ScrollView>
+
+      {/* Sticky "Your Rank" bar */}
+      {myRank && (
+        <View style={styles.stickyBar}>
+          <View style={styles.stickyInner}>
+            <Text style={styles.stickyRank}>
+              YOUR RANK: <Text style={styles.stickyRankNum}>#{myRank.rank}</Text>
+            </Text>
+            <Text style={styles.stickyDivider}>|</Text>
+            <Text style={styles.stickyPts}>{myRank.score} pts</Text>
+          </View>
+        </View>
+      )}
     </View>
   );
 }
 
-function PodiumCard({ entry, height, medalColor, highlight, myId }) {
+function PodiumCard({ entry, height, place, medalColor, highlight, myId }) {
   if (!entry) return null;
   const isMe = myId && entry.memberId === myId;
   return (
     <View style={[styles.podiumCard, highlight && styles.podiumCardHighlight]}>
-      <View style={[styles.podiumAvatar, { borderColor: medalColor }]}>
+      <View style={[styles.podiumAvatar, { borderColor: medalColor, shadowColor: medalColor }]}>
         {entry.avatarUrl ? (
           <Image source={{ uri: entry.avatarUrl }} style={styles.podiumAvatarImg} />
         ) : (
           <Text style={styles.podiumAvatarText}>{(entry.name || '?').charAt(0)}</Text>
         )}
+        <View style={[styles.podiumBadge, { borderColor: medalColor }]}>
+          <Text style={[styles.podiumBadgeText, { color: medalColor }]}>{place}</Text>
+        </View>
       </View>
-      <Text style={[styles.podiumRank, isMe && { color: COLORS.secondary }]} numberOfLines={1}>
+      <Text
+        style={[styles.podiumName, highlight && styles.podiumNameFirst]}
+        numberOfLines={1}
+      >
         {entry.name?.split(' ')[0]}{isMe ? ' (You)' : ''}
       </Text>
-      <Text style={[styles.podiumMedal, { color: medalColor }]}>#{entry.rank}</Text>
-      <View style={[styles.podiumBar, { height, backgroundColor: `${medalColor}22`, borderColor: `${medalColor}55` }]}>
-        <Text style={[styles.podiumVisits, { color: medalColor }]}>{entry.score}</Text>
-        <Text style={styles.podiumVisitsLabel}>pts</Text>
-      </View>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 4 }}>
-        <Ionicons name="flame" size={10} color="#EF4444" />
-        <Text style={{ fontSize: 9, color: COLORS.textMuted, fontWeight: '700' }}>{entry.streak}d</Text>
-      </View>
+      <Text style={[styles.podiumPts, highlight && { color: COLORS.primaryLight }]}>
+        {entry.score} pts
+      </Text>
+      <LinearGradient
+        colors={[`${medalColor}33`, 'transparent']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+        style={[styles.podiumBar, { height, borderTopColor: medalColor }]}
+      />
     </View>
   );
 }
@@ -277,61 +263,124 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   center: { justifyContent: 'center', alignItems: 'center', gap: 12 },
 
-  loadingText: { fontSize: 14, color: COLORS.textMuted, marginTop: 8 },
-  errorText: { fontSize: 14, color: COLORS.textSecondary, textAlign: 'center', paddingHorizontal: 40 },
-  retryBtn: { backgroundColor: COLORS.secondary, paddingHorizontal: 24, paddingVertical: 10, borderRadius: 12 },
-  retryText: { color: COLORS.white, fontWeight: '700', fontSize: 14 },
+  loadingText: { fontFamily: FONTS.body, fontSize: 13, color: COLORS.textMuted, marginTop: 8 },
+  errorText: { fontFamily: FONTS.body, fontSize: 14, color: COLORS.textSecondary, textAlign: 'center', paddingHorizontal: 40 },
+  retryBtn: { backgroundColor: COLORS.primary, paddingHorizontal: 24, paddingVertical: 10, borderRadius: 12 },
+  retryText: { fontFamily: FONTS.bodyBold, color: COLORS.white, fontSize: 14 },
+
+  // Back
+  backBtn: {
+    position: 'absolute',
+    top: 52,
+    left: 16,
+    zIndex: 20,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: COLORS.glass,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+
+  scroll: { paddingHorizontal: 20, paddingTop: 64 },
 
   // Header
-  header: {
-    paddingTop: 52,
-    paddingHorizontal: 20,
-    paddingBottom: 24,
+  headerWrap: { alignItems: 'center', marginBottom: 8 },
+  headerTitle: {
+    fontFamily: FONTS.display,
+    fontSize: 34,
+    color: COLORS.textPrimary,
+    letterSpacing: 6,
+    textShadowColor: COLORS.primaryGlow,
+    textShadowRadius: 14,
+    textShadowOffset: { width: 0, height: 0 },
   },
-  backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: 'rgba(0,0,0,0.3)',
+  headerSub: {
+    fontFamily: FONTS.label,
+    fontSize: 10,
+    color: COLORS.textSecondary,
+    letterSpacing: 3,
+    marginTop: 6,
+  },
+
+  // Toggle
+  toggleRow: { flexDirection: 'row', justifyContent: 'center', gap: 24, marginTop: 18 },
+  toggleItem: { paddingBottom: 4, borderBottomWidth: 2, borderBottomColor: 'transparent' },
+  toggleItemActive: { borderBottomColor: COLORS.primaryLight },
+  toggleText: { fontFamily: FONTS.label, fontSize: 11, color: COLORS.textMuted, letterSpacing: 1.5 },
+  toggleTextActive: { color: COLORS.primaryLight },
+
+  // Podium
+  podiumSection: {
+    marginTop: 24,
+    marginBottom: 28,
     alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    marginBottom: 12,
+    justifyContent: 'flex-end',
   },
-  headerTitle: { fontSize: 28, fontWeight: '900', color: COLORS.white, marginBottom: 4 },
-  headerSub: { fontSize: 13, color: COLORS.textSecondary },
-
-  scroll: { paddingHorizontal: 20, paddingTop: 16 },
-
-  // My rank
-  myRankStrip: {
+  podiumGlow: {
+    position: 'absolute',
+    width: 260,
+    height: 260,
+    borderRadius: 130,
+    backgroundColor: COLORS.primarySoft,
+    top: -10,
+  },
+  podiumRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    padding: 14,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: COLORS.secondaryBorder,
-    marginBottom: 24,
-    overflow: 'hidden',
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    gap: 12,
+    width: '100%',
   },
-  myRankBadge: {
-    width: 44,
-    height: 44,
-    borderRadius: 13,
-    backgroundColor: COLORS.secondary,
+  podiumCard: { flex: 1, alignItems: 'center' },
+  podiumCardHighlight: { marginBottom: 18 },
+  podiumAvatar: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: COLORS.surface2,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 2,
+    overflow: 'visible',
+    shadowOpacity: 0.6,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 0 },
+    marginBottom: 10,
   },
-  myRankNum: { fontSize: 16, fontWeight: '900', color: COLORS.white },
-  myRankLabel: { fontSize: 9, fontWeight: '800', color: COLORS.textMuted, letterSpacing: 1.5, marginBottom: 3 },
-  myRankName: { fontSize: 15, fontWeight: '800', color: COLORS.white },
-  myRankStats: { alignItems: 'flex-end' },
-  myRankVisits: { fontSize: 13, fontWeight: '700', color: COLORS.white },
-  myRankCoins: { fontSize: 11, color: COLORS.textMuted, fontWeight: '600' },
-  myRankScore: { fontSize: 11, color: COLORS.secondary, fontWeight: '700', marginTop: 2 },
+  podiumAvatarText: { fontFamily: FONTS.display, fontSize: 24, color: COLORS.textPrimary },
+  podiumAvatarImg: { width: '100%', height: '100%', borderRadius: 32 },
+  podiumBadge: {
+    position: 'absolute',
+    bottom: -6,
+    right: -6,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: COLORS.surface2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  podiumBadgeText: { fontFamily: FONTS.bodyBold, fontSize: 11 },
+  podiumName: { fontFamily: FONTS.label, fontSize: 11, color: COLORS.textPrimary, letterSpacing: 0.5, marginBottom: 3 },
+  podiumNameFirst: {
+    color: COLORS.primaryLight,
+    textShadowColor: COLORS.primaryGlow,
+    textShadowRadius: 10,
+    textShadowOffset: { width: 0, height: 0 },
+  },
+  podiumPts: { fontFamily: FONTS.body, fontSize: 11, color: COLORS.textMuted, marginBottom: 12 },
+  podiumBar: {
+    width: '100%',
+    borderTopLeftRadius: 10,
+    borderTopRightRadius: 10,
+    borderTopWidth: 2,
+  },
 
+  // Not ranked / outside top 10
   notRankedStrip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -340,130 +389,95 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     borderColor: COLORS.border,
-    backgroundColor: COLORS.surface,
-    marginBottom: 24,
+    backgroundColor: COLORS.glass,
+    marginBottom: 20,
   },
-  notRankedText: { flex: 1, fontSize: 12, color: COLORS.textMuted, lineHeight: 18 },
-
+  notRankedText: { flex: 1, fontFamily: FONTS.body, fontSize: 12, color: COLORS.textMuted, lineHeight: 18 },
   outsideTop10: {
-    backgroundColor: `${COLORS.secondary}15`,
+    backgroundColor: COLORS.primarySoft,
     borderRadius: 10,
     padding: 10,
     marginBottom: 16,
     alignItems: 'center',
   },
-  outsideTop10Text: { fontSize: 12, color: COLORS.secondary, fontWeight: '700' },
-
-  // Podium
-  podiumRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-    gap: 10,
-    marginBottom: 28,
-  },
-  podiumCard: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 4,
-  },
-  podiumCardHighlight: {},
-  podiumAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
-    backgroundColor: COLORS.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    marginBottom: 4,
-    overflow: 'hidden',
-  },
-  podiumAvatarText: { fontSize: 20, fontWeight: '900', color: COLORS.white },
-  podiumAvatarImg: { width: 48, height: 48, borderRadius: 16 },
-  podiumBadge: { fontSize: 16, marginBottom: 2 },
-  podiumRank: { fontSize: 11, fontWeight: '800', color: COLORS.white, textAlign: 'center' },
-  podiumMedal: { fontSize: 13, fontWeight: '900', marginBottom: 6 },
-  podiumBar: {
-    width: '100%',
-    borderRadius: 10,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 2,
-  },
-  podiumVisits: { fontSize: 18, fontWeight: '900' },
-  podiumVisitsLabel: { fontSize: 9, fontWeight: '700', color: COLORS.textMuted },
+  outsideTop10Text: { fontFamily: FONTS.bodyBold, fontSize: 12, color: COLORS.primaryLight },
 
   // List
-  listSection: { gap: 8, marginBottom: 20 },
-  listTitle: { fontSize: 13, fontWeight: '800', color: COLORS.textMuted, letterSpacing: 1, marginBottom: 4 },
+  listSection: { gap: 8, marginBottom: 18 },
   rankRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.surface,
+    backgroundColor: COLORS.glass,
     borderRadius: 14,
     padding: 12,
     borderWidth: 1,
     borderColor: COLORS.border,
     gap: 12,
+    overflow: 'hidden',
   },
   rankRowMe: {
-    borderColor: `${COLORS.secondary}55`,
-    backgroundColor: `${COLORS.secondary}08`,
+    borderColor: COLORS.primaryBorder,
+    backgroundColor: COLORS.surface3,
   },
-  rankNum: { fontSize: 13, fontWeight: '800', color: COLORS.textMuted, width: 28, textAlign: 'center' },
+  rankNum: { fontFamily: FONTS.label, fontSize: 12, color: COLORS.textMuted, width: 30, textAlign: 'right' },
   rankAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: COLORS.background,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.surface2,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: COLORS.border,
     overflow: 'hidden',
   },
-  rankAvatarText: { fontSize: 15, fontWeight: '900', color: COLORS.white },
-  rankAvatarImg: { width: 36, height: 36, borderRadius: 10 },
-  rankName: { fontSize: 13, fontWeight: '700', color: COLORS.white, marginBottom: 2 },
-  rankDetail: { fontSize: 10, color: COLORS.textMuted },
-  rankScore: { fontSize: 13, fontWeight: '800', color: COLORS.white },
-  rankScoreUnit: { fontSize: 10, fontWeight: '600', color: COLORS.textMuted },
+  rankAvatarMe: { borderColor: COLORS.primaryBorder },
+  rankAvatarText: { fontFamily: FONTS.bodyBold, fontSize: 15, color: COLORS.textPrimary },
+  rankAvatarImg: { width: '100%', height: '100%', borderRadius: 20 },
+  rankNameWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  rankName: { fontFamily: FONTS.label, fontSize: 13, color: COLORS.textPrimary, letterSpacing: 0.5 },
+  youChip: {
+    backgroundColor: COLORS.surface2,
+    borderWidth: 1,
+    borderColor: COLORS.primaryBorder,
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  youChipText: { fontFamily: FONTS.label, fontSize: 9, color: COLORS.primaryLight, letterSpacing: 2 },
+  rankScore: { fontFamily: FONTS.bodyBold, fontSize: 13, color: COLORS.textPrimary },
+  rankScoreUnit: { fontFamily: FONTS.body, fontSize: 10, color: COLORS.textMuted },
 
   // Info box
   infoBox: {
     flexDirection: 'row',
     gap: 10,
-    backgroundColor: COLORS.secondaryGlow,
+    backgroundColor: COLORS.glass,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: COLORS.secondaryBorder,
+    borderColor: COLORS.border,
     padding: 14,
     alignItems: 'flex-start',
-    marginBottom: 24,
+    marginBottom: 8,
   },
-  infoText: { flex: 1, fontSize: 12, color: COLORS.textSecondary, lineHeight: 18 },
+  infoText: { flex: 1, fontFamily: FONTS.body, fontSize: 12, color: COLORS.textSecondary, lineHeight: 18 },
 
-  // Hall of Fame
-  hofSection: { marginBottom: 20 },
-  hofTitle: { fontSize: 18, fontWeight: '900', color: COLORS.white, marginBottom: 16 },
-  hofCard: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 14,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    marginBottom: 12,
+  // Sticky bar
+  stickyBar: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: COLORS.surface3,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+    paddingTop: 14,
+    paddingBottom: 26,
+    paddingHorizontal: 20,
   },
-  hofMonth: { fontSize: 14, fontWeight: '800', color: COLORS.white, marginBottom: 10 },
-  hofRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingVertical: 6,
-  },
-  hofEmoji: { fontSize: 18 },
-  hofName: { flex: 1, fontSize: 13, fontWeight: '700', color: COLORS.white },
-  hofScore: { fontSize: 11, color: COLORS.textMuted, fontWeight: '600' },
+  stickyInner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12 },
+  stickyRank: { fontFamily: FONTS.label, fontSize: 12, color: COLORS.textPrimary, letterSpacing: 1.5 },
+  stickyRankNum: { color: COLORS.primaryLight },
+  stickyDivider: { color: COLORS.textMuted, opacity: 0.5 },
+  stickyPts: { fontFamily: FONTS.body, fontSize: 13, color: COLORS.textSecondary },
 });

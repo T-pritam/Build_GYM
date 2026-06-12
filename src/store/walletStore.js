@@ -153,7 +153,8 @@ export const useWalletStore = create((set, get) => ({
     });
 
     set({ balance: result.newBalance, transactions: [], nextCursor: null, hasMore: false });
-    return result;
+    // Surface the Razorpay payment id so the success screen can show a reference.
+    return { ...result, razorpayPaymentId: paymentData.razorpay_payment_id };
   },
 
   /**

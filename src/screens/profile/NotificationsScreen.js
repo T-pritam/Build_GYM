@@ -6,11 +6,12 @@ import {
 import { Image } from 'expo-image';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../../constants/colors';
+import { COLORS, FONTS } from '../../theme';
 import { fetchAnnouncements, markAnnouncementRead } from '../../services/announcementService';
 import { useAnnouncementStore } from '../../store/announcementStore';
 import { handleDeepLink } from '../../services/notificationService';
 import SafeBottomBar from '../../components/SafeBottomBar';
+import { HoloButton } from '../../components/auth';
 import api from '../../services/apiService';
 
 // ─── Type config ──────────────────────────────────────────────────────────────
@@ -25,10 +26,10 @@ const TYPE_LABEL = {
 const TYPE_COLOR = {
   event:         '#3B82F6',
   maintenance:   '#EF4444',
-  general:       '#64748B',
-  promotion:     '#EAB308',
-  health:        '#22C55E',
-  trial_booking: COLORS.secondary,
+  general:       '#94A3B8',
+  promotion:     '#F5B041',
+  health:        '#4ADE80',
+  trial_booking: COLORS.primaryLight,
 };
 
 const formatDate = (iso) =>
@@ -36,7 +37,7 @@ const formatDate = (iso) =>
 
 // ─── TypeTag ─────────────────────────────────────────────────────────────────
 function TypeTag({ type }) {
-  const color = TYPE_COLOR[type] ?? '#64748B';
+  const color = TYPE_COLOR[type] ?? '#94A3B8';
   const label = TYPE_LABEL[type] ?? type;
   return (
     <View style={[tt.tag, { borderColor: color + '60', backgroundColor: color + '20' }]}>
@@ -46,7 +47,7 @@ function TypeTag({ type }) {
 }
 const tt = StyleSheet.create({
   tag: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 },
-  tagText: { fontSize: 9, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1 },
+  tagText: { fontFamily: FONTS.label, fontSize: 9, textTransform: 'uppercase', letterSpacing: 1 },
 });
 
 // ─── Card ─────────────────────────────────────────────────────────────────────
@@ -55,7 +56,7 @@ function AnnouncementCard({ item, onPress, showPin }) {
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.75}
-      style={[s.card, showPin && { borderColor: COLORS.secondary + '50' }, !item.is_read && s.cardUnread]}
+      style={[s.card, showPin && { borderColor: COLORS.primaryBorder }, !item.is_read && s.cardUnread]}
     >
       <View style={s.cardTop}>
         <TypeTag type={item.type} />
@@ -179,7 +180,7 @@ export default function NotificationsScreen({ navigation }) {
       {/* Header */}
       <View style={s.header}>
         <TouchableOpacity style={s.backBtn} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={18} color={COLORS.white} />
+          <Ionicons name="arrow-back" size={18} color={COLORS.textPrimary} />
         </TouchableOpacity>
 
         <Text style={s.title}>Announcements</Text>
@@ -195,7 +196,7 @@ export default function NotificationsScreen({ navigation }) {
 
       {loading ? (
         <View style={s.center}>
-          <ActivityIndicator color={COLORS.secondary} size="large" />
+          <ActivityIndicator color={COLORS.primaryLight} size="large" />
         </View>
       ) : error ? (
         <View style={s.center}>
@@ -215,8 +216,8 @@ export default function NotificationsScreen({ navigation }) {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={handleRefresh}
-              tintColor={COLORS.secondary}
-              colors={[COLORS.secondary]}
+              tintColor={COLORS.primaryLight}
+              colors={[COLORS.primaryLight]}
             />
           }
         >
@@ -299,17 +300,12 @@ export default function NotificationsScreen({ navigation }) {
                     >
                       <Text style={s.declineTrialBtnText}>Decline</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[s.acceptTrialBtn, confirmingTrial && { opacity: 0.5 }]}
+                    <HoloButton
+                      label="Accept Session"
+                      loading={confirmingTrial}
                       onPress={() => handleAcceptTrial(selected)}
-                      disabled={confirmingTrial}
-                      activeOpacity={0.85}
-                    >
-                      {confirmingTrial
-                        ? <ActivityIndicator color="#000" size="small" />
-                        : <Text style={s.acceptTrialBtnText}>Accept Session</Text>
-                      }
-                    </TouchableOpacity>
+                      style={s.acceptTrialBtn}
+                    />
                   </View>
                 )}
                 {selected.type === 'trial_booking' && selected._confirmed && (
@@ -341,56 +337,56 @@ const s = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: COLORS.border,
   },
   backBtn: {
-    width: 36, height: 36, borderRadius: 10, backgroundColor: COLORS.surface,
+    width: 36, height: 36, borderRadius: 10, backgroundColor: COLORS.surfaceLow,
     borderWidth: 1, borderColor: COLORS.border,
     justifyContent: 'center', alignItems: 'center',
   },
-  title: { color: COLORS.white, fontSize: 22, fontWeight: '800' },
+  title: { color: COLORS.white, fontSize: 20, fontFamily: FONTS.headline },
   markAllBtn: {
     paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8,
-    backgroundColor: COLORS.secondaryGlow, borderWidth: 1, borderColor: COLORS.secondaryBorder,
+    backgroundColor: COLORS.primarySoft, borderWidth: 1, borderColor: COLORS.primaryBorder,
   },
-  markAllText: { fontSize: 11, fontWeight: '700', color: COLORS.secondary },
+  markAllText: { fontSize: 11, fontFamily: FONTS.label, color: COLORS.primaryLight },
 
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
-  errorText: { color: '#EF4444', fontSize: 14 },
+  errorText: { color: '#EF4444', fontSize: 14, fontFamily: FONTS.body },
   retryBtn: {
-    backgroundColor: COLORS.secondary, borderRadius: 10,
-    paddingHorizontal: 20, paddingVertical: 8,
+    backgroundColor: COLORS.primary, borderRadius: 10,
+    paddingHorizontal: 20, paddingVertical: 9,
   },
-  retryText: { color: '#000', fontWeight: '700' },
+  retryText: { color: COLORS.white, fontFamily: FONTS.bodyBold },
 
   body: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 80, gap: 12 },
 
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 },
-  accentBar: { width: 4, height: 18, backgroundColor: COLORS.secondary, borderRadius: 2 },
-  sectionTitle: { color: COLORS.white, fontSize: 15, fontWeight: '800' },
+  accentBar: { width: 4, height: 18, backgroundColor: COLORS.primaryNeon, borderRadius: 2 },
+  sectionTitle: { color: COLORS.white, fontSize: 15, fontFamily: FONTS.headline },
 
   // Card
   card: {
-    backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border,
+    backgroundColor: COLORS.surfaceLow, borderWidth: 1, borderColor: COLORS.border,
     borderRadius: 16, padding: 16, gap: 8,
   },
-  cardUnread: { borderColor: COLORS.secondary + '40' },
+  cardUnread: { borderColor: COLORS.primaryBorder },
   cardTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   pinIcon: { fontSize: 15 },
   urgentDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#EF4444' },
-  unreadDot: { marginLeft: 'auto', width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.secondary },
-  cardTitle: { color: COLORS.white, fontSize: 15, fontWeight: '800', lineHeight: 22 },
-  cardDesc: { color: COLORS.textSecondary, fontSize: 13, lineHeight: 18 },
+  unreadDot: { marginLeft: 'auto', width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.primaryLight },
+  cardTitle: { color: COLORS.white, fontSize: 15, fontFamily: FONTS.bodyBold, lineHeight: 22 },
+  cardDesc: { color: COLORS.textSecondary, fontSize: 13, fontFamily: FONTS.body, lineHeight: 18 },
   cardFooter: { flexDirection: 'row', gap: 10 },
-  footerText: { color: COLORS.textMuted, fontSize: 11 },
+  footerText: { color: COLORS.textMuted, fontSize: 11, fontFamily: FONTS.body },
 
   // Empty
   emptyState: { alignItems: 'center', paddingTop: 60, gap: 8 },
   emptyIcon: { fontSize: 40 },
-  emptyText: { color: COLORS.textMuted, fontSize: 15 },
+  emptyText: { color: COLORS.textMuted, fontSize: 15, fontFamily: FONTS.body },
 
   // Modal
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'flex-end' },
   modalDismiss: { flex: 1 },
   modalSheet: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: COLORS.surfaceLow,
     borderTopLeftRadius: 24, borderTopRightRadius: 24,
     padding: 24, paddingBottom: 40,
     borderTopWidth: 1, borderTopColor: COLORS.border,
@@ -410,29 +406,25 @@ const s = StyleSheet.create({
     borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4,
     backgroundColor: 'rgba(239,68,68,0.12)',
   },
-  modalUrgentText: { color: '#EF4444', fontSize: 10, fontWeight: '700' },
-  modalTitle: { color: COLORS.white, fontSize: 20, fontWeight: '800', marginBottom: 6, lineHeight: 28 },
-  modalMeta: { color: COLORS.textMuted, fontSize: 12, marginBottom: 14 },
-  modalBody: { color: COLORS.textSecondary, fontSize: 14, lineHeight: 22, marginBottom: 20 },
-  trialActionRow: { flexDirection: 'row', gap: 10, marginBottom: 10 },
+  modalUrgentText: { color: '#EF4444', fontSize: 10, fontFamily: FONTS.label },
+  modalTitle: { color: COLORS.white, fontSize: 20, fontFamily: FONTS.headline, marginBottom: 6, lineHeight: 28 },
+  modalMeta: { color: COLORS.textMuted, fontSize: 12, fontFamily: FONTS.body, marginBottom: 14 },
+  modalBody: { color: COLORS.textSecondary, fontSize: 14, fontFamily: FONTS.body, lineHeight: 22, marginBottom: 20 },
+  trialActionRow: { flexDirection: 'row', gap: 10, marginBottom: 10, alignItems: 'center' },
   declineTrialBtn: {
-    flex: 0.4, borderRadius: 12, paddingVertical: 13, alignItems: 'center',
+    flex: 0.4, borderRadius: 12, paddingVertical: 15, alignItems: 'center',
     borderWidth: 1, borderColor: 'rgba(239,68,68,0.4)',
     backgroundColor: 'rgba(239,68,68,0.1)',
   },
-  declineTrialBtnText: { color: '#EF4444', fontWeight: '800', fontSize: 14 },
-  acceptTrialBtn: {
-    flex: 0.6, backgroundColor: COLORS.secondary, borderRadius: 12,
-    paddingVertical: 13, alignItems: 'center',
-  },
-  acceptTrialBtnText: { color: '#000', fontWeight: '800', fontSize: 14, letterSpacing: 0.5 },
+  declineTrialBtnText: { color: '#EF4444', fontFamily: FONTS.bodyBold, fontSize: 14 },
+  acceptTrialBtn: { flex: 0.6 },
   trialResponseText: {
-    color: '#22C55E', fontWeight: '700', fontSize: 13,
+    color: '#4ADE80', fontFamily: FONTS.bodyBold, fontSize: 13,
     textAlign: 'center', marginBottom: 10,
   },
   closeBtn: {
-    backgroundColor: COLORS.secondary, borderRadius: 14,
-    paddingVertical: 14, alignItems: 'center',
+    borderRadius: 14, paddingVertical: 14, alignItems: 'center',
+    borderWidth: 1, borderColor: COLORS.primaryBorder, backgroundColor: COLORS.primarySoft,
   },
-  closeBtnText: { color: '#000', fontWeight: '800', fontSize: 14, letterSpacing: 1 },
+  closeBtnText: { color: COLORS.primaryLight, fontFamily: FONTS.label, fontSize: 13, letterSpacing: 1 },
 });

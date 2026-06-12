@@ -6,16 +6,25 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../../constants/colors';
+import { COLORS as THEME, FONTS } from '../../theme';
 import { useAuthStore } from '../../store/authStore';
 import {
   fetchCommunityPost, votePost, fetchComments, addComment,
   deleteComment, voteComment, reportPost, deleteCommunityPost, votePoll,
 } from '../../services/communityService';
 
+// Theme-compat: legacy colour keys → new "Holographic Noir" palette.
+const COLORS = {
+  background: THEME.background, surface: '#1B191E', surface2: THEME.surface2,
+  secondary: THEME.primaryLight, primary: THEME.primary, cyan: THEME.cyan, primaryBright: THEME.primaryBright,
+  textPrimary: THEME.textPrimary, textSecondary: THEME.textSecondary, textMuted: THEME.textMuted,
+  border: THEME.border, glass: 'rgba(255,255,255,0.03)', glassBorder: 'rgba(255,255,255,0.08)',
+  white: THEME.white, error: THEME.error,
+};
+
 const CATEGORY_COLORS = {
   transformation: '#A855F7',
-  workout: COLORS.secondary,
+  workout: THEME.primaryLight,
   nutrition: '#22C55E',
   question: '#3B82F6',
   motivation: '#F59E0B',
@@ -283,7 +292,7 @@ export default function PostDetailScreen({ navigation, route }) {
   if (loading) {
     return (
       <View style={[styles.container, styles.center]}>
-        <StatusBar barStyle="light-content" />
+        <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
         <ActivityIndicator size="large" color={COLORS.secondary} />
       </View>
     );
@@ -292,7 +301,7 @@ export default function PostDetailScreen({ navigation, route }) {
   if (error || !post) {
     return (
       <View style={[styles.container, styles.center]}>
-        <StatusBar barStyle="light-content" />
+        <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
         <Text style={styles.errorText}>{error || 'Post not found'}</Text>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.retryBtn}>
           <Text style={styles.retryText}>Go Back</Text>
@@ -303,31 +312,34 @@ export default function PostDetailScreen({ navigation, route }) {
 
   const score = (post.upvotes || 0) - (post.downvotes || 0);
   const isAuthor = post.member_id === currentUserId;
+  const badgeColor = CATEGORY_COLORS[post.category] || COLORS.secondary;
 
   return (
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
+      <View style={styles.glowTop} pointerEvents="none" />
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={8}>
-          <Ionicons name="arrow-back" size={24} color={COLORS.white} />
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerIconBtn} hitSlop={8}>
+          <Ionicons name="arrow-back" size={24} color={COLORS.cyan} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Post</Text>
         <TouchableOpacity
           onPress={() => setMenuVisible(true)}
-          style={styles.menuBtn}
+          style={styles.headerIconBtn}
           hitSlop={8}
         >
-          <Ionicons name="ellipsis-horizontal" size={22} color={COLORS.textMuted} />
+          <Ionicons name="ellipsis-horizontal" size={22} color={COLORS.cyan} />
         </TouchableOpacity>
       </View>
 
       <ScrollView
         contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -337,103 +349,115 @@ export default function PostDetailScreen({ navigation, route }) {
           />
         }
       >
-        {/* Author */}
-        <View style={styles.authorRow}>
-          {post.author_avatar ? (
-            <Image source={{ uri: post.author_avatar }} style={styles.avatar} />
-          ) : (
-            <View style={[styles.avatar, styles.avatarPlaceholder]}>
-              <Ionicons name="person" size={16} color={COLORS.textMuted} />
+        {/* Post card */}
+        <View style={styles.postCard}>
+          {/* Author */}
+          <View style={styles.authorRow}>
+            {post.author_avatar ? (
+              <Image source={{ uri: post.author_avatar }} style={styles.avatar} />
+            ) : (
+              <View style={[styles.avatar, styles.avatarPlaceholder]}>
+                <Ionicons name="person" size={18} color={COLORS.textMuted} />
+              </View>
+            )}
+            <View style={{ flex: 1 }}>
+              <Text style={styles.authorName}>{post.author_name || '[Deleted Member]'}</Text>
+              <Text style={styles.timestamp}>{timeAgo(post.created_at).toUpperCase()}</Text>
+            </View>
+            <View style={[styles.categoryBadge, { borderColor: badgeColor + '80', backgroundColor: badgeColor + '0D' }]}>
+              <Text style={[styles.categoryText, { color: badgeColor }]}>
+                {post.category}
+              </Text>
+            </View>
+          </View>
+
+          {/* Body */}
+          <Text style={styles.postBody}>{post.body}</Text>
+
+          {/* Image */}
+          {post.image_url && (
+            <Image source={{ uri: post.image_url }} style={styles.postImage} contentFit="cover" />
+          )}
+
+          {/* Poll */}
+          {post.is_poll && post.poll && (
+            <View style={styles.pollContainer}>
+              {post.poll.options.map((opt) => {
+                const voted = post.poll.userVote;
+                const isSelected = voted === opt.id;
+                const showResults = !!voted || post.poll.isClosed;
+                // Lock only the currently selected option and closed polls;
+                // other options stay tappable so the user can switch their vote.
+                const isDisabled = post.poll.isClosed || isSelected;
+
+                return (
+                  <TouchableOpacity
+                    key={opt.id}
+                    style={[styles.pollOption, isSelected && styles.pollOptionSelected]}
+                    onPress={() => handlePollVote(opt.id)}
+                    disabled={isDisabled}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.pollOptionText, isSelected && styles.pollOptionTextSelected]}>
+                      {opt.option_text}
+                    </Text>
+                    {showResults && (
+                      <View style={styles.pollResultRow}>
+                        <View style={styles.pollBarTrack}>
+                          <View style={[styles.pollBar, { width: `${opt.percentage}%` }]} />
+                        </View>
+                        <Text style={styles.pollPercent}>{opt.percentage}%</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+              <Text style={styles.pollMeta}>
+                {post.poll.totalVotes} vote{post.poll.totalVotes !== 1 ? 's' : ''}
+                {post.poll.isClosed ? ' · Closed' : ''}
+              </Text>
             </View>
           )}
-          <View style={{ flex: 1 }}>
-            <Text style={styles.authorName}>{post.author_name || '[Deleted Member]'}</Text>
-            <Text style={styles.timestamp}>{timeAgo(post.created_at)}</Text>
-          </View>
-          <View style={[styles.categoryBadge, { backgroundColor: (CATEGORY_COLORS[post.category] || COLORS.secondary) + '22' }]}>
-            <Text style={[styles.categoryText, { color: CATEGORY_COLORS[post.category] || COLORS.secondary }]}>
-              {post.category}
-            </Text>
+
+          {/* Vote Row */}
+          <View style={styles.voteRow}>
+            <TouchableOpacity
+              onPress={() => handleVote('up')}
+              style={[styles.voteChip, post.user_vote === 'up' && styles.voteChipUpActive]}
+            >
+              <Ionicons
+                name="arrow-up"
+                size={16}
+                color={post.user_vote === 'up' ? COLORS.secondary : COLORS.textMuted}
+              />
+              <Text style={[styles.voteChipCount, post.user_vote === 'up' && { color: COLORS.secondary }]}>
+                {post.upvotes || 0}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => handleVote('down')}
+              style={[styles.voteChip, post.user_vote === 'down' && styles.voteChipDownActive]}
+            >
+              <Ionicons
+                name="arrow-down"
+                size={16}
+                color={post.user_vote === 'down' ? '#FF4444' : COLORS.textMuted}
+              />
+              <Text style={[styles.voteChipCount, post.user_vote === 'down' && { color: '#FF4444' }]}>
+                {post.downvotes || 0}
+              </Text>
+            </TouchableOpacity>
+            <View style={{ flex: 1 }} />
+            <Ionicons name="chatbubble-outline" size={16} color={COLORS.textMuted} />
+            <Text style={styles.commentCountText}>{post.comment_count || 0} COMMENTS</Text>
           </View>
         </View>
-
-        {/* Body */}
-        <Text style={styles.postBody}>{post.body}</Text>
-
-        {/* Image */}
-        {post.image_url && (
-          <Image source={{ uri: post.image_url }} style={styles.postImage} contentFit="cover" />
-        )}
-
-        {/* Poll */}
-        {post.is_poll && post.poll && (
-          <View style={styles.pollContainer}>
-            {post.poll.options.map((opt) => {
-              const voted = post.poll.userVote;
-              const isSelected = voted === opt.id;
-              const showResults = !!voted || post.poll.isClosed;
-              // Lock only the currently selected option and closed polls;
-              // other options stay tappable so the user can switch their vote.
-              const isDisabled = post.poll.isClosed || isSelected;
-
-              return (
-                <TouchableOpacity
-                  key={opt.id}
-                  style={[styles.pollOption, isSelected && styles.pollOptionSelected]}
-                  onPress={() => handlePollVote(opt.id)}
-                  disabled={isDisabled}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.pollOptionText, isSelected && styles.pollOptionTextSelected]}>
-                    {opt.option_text}
-                  </Text>
-                  {showResults && (
-                    <View style={styles.pollResultRow}>
-                      <View style={styles.pollBarTrack}>
-                        <View style={[styles.pollBar, { width: `${opt.percentage}%` }]} />
-                      </View>
-                      <Text style={styles.pollPercent}>{opt.percentage}%</Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-              );
-            })}
-            <Text style={styles.pollMeta}>
-              {post.poll.totalVotes} vote{post.poll.totalVotes !== 1 ? 's' : ''}
-              {post.poll.isClosed ? ' · Closed' : ''}
-            </Text>
-          </View>
-        )}
-
-        {/* Vote Row */}
-        <View style={styles.voteRow}>
-          <TouchableOpacity onPress={() => handleVote('up')} style={styles.voteBtn}>
-            <Ionicons
-              name={post.user_vote === 'up' ? 'arrow-up-circle' : 'arrow-up-circle-outline'}
-              size={26}
-              color={post.user_vote === 'up' ? COLORS.secondary : COLORS.textMuted}
-            />
-          </TouchableOpacity>
-          <Text style={[styles.scoreText, score > 0 && styles.scorePositive, score < 0 && styles.scoreNegative]}>
-            {score}
-          </Text>
-          <TouchableOpacity onPress={() => handleVote('down')} style={styles.voteBtn}>
-            <Ionicons
-              name={post.user_vote === 'down' ? 'arrow-down-circle' : 'arrow-down-circle-outline'}
-              size={26}
-              color={post.user_vote === 'down' ? '#FF4444' : COLORS.textMuted}
-            />
-          </TouchableOpacity>
-          <View style={{ flex: 1 }} />
-          <Ionicons name="chatbubble-outline" size={18} color={COLORS.textMuted} />
-          <Text style={styles.commentCountText}>{post.comment_count || 0} comments</Text>
-        </View>
-
-        {/* Divider */}
-        <View style={styles.divider} />
 
         {/* Comments */}
-        <Text style={styles.sectionTitle}>Comments</Text>
+        <View style={styles.commentsHeaderRow}>
+          <Text style={styles.sectionTitle}>Comments</Text>
+          <Text style={styles.commentsHeaderCount}>{post.comment_count || 0} COMMENTS</Text>
+        </View>
 
         {comments.length === 0 && (
           <Text style={styles.noComments}>No comments yet. Be the first!</Text>
@@ -449,7 +473,7 @@ export default function PostDetailScreen({ navigation, route }) {
                   <Image source={{ uri: c.author_avatar }} style={styles.commentAvatar} />
                 ) : (
                   <View style={[styles.commentAvatar, styles.avatarPlaceholder]}>
-                    <Ionicons name="person" size={10} color={COLORS.textMuted} />
+                    <Ionicons name="person" size={12} color={COLORS.textMuted} />
                   </View>
                 )}
                 <Text style={styles.commentAuthor}>{c.author_name || '[Deleted Member]'}</Text>
@@ -489,25 +513,27 @@ export default function PostDetailScreen({ navigation, route }) {
 
       {/* Comment Input */}
       <View style={styles.commentInputBar}>
-        <TextInput
-          style={styles.commentInput}
-          placeholder="Write a comment..."
-          placeholderTextColor={COLORS.textMuted}
-          value={commentText}
-          onChangeText={setCommentText}
-          maxLength={200}
-        />
-        <TouchableOpacity
-          onPress={handleAddComment}
-          disabled={!commentText.trim() || submitting}
-          style={[styles.sendBtn, (!commentText.trim() || submitting) && { opacity: 0.4 }]}
-        >
-          {submitting ? (
-            <ActivityIndicator size="small" color={COLORS.secondary} />
-          ) : (
-            <Ionicons name="send" size={20} color={COLORS.secondary} />
-          )}
-        </TouchableOpacity>
+        <View style={styles.commentInputWrap}>
+          <TextInput
+            style={styles.commentInput}
+            placeholder="Write a comment..."
+            placeholderTextColor={COLORS.textMuted}
+            value={commentText}
+            onChangeText={setCommentText}
+            maxLength={200}
+          />
+          <TouchableOpacity
+            onPress={handleAddComment}
+            disabled={!commentText.trim() || submitting}
+            style={[styles.sendBtn, (!commentText.trim() || submitting) && { opacity: 0.4 }]}
+          >
+            {submitting ? (
+              <ActivityIndicator size="small" color={COLORS.white} />
+            ) : (
+              <Ionicons name="arrow-up" size={18} color={COLORS.white} />
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* ── Action Menu Modal ─────────────────────────────────────────────── */}
@@ -605,97 +631,130 @@ export default function PostDetailScreen({ navigation, route }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   center: { justifyContent: 'center', alignItems: 'center' },
+  glowTop: {
+    position: 'absolute', top: 0, left: 0, right: 0, height: 240,
+    backgroundColor: 'rgba(127,41,130,0.06)',
+  },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingTop: 54, paddingBottom: 12,
+    paddingHorizontal: 20, paddingTop: 52, paddingBottom: 10,
   },
-  backBtn: { padding: 4 },
-  menuBtn: { padding: 4 },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: COLORS.white },
-  content: { padding: 16, paddingBottom: 100 },
-  authorRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 },
-  avatar: { width: 40, height: 40, borderRadius: 20 },
+  headerIconBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  headerTitle: { fontSize: 18, color: COLORS.white, fontFamily: FONTS.bodyBold },
+  content: { padding: 20, paddingBottom: 110 },
+
+  // Post card (glass)
+  postCard: {
+    backgroundColor: COLORS.glass, borderRadius: 16,
+    borderWidth: 1, borderColor: COLORS.glassBorder,
+    padding: 18, marginBottom: 20,
+  },
+  authorRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 },
+  avatar: { width: 44, height: 44, borderRadius: 22 },
   avatarPlaceholder: {
     backgroundColor: COLORS.surface2, justifyContent: 'center', alignItems: 'center',
   },
-  authorName: { fontSize: 15, fontWeight: '600', color: COLORS.white },
-  timestamp: { fontSize: 12, color: COLORS.textMuted, marginTop: 1 },
-  categoryBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
-  categoryText: { fontSize: 11, fontWeight: '600', textTransform: 'capitalize' },
-  postBody: { fontSize: 15, color: COLORS.textSecondary, lineHeight: 22, marginBottom: 14 },
+  authorName: { fontSize: 15, color: COLORS.white, fontFamily: FONTS.bodyBold },
+  timestamp: { fontSize: 10, color: COLORS.textMuted, marginTop: 2, fontFamily: FONTS.label, letterSpacing: 0.5 },
+  categoryBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, borderWidth: 1 },
+  categoryText: { fontSize: 9, fontFamily: FONTS.label, textTransform: 'uppercase', letterSpacing: 1 },
+  postBody: { fontSize: 15, color: COLORS.textSecondary, lineHeight: 24, marginBottom: 16, fontFamily: FONTS.body },
   postImage: {
-    width: '100%', height: 250, borderRadius: 14, marginBottom: 14,
+    width: '100%', height: 250, borderRadius: 14, marginBottom: 16,
     backgroundColor: COLORS.surface2,
   },
+
   // Poll
   pollContainer: {
-    backgroundColor: COLORS.surface, borderRadius: 14, padding: 14, marginBottom: 14,
+    backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: 14, padding: 14, marginBottom: 16,
+    borderWidth: 1, borderColor: COLORS.glassBorder,
   },
   pollOption: {
-    backgroundColor: COLORS.surface2, borderRadius: 10, padding: 12, marginBottom: 8,
-    borderWidth: 1, borderColor: COLORS.border,
+    backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 10, padding: 12, marginBottom: 8,
+    borderWidth: 1, borderColor: COLORS.glassBorder,
   },
   pollOptionSelected: { borderColor: COLORS.secondary },
-  pollOptionText: { fontSize: 14, color: COLORS.white, fontWeight: '500' },
+  pollOptionText: { fontSize: 14, color: COLORS.white, fontFamily: FONTS.bodyMedium },
   pollOptionTextSelected: { color: COLORS.secondary },
   pollResultRow: {
     flexDirection: 'row', alignItems: 'center', marginTop: 6, gap: 8,
   },
   pollBarTrack: {
-    flex: 1, height: 4, backgroundColor: COLORS.surface2, borderRadius: 2, overflow: 'hidden',
+    flex: 1, height: 4, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 2, overflow: 'hidden',
   },
   pollBar: {
     height: 4, backgroundColor: COLORS.secondary, borderRadius: 2,
   },
-  pollPercent: { fontSize: 12, fontWeight: '600', color: COLORS.textMuted },
-  pollMeta: { fontSize: 12, color: COLORS.textMuted, marginTop: 4 },
+  pollPercent: { fontSize: 12, color: COLORS.textMuted, fontFamily: FONTS.bodyBold },
+  pollMeta: { fontSize: 12, color: COLORS.textMuted, marginTop: 4, fontFamily: FONTS.body },
+
   // Votes
   voteRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8,
+    flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 14,
+    borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)',
   },
-  voteBtn: { padding: 2 },
-  scoreText: { fontSize: 16, fontWeight: '700', color: COLORS.textMuted, minWidth: 24, textAlign: 'center' },
-  scorePositive: { color: COLORS.secondary },
-  scoreNegative: { color: '#FF4444' },
-  commentCountText: { fontSize: 13, color: COLORS.textMuted, marginLeft: 4 },
-  divider: { height: 1, backgroundColor: COLORS.border, marginVertical: 12 },
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: COLORS.white, marginBottom: 12 },
-  noComments: { fontSize: 14, color: COLORS.textMuted, fontStyle: 'italic' },
+  voteChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 999,
+    paddingHorizontal: 12, paddingVertical: 5,
+  },
+  voteChipUpActive: { backgroundColor: 'rgba(167,139,250,0.12)' },
+  voteChipDownActive: { backgroundColor: 'rgba(255,68,68,0.12)' },
+  voteChipCount: { fontSize: 12, color: COLORS.textMuted, fontFamily: FONTS.bodyBold },
+  commentCountText: { fontSize: 10, color: COLORS.textMuted, marginLeft: 4, fontFamily: FONTS.label, letterSpacing: 0.5 },
+
+  // Comments
+  commentsHeaderRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14,
+  },
+  sectionTitle: { fontSize: 16, color: COLORS.white, fontFamily: FONTS.bodyBold },
+  commentsHeaderCount: { fontSize: 10, color: COLORS.textMuted, fontFamily: FONTS.label, letterSpacing: 0.5 },
+  noComments: { fontSize: 14, color: COLORS.textMuted, fontStyle: 'italic', fontFamily: FONTS.body },
+
   // Comment card
   commentCard: {
-    backgroundColor: COLORS.surface, borderRadius: 12, padding: 12, marginBottom: 10,
+    backgroundColor: COLORS.glass, borderRadius: 12, padding: 14, marginBottom: 10,
+    borderWidth: 1, borderColor: COLORS.glassBorder,
   },
   commentHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
-  commentAvatar: { width: 24, height: 24, borderRadius: 12 },
-  commentAuthor: { fontSize: 13, fontWeight: '600', color: COLORS.white, flex: 1 },
-  commentTime: { fontSize: 11, color: COLORS.textMuted },
+  commentAvatar: { width: 28, height: 28, borderRadius: 14 },
+  commentAuthor: { fontSize: 13, color: COLORS.white, flex: 1, fontFamily: FONTS.bodyBold },
+  commentTime: { fontSize: 10, color: COLORS.textMuted, fontFamily: FONTS.body },
   commentDeleteBtn: { padding: 4 },
-  commentBody: { fontSize: 14, color: COLORS.textSecondary, lineHeight: 19, marginBottom: 6 },
-  commentVoteRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  commentScore: { fontSize: 12, fontWeight: '600', color: COLORS.textMuted, minWidth: 16, textAlign: 'center' },
+  commentBody: { fontSize: 13, color: COLORS.textSecondary, lineHeight: 20, marginBottom: 8, fontFamily: FONTS.body },
+  commentVoteRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  commentScore: { fontSize: 12, color: COLORS.textMuted, minWidth: 16, textAlign: 'center', fontFamily: FONTS.bodyBold },
+
   // Input bar
   commentInputBar: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    paddingHorizontal: 16, paddingVertical: 10, paddingBottom: 34,
-    backgroundColor: COLORS.surface, borderTopWidth: 1, borderTopColor: COLORS.border,
+    paddingHorizontal: 16, paddingTop: 10, paddingBottom: 30,
+    backgroundColor: '#1A1A2E', borderTopWidth: 1, borderTopColor: COLORS.glassBorder,
+  },
+  commentInputWrap: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#0D0D0F', borderRadius: 20,
+    borderWidth: 1, borderColor: 'rgba(127,41,130,0.40)',
+    paddingLeft: 14, paddingRight: 4, paddingVertical: 4,
   },
   commentInput: {
-    flex: 1, backgroundColor: COLORS.surface2, borderRadius: 20,
-    paddingHorizontal: 16, paddingVertical: 10,
-    fontSize: 14, color: COLORS.white,
+    flex: 1, fontSize: 14, color: COLORS.white, paddingVertical: 8, fontFamily: FONTS.body,
   },
-  sendBtn: { padding: 8 },
-  errorText: { fontSize: 14, color: COLORS.error, textAlign: 'center', marginBottom: 12 },
+  sendBtn: {
+    width: 34, height: 34, borderRadius: 17, backgroundColor: COLORS.primary,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  errorText: { fontSize: 14, color: COLORS.error, textAlign: 'center', marginBottom: 12, fontFamily: FONTS.body },
   retryBtn: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8, backgroundColor: COLORS.surface },
-  retryText: { fontSize: 14, fontWeight: '600', color: COLORS.secondary },
+  retryText: { fontSize: 14, color: COLORS.secondary, fontFamily: FONTS.bodyBold },
+
   // Modal / Menu
   modalOverlay: {
     flex: 1, backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'flex-end',
   },
   menuSheet: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#1A1A2E',
     borderTopLeftRadius: 20, borderTopRightRadius: 20,
     paddingTop: 8, paddingBottom: 34,
     paddingHorizontal: 16,
@@ -705,22 +764,22 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
   },
   menuItemBorder: {
-    borderBottomWidth: 1, borderBottomColor: COLORS.border,
+    borderBottomWidth: 1, borderBottomColor: COLORS.glassBorder,
   },
   menuIconWrap: {
     width: 36, height: 36, borderRadius: 10,
     justifyContent: 'center', alignItems: 'center',
   },
-  menuItemText: { fontSize: 16, fontWeight: '500', color: COLORS.white },
-  menuDivider: { height: 1, backgroundColor: COLORS.border, marginVertical: 4 },
+  menuItemText: { fontSize: 16, color: COLORS.white, fontFamily: FONTS.bodyMedium },
+  menuDivider: { height: 1, backgroundColor: COLORS.glassBorder, marginVertical: 4 },
   menuCancelItem: {
     alignItems: 'center', paddingVertical: 14,
   },
-  menuCancelText: { fontSize: 16, fontWeight: '600', color: COLORS.textMuted },
+  menuCancelText: { fontSize: 16, color: COLORS.textMuted, fontFamily: FONTS.bodyBold },
   reportHeader: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     paddingTop: 8, paddingBottom: 4,
   },
-  reportTitle: { fontSize: 17, fontWeight: '700', color: COLORS.white },
-  reportSubtitle: { fontSize: 13, color: COLORS.textMuted, marginBottom: 8 },
+  reportTitle: { fontSize: 17, color: COLORS.white, fontFamily: FONTS.bodyBold },
+  reportSubtitle: { fontSize: 13, color: COLORS.textMuted, marginBottom: 8, fontFamily: FONTS.body },
 });

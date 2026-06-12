@@ -6,32 +6,52 @@ import {
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../../constants/colors';
+import { COLORS as THEME, FONTS } from '../../theme';
 import { createCommunityPost } from '../../services/communityService';
 import { useAuthStore } from '../../store/authStore';
 import { logEvent } from '../../services/analyticsService';
 
+// Theme-compat: legacy colour keys → new "Holographic Noir" palette.
+const COLORS = {
+  background: THEME.background, surface: '#1B191E', surface2: THEME.surface2,
+  secondary: THEME.primaryLight, primary: THEME.primary, cyan: THEME.cyan, primaryBright: THEME.primaryBright,
+  textPrimary: THEME.textPrimary, textSecondary: THEME.textSecondary, textMuted: THEME.textMuted,
+  border: THEME.border, glass: 'rgba(255,255,255,0.03)', glassBorder: 'rgba(255,255,255,0.08)',
+  white: THEME.white, warning: THEME.warning,
+};
+
+// Content categories for a standard post (single-select). "Poll" is NOT here — it
+// is a distinct post *type* chosen via the POST TYPE toggle below.
 const CATEGORIES = [
   { key: 'transformation', label: 'Transformation', icon: 'body-outline', color: '#A855F7' },
-  { key: 'workout', label: 'Workout', icon: 'barbell-outline', color: COLORS.secondary },
+  { key: 'workout', label: 'Workout', icon: 'barbell-outline', color: THEME.primaryLight },
   { key: 'nutrition', label: 'Nutrition', icon: 'nutrition-outline', color: '#22C55E' },
   { key: 'question', label: 'Question', icon: 'help-circle-outline', color: '#3B82F6' },
   { key: 'motivation', label: 'Motivation', icon: 'heart-outline', color: '#F59E0B' },
   { key: 'achievement', label: 'Achievement', icon: 'trophy-outline', color: '#EC4899' },
-  { key: 'poll', label: 'Poll', icon: 'bar-chart-outline', color: '#06B6D4' },
 ];
+
+const POLL_COLOR = '#06B6D4';
 
 const MAX_BODY_CHARS = 500;
 const MAX_OPTION_CHARS = 100;
 
 export default function CreatePostScreen({ navigation }) {
   const [body, setBody] = useState('');
-  const [category, setCategory] = useState(null);
+  const [postType, setPostType] = useState('standard'); // 'standard' | 'poll'
+  const [category, setCategory] = useState(null);        // content category (standard only)
   const [image, setImage] = useState(null);
   const [pollOptions, setPollOptions] = useState(['', '']);
   const [submitting, setSubmitting] = useState(false);
 
-  const isPoll = category === 'poll';
+  const isPoll = postType === 'poll';
+
+  // Switch post type. Choosing Poll clears the content category (a poll has none);
+  // single-select is preserved — only one type and at most one category at a time.
+  const selectPostType = (type) => {
+    setPostType(type);
+    if (type === 'poll') setCategory(null);
+  };
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -63,13 +83,14 @@ export default function CreatePostScreen({ navigation }) {
   };
 
   const canSubmit = () => {
-    if (!body.trim() || !category) return false;
+    if (!body.trim()) return false;
     if (body.length > MAX_BODY_CHARS) return false;
     if (isPoll) {
       const validOptions = pollOptions.filter((o) => o.trim().length > 0);
-      if (validOptions.length < 2) return false;
+      return validOptions.length >= 2;
     }
-    return true;
+    // A standard post requires one content category.
+    return !!category;
   };
 
   const handleSubmit = async () => {
@@ -79,8 +100,8 @@ export default function CreatePostScreen({ navigation }) {
     try {
       const payload = {
         body: body.trim(),
-        category,
-        image: image || undefined,
+        category: isPoll ? 'poll' : category,
+        image: isPoll ? undefined : (image || undefined),
       };
       if (isPoll) {
         payload.isPoll = true;
@@ -99,70 +120,101 @@ export default function CreatePostScreen({ navigation }) {
     }
   };
 
+  const submitEnabled = canSubmit() && !submitting;
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
 
       {/* Header */}
       <View style={styles.header}>
-        <View style={styles.headerSide}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={8}>
-            <Ionicons name="close" size={24} color={COLORS.white} />
-          </TouchableOpacity>
-        </View>
-        <Text style={styles.headerTitle}>New Post</Text>
-        <View style={[styles.headerSide, styles.headerSideRight]}>
-          <TouchableOpacity
-            onPress={handleSubmit}
-            disabled={!canSubmit() || submitting}
-            style={[styles.postBtn, (!canSubmit() || submitting) && styles.postBtnDisabled]}
-          >
-            {submitting ? (
-              <ActivityIndicator size="small" color={COLORS.white} />
-            ) : (
-              <Text style={styles.postBtnText}>Post</Text>
-            )}
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerSide} hitSlop={8}>
+          <Text style={styles.cancelText}>CANCEL</Text>
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Create Post</Text>
+        <TouchableOpacity
+          onPress={handleSubmit}
+          disabled={!submitEnabled}
+          style={[styles.headerSide, styles.headerSideRight]}
+          hitSlop={8}
+        >
+          {submitting ? (
+            <ActivityIndicator size="small" color={COLORS.primary} />
+          ) : (
+            <Text style={[styles.postText, !submitEnabled && styles.postTextDisabled]}>POST</Text>
+          )}
+        </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        {/* Category Picker */}
-        <Text style={styles.sectionLabel}>Category</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryRow}>
-          {CATEGORIES.map((cat) => (
-            <TouchableOpacity
-              key={cat.key}
-              style={[
-                styles.categoryChip,
-                category === cat.key && { backgroundColor: cat.color + '22', borderColor: cat.color },
-              ]}
-              onPress={() => setCategory(cat.key)}
-            >
-              <Ionicons
-                name={cat.icon}
-                size={16}
-                color={category === cat.key ? cat.color : COLORS.textMuted}
-              />
-              <Text style={[
-                styles.categoryChipText,
-                category === cat.key && { color: cat.color },
-              ]}>
-                {cat.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+        {/* Post type — a Poll is a different kind of post (single-select) */}
+        <Text style={[styles.sectionLabel, { marginTop: 4 }]}>POST TYPE</Text>
+        <View style={styles.postTypeRow}>
+          <TouchableOpacity
+            style={[styles.postTypeChip, !isPoll && styles.postTypeChipActive]}
+            onPress={() => selectPostType('standard')}
+            activeOpacity={0.85}
+          >
+            <Ionicons
+              name="document-text-outline"
+              size={16}
+              color={!isPoll ? COLORS.primary : COLORS.textMuted}
+            />
+            <Text style={[styles.postTypeText, !isPoll && { color: COLORS.primary }]}>Standard</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.postTypeChip, isPoll && styles.postTypeChipPollActive]}
+            onPress={() => selectPostType('poll')}
+            activeOpacity={0.85}
+          >
+            <Ionicons
+              name="bar-chart-outline"
+              size={16}
+              color={isPoll ? POLL_COLOR : COLORS.textMuted}
+            />
+            <Text style={[styles.postTypeText, isPoll && { color: POLL_COLOR }]}>Poll</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Category Picker — standard posts only */}
+        {!isPoll && (
+          <>
+            <Text style={styles.sectionLabel}>CATEGORY</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryRow}>
+              {CATEGORIES.map((cat) => (
+                <TouchableOpacity
+                  key={cat.key}
+                  style={[
+                    styles.categoryChip,
+                    category === cat.key && { backgroundColor: cat.color + '22', borderColor: cat.color },
+                  ]}
+                  onPress={() => setCategory(cat.key)}
+                >
+                  <Ionicons
+                    name={cat.icon}
+                    size={16}
+                    color={category === cat.key ? cat.color : COLORS.textMuted}
+                  />
+                  <Text style={[
+                    styles.categoryChipText,
+                    category === cat.key && { color: cat.color },
+                  ]}>
+                    {cat.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </>
+        )}
 
         {/* Body Input */}
-        <Text style={styles.sectionLabel}>What's on your mind?</Text>
         <View style={styles.bodyContainer}>
           <TextInput
             style={styles.bodyInput}
-            placeholder="Share your progress, ask a question..."
+            placeholder="What's on your mind?"
             placeholderTextColor={COLORS.textMuted}
             multiline
             maxLength={MAX_BODY_CHARS}
@@ -202,7 +254,7 @@ export default function CreatePostScreen({ navigation }) {
         {/* Poll Options */}
         {isPoll && (
           <View style={styles.pollSection}>
-            <Text style={styles.sectionLabel}>Poll Options (2–4)</Text>
+            <Text style={styles.sectionLabel}>POLL OPTIONS (2–4)</Text>
             {pollOptions.map((opt, i) => (
               <View key={i} style={styles.pollOptionRow}>
                 <View style={styles.pollOptionNum}>
@@ -225,7 +277,7 @@ export default function CreatePostScreen({ navigation }) {
             ))}
             {pollOptions.length < 4 && (
               <TouchableOpacity style={styles.addOptionBtn} onPress={addPollOption}>
-                <Ionicons name="add-circle-outline" size={18} color={COLORS.secondary} />
+                <Ionicons name="add-circle-outline" size={18} color={COLORS.primary} />
                 <Text style={styles.addOptionText}>Add option</Text>
               </TouchableOpacity>
             )}
@@ -240,50 +292,58 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingTop: 54, paddingBottom: 12,
+    paddingHorizontal: 20, paddingTop: 54, paddingBottom: 14,
+    borderBottomWidth: 1, borderBottomColor: COLORS.glassBorder,
   },
-  headerSide: {
-    width: 84,
-    justifyContent: 'center',
+  headerSide: { width: 72, justifyContent: 'center' },
+  headerSideRight: { alignItems: 'flex-end' },
+  cancelText: { fontSize: 12, color: COLORS.cyan, fontFamily: FONTS.label, letterSpacing: 1 },
+  headerTitle: { fontSize: 16, color: COLORS.white, textAlign: 'center', fontFamily: FONTS.bodyBold },
+  postText: { fontSize: 14, color: COLORS.primary, fontFamily: FONTS.bodyBold, letterSpacing: 1 },
+  postTextDisabled: { opacity: 0.4 },
+
+  content: { padding: 20, paddingBottom: 40 },
+
+  // Post type toggle
+  postTypeRow: { flexDirection: 'row', gap: 10 },
+  postTypeChip: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    paddingVertical: 12, borderRadius: 12,
+    backgroundColor: COLORS.glass, borderWidth: 1, borderColor: COLORS.glassBorder,
   },
-  headerSideRight: {
-    alignItems: 'flex-end',
-  },
-  backBtn: { padding: 4 },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: COLORS.white, textAlign: 'center' },
-  postBtn: {
-    backgroundColor: COLORS.secondary, paddingHorizontal: 20, paddingVertical: 8,
-    borderRadius: 20, minWidth: 70, alignItems: 'center',
-  },
-  postBtnDisabled: { opacity: 0.4 },
-  postBtnText: { fontSize: 14, fontWeight: '700', color: COLORS.white },
-  content: { padding: 16, paddingBottom: 40 },
+  postTypeChipActive: { borderColor: COLORS.primary, backgroundColor: 'rgba(255,169,250,0.08)' },
+  postTypeChipPollActive: { borderColor: POLL_COLOR, backgroundColor: 'rgba(6,182,212,0.10)' },
+  postTypeText: { fontSize: 13, color: COLORS.textMuted, fontFamily: FONTS.bodyBold },
+
   sectionLabel: {
-    fontSize: 13, fontWeight: '600', color: COLORS.textSecondary,
-    marginBottom: 8, marginTop: 16,
+    fontSize: 10, color: COLORS.secondary, letterSpacing: 1.5,
+    marginBottom: 10, marginTop: 18, fontFamily: FONTS.label,
   },
   categoryRow: { flexDirection: 'row', marginBottom: 4 },
   categoryChip: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20,
-    backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border,
+    backgroundColor: COLORS.glass, borderWidth: 1, borderColor: COLORS.glassBorder,
     marginRight: 8,
   },
-  categoryChipText: { fontSize: 13, fontWeight: '600', color: COLORS.textMuted },
-  bodyContainer: { backgroundColor: COLORS.surface, borderRadius: 14, padding: 14 },
+  categoryChipText: { fontSize: 13, color: COLORS.textMuted, fontFamily: FONTS.label },
+  bodyContainer: {
+    backgroundColor: COLORS.glass, borderRadius: 14, padding: 14, marginTop: 18,
+    borderWidth: 1, borderColor: COLORS.glassBorder,
+  },
   bodyInput: {
     fontSize: 15, color: COLORS.white, minHeight: 120,
-    textAlignVertical: 'top',
+    textAlignVertical: 'top', fontFamily: FONTS.body,
   },
-  charCount: { fontSize: 11, color: COLORS.textMuted, textAlign: 'right', marginTop: 4 },
+  charCount: { fontSize: 11, color: COLORS.textMuted, textAlign: 'right', marginTop: 4, fontFamily: FONTS.label },
   charCountWarn: { color: COLORS.warning },
   imageSection: { marginTop: 16 },
   addImageBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: COLORS.surface, borderRadius: 14, paddingVertical: 24,
-    borderWidth: 1, borderColor: COLORS.border, borderStyle: 'dashed',
+    backgroundColor: COLORS.glass, borderRadius: 14, paddingVertical: 24,
+    borderWidth: 1, borderColor: COLORS.glassBorder, borderStyle: 'dashed',
   },
-  addImageText: { fontSize: 14, color: COLORS.textMuted },
+  addImageText: { fontSize: 14, color: COLORS.textMuted, fontFamily: FONTS.body },
   imagePreviewContainer: { position: 'relative' },
   imagePreview: { width: '100%', height: 200, borderRadius: 14, backgroundColor: COLORS.surface2 },
   removeImageBtn: {
@@ -299,15 +359,16 @@ const styles = StyleSheet.create({
     width: 28, height: 28, borderRadius: 14, backgroundColor: COLORS.surface2,
     justifyContent: 'center', alignItems: 'center',
   },
-  pollOptionNumText: { fontSize: 12, fontWeight: '700', color: COLORS.textMuted },
+  pollOptionNumText: { fontSize: 12, color: COLORS.textMuted, fontFamily: FONTS.bodyBold },
   pollOptionInput: {
-    flex: 1, backgroundColor: COLORS.surface, borderRadius: 10,
+    flex: 1, backgroundColor: COLORS.glass, borderRadius: 10,
+    borderWidth: 1, borderColor: COLORS.glassBorder,
     paddingHorizontal: 12, paddingVertical: 10,
-    fontSize: 14, color: COLORS.white,
+    fontSize: 14, color: COLORS.white, fontFamily: FONTS.body,
   },
   addOptionBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     paddingVertical: 8,
   },
-  addOptionText: { fontSize: 13, fontWeight: '600', color: COLORS.secondary },
+  addOptionText: { fontSize: 13, color: COLORS.primary, fontFamily: FONTS.bodyBold },
 });

@@ -19,8 +19,22 @@ import { fetchMyMembership } from '../../services/membershipService';
 import { fetchMyGateEvents } from '../../services/accessService';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { COLORS } from '../../constants/colors';
+import { COLORS as THEME, FONTS } from '../../theme';
 import { useAuthStore } from '../../store/authStore';
+import AccessDial from '../../components/AccessDial';
+
+// Theme-compat: legacy colour keys → new "Holographic Noir" palette.
+const COLORS = {
+  background: '#050405', surface: '#1B191E', surfaceLow: THEME.surfaceLow, surface2: THEME.surface2,
+  secondary: THEME.primaryLight, secondaryDark: THEME.primary, secondaryGlow: THEME.primarySoft, secondaryBorder: THEME.primaryBorder,
+  primary: THEME.primary, cyan: '#00F2FF',
+  success: THEME.success, successLight: THEME.successSoft, error: '#F44336', errorLight: 'rgba(244,67,54,0.12)',
+  textPrimary: THEME.textPrimary, textSecondary: THEME.textSecondary, textMuted: THEME.textMuted,
+  border: THEME.border, glass: 'rgba(255,255,255,0.05)', glassBorder: 'rgba(255,255,255,0.08)',
+  white: THEME.white,
+};
+
+const GREEN = '#00FF64';
 
 const ACCESS_MODES = [
   {
@@ -47,6 +61,17 @@ function formatEventTime(iso) {
       '  ' + d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
   } catch {
     return iso;
+  }
+}
+
+function formatNowStr() {
+  try {
+    const now = new Date();
+    const date = now.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+    const time = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+    return `${date} · ${time}`;
+  } catch {
+    return '';
   }
 }
 
@@ -148,6 +173,15 @@ export default function AccessScreen({ navigation }) {
     Animated.timing(pulseOpacity, { toValue: 0, duration: 200, useNativeDriver: true }).start();
   };
 
+  // Build the params passed to the Granted / Denied result screens.
+  const buildResultParams = (reason) => ({
+    memberName: displayName,
+    memberId: shortId,
+    accessPoint: mode === 'gate' ? 'Main Entrance' : 'Locker',
+    time: formatNowStr(),
+    ...(reason ? { reason } : {}),
+  });
+
   // ── Access handler ────────────────────────────────────────────────────────
 
   const handleAccess = async () => {
@@ -160,11 +194,11 @@ export default function AccessScreen({ navigation }) {
       // Active BLE unlock succeeded
       stopPulse();
       setBtState('on');
-      setStatus('success');
       fetchMyGateEvents(15).then((events) => {
         setLogs((events ?? []).map(eventToLog));
       }).catch(() => {});
-      setTimeout(() => setStatus('idle'), 2500);
+      setStatus('idle');
+      navigation.navigate('AccessGranted', buildResultParams());
     } catch (err) {
       stopPulse();
       console.log('[BLE] autoUnlock error — code:', err.code, '| message:', err.message);
@@ -193,15 +227,15 @@ export default function AccessScreen({ navigation }) {
         setLogs(logMapped);
         if (passiveGranted) {
           setBtState('on');
-          setStatus('success');
-          setTimeout(() => setStatus('idle'), 2500);
+          setStatus('idle');
+          navigation.navigate('AccessGranted', buildResultParams());
         } else {
-          setStatus('denied');
-          setTimeout(() => setStatus('idle'), 2500);
+          setStatus('idle');
+          navigation.navigate('AccessDenied', buildResultParams('BLE authentication failed'));
         }
       } catch {
-        setStatus('denied');
-        setTimeout(() => setStatus('idle'), 2500);
+        setStatus('idle');
+        navigation.navigate('AccessDenied', buildResultParams('BLE authentication failed'));
       }
     }
   };
@@ -220,45 +254,34 @@ export default function AccessScreen({ navigation }) {
 
   // ── Derived display values ─────────────────────────────────────────────────
 
-  const getButtonColors = () => {
-    if (status === 'success') return ['#1B5E20', '#4CAF50'];
-    if (status === 'denied') return ['#7F0000', '#D32F2F'];
-    if (status === 'scanning') return ['#1A0800', COLORS.secondaryDark];
-    return [COLORS.secondaryDark, COLORS.secondary];
-  };
-
-  const getStatusMsg = () => {
-    if (status === 'scanning') return 'Searching for reader...';
-    if (status === 'success') return 'Access granted ✓';
-    if (status === 'denied') return 'Access denied – inactive membership';
-    return 'Tap to unlock';
-  };
-
-  const getStatusColor = () => {
-    if (status === 'success') return COLORS.success;
-    if (status === 'denied') return COLORS.error;
-    if (status === 'scanning') return COLORS.secondary;
-    return COLORS.textSecondary;
-  };
-
   const displayName = user?.fullName || `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim() || 'Member';
   const photoUrl = user?.profilePhotoUrl || null;
   const initials = displayName.charAt(0).toUpperCase();
   const shortId = user?.id ? user.id.split('-')[0].toUpperCase() : '------';
 
-  const planName = membership?.plan?.name ?? 'Member';
   const memStatus = membership?.membership?.status ?? 'inactive';
   const memActive = memStatus === 'active';
   const validTill = membership?.membership?.endDate ?? null;
 
+  const activeColor = mode === 'gate' ? COLORS.primary : COLORS.cyan;
+  const scanning = status === 'scanning';
+
+  const coreIcon = scanning
+    ? <MaterialCommunityIcons name="bluetooth-audio" size={34} color={activeColor} />
+    : mode === 'gate'
+      ? <Ionicons name="enter-outline" size={34} color={activeColor} />
+      : <Ionicons name="lock-open-outline" size={34} color={activeColor} />;
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+      {/* Purple radial glow from the bottom */}
       <LinearGradient
-        colors={['#1A0800', '#0D0D0D', '#0D0D0D']}
+        colors={['transparent', 'rgba(127,41,130,0.35)']}
         style={StyleSheet.absoluteFill}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 0.4 }}
+        start={{ x: 0.5, y: 0.4 }}
+        end={{ x: 0.5, y: 1 }}
+        pointerEvents="none"
       />
       <View style={styles.circle1} />
       <View style={styles.circle2} />
@@ -269,39 +292,39 @@ export default function AccessScreen({ navigation }) {
         {btState === 'off' ? (
           <View style={[styles.blePill, styles.blePillOff]}>
             <View style={[styles.bleDot, { backgroundColor: COLORS.error }]} />
-            <Text style={[styles.bleText, { color: COLORS.error }]}>BT Off</Text>
+            <Text style={[styles.bleText, { color: COLORS.error }]}>BT OFF</Text>
           </View>
         ) : (
           <View style={styles.blePill}>
             <View style={styles.bleDot} />
-            <Text style={styles.bleText}>BLE Ready</Text>
+            <Text style={styles.bleText}>BLE READY</Text>
           </View>
         )}
       </View>
 
-      {/* Member photo card */}
+      {/* Member card */}
       <View style={styles.memberCard}>
         <View style={styles.photoWrap}>
           {photoUrl ? (
             <Image source={{ uri: photoUrl }} style={styles.memberPhoto} />
           ) : (
-            <LinearGradient
-              colors={[COLORS.secondaryDark, '#2A1200']}
-              style={styles.memberPhotoPlaceholder}
-            >
-              <Text style={styles.memberPhotoInitial}>{initials}</Text>
+            <LinearGradient colors={['rgba(127,41,130,0.4)', COLORS.surface2]} style={styles.memberPhotoPlaceholder}>
+              <Ionicons name="person-circle-outline" size={36} color={COLORS.secondary} />
             </LinearGradient>
           )}
         </View>
         <View style={styles.memberCardInfo}>
-          <Text style={styles.memberCardName}>{displayName}</Text>
+          <View style={styles.memberCardTopRow}>
+            <Text style={styles.memberCardName}>{displayName}</Text>
+            {!membershipLoading && (
+              <View style={[styles.statusChip, memActive ? styles.statusChipActive : styles.statusChipInactive]}>
+                <Text style={[styles.statusChipText, { color: memActive ? GREEN : COLORS.error }]}>
+                  {memActive ? 'ACTIVE' : 'INACTIVE'}
+                </Text>
+              </View>
+            )}
+          </View>
           <Text style={styles.memberCardId}>ID: {shortId}</Text>
-          {!membershipLoading && (
-            <View style={styles.memberCardBadge}>
-              <View style={[styles.memStatusDot, { backgroundColor: memActive ? COLORS.success : COLORS.error }]} />
-              <Text style={styles.memberCardBadgeText}>{planName.toUpperCase()} MEMBER</Text>
-            </View>
-          )}
         </View>
       </View>
 
@@ -310,73 +333,29 @@ export default function AccessScreen({ navigation }) {
         contentContainerStyle={styles.scroll}
         keyboardShouldPersistTaps="handled"
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            tintColor={COLORS.secondary}
-            colors={[COLORS.secondary]}
-          />
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={COLORS.secondary} colors={[COLORS.secondary]} />
         }
       >
-        {/* Mode selector */}
-        <View style={styles.modeRow}>
-          {ACCESS_MODES.map((m) => (
-            <TouchableOpacity
-              key={m.id}
-              style={[styles.modeBtn, mode === m.id && styles.modeBtnActive]}
-              onPress={() => { if (status === 'idle') setMode(m.id); }}
-            >
-              <Ionicons
-                name={m.ionIcon}
-                size={20}
-                color={mode === m.id ? COLORS.secondary : COLORS.textMuted}
-              />
-              <Text style={[styles.modeBtnText, mode === m.id && styles.modeBtnTextActive]}>
-                {m.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* Description */}
-        <Text style={styles.modeDesc}>
-          {ACCESS_MODES.find((m) => m.id === mode)?.desc}
-        </Text>
-
-        {/* Big access button */}
-        <View style={styles.btnArea}>
-          <Animated.View
-            style={[
-              styles.pulseRing,
-              { transform: [{ scale: pulseAnim }], opacity: pulseOpacity },
-            ]}
+        {/* Precision dial */}
+        <View style={styles.dialArea}>
+          <AccessDial
+            leftLabel="GATE"
+            rightLabel="LOCKER"
+            leftColor={COLORS.primary}
+            rightColor={COLORS.cyan}
+            activeSide={mode === 'gate' ? 'left' : 'right'}
+            onLeftPress={() => { if (status === 'idle') setMode('gate'); }}
+            onRightPress={() => { if (status === 'idle') setMode('locker'); }}
+            onCorePress={handleAccess}
+            coreDisabled={status !== 'idle'}
+            coreIcon={coreIcon}
+            coreLabel={scanning ? 'Scanning…' : 'Tap to Unlock'}
+            coreAccent={activeColor}
+            scanning={scanning}
+            pulseScale={pulseAnim}
+            pulseOpacity={pulseOpacity}
           />
-          <TouchableOpacity
-            onPress={handleAccess}
-            activeOpacity={0.85}
-            disabled={status !== 'idle'}
-            style={styles.accessBtnOuter}
-          >
-            <LinearGradient colors={getButtonColors()} style={styles.accessBtn}>
-              {status === 'scanning' ? (
-                <MaterialCommunityIcons name="bluetooth-audio" size={52} color={COLORS.white} />
-              ) : status === 'success' ? (
-                <Ionicons name="checkmark-circle" size={56} color={COLORS.white} />
-              ) : status === 'denied' ? (
-                <Ionicons name="close-circle" size={56} color={COLORS.white} />
-              ) : mode === 'gate' ? (
-                <Ionicons name="enter-outline" size={52} color={COLORS.white} />
-              ) : (
-                <Ionicons name="lock-open-outline" size={52} color={COLORS.white} />
-              )}
-            </LinearGradient>
-          </TouchableOpacity>
         </View>
-
-        {/* Status text */}
-        <Text style={[styles.statusMsg, { color: getStatusColor() }]}>
-          {getStatusMsg()}
-        </Text>
 
         {/* Bluetooth off inline card */}
         {btState === 'off' && (
@@ -390,25 +369,22 @@ export default function AccessScreen({ navigation }) {
           </View>
         )}
 
-        {/* Membership status badge */}
+        {/* Membership footer */}
         {!membershipLoading && (
-          <View style={[
-            styles.memStatusBadge,
-            memActive ? styles.memActive : styles.memInactive,
-          ]}>
-            <View style={[styles.memStatusDot, { backgroundColor: memActive ? COLORS.success : COLORS.error }]} />
-            <Text style={[styles.memStatusText, { color: memActive ? COLORS.success : COLORS.error }]}>
-              Membership: {memStatus.toUpperCase()}
-            </Text>
+          <View style={styles.footer}>
+            <View style={styles.footerRow}>
+              <Ionicons name="shield-checkmark-outline" size={15} color={memActive ? GREEN : COLORS.error} />
+              <Text style={[styles.footerText, { color: memActive ? GREEN : COLORS.error }]}>
+                Membership: {memStatus.toUpperCase()}
+              </Text>
+            </View>
             {validTill && (
-              <Text style={styles.memExpiry}>
-                · Valid till {new Date(validTill).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+              <Text style={styles.footerSub}>
+                Valid until {new Date(validTill).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }).toUpperCase()}
               </Text>
             )}
           </View>
         )}
-
-        {/* Recent access log — hidden until iEventType mapping is verified */}
       </ScrollView>
     </View>
   );
@@ -418,118 +394,64 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   circle1: {
     position: 'absolute', width: 400, height: 400, borderRadius: 200,
-    backgroundColor: 'rgba(255,107,0,0.04)', top: -100, right: -100,
+    backgroundColor: 'rgba(127,41,130,0.05)', top: -100, right: -100,
   },
   circle2: {
     position: 'absolute', width: 300, height: 300, borderRadius: 150,
-    backgroundColor: 'rgba(255,107,0,0.03)', bottom: 50, left: -80,
+    backgroundColor: 'rgba(0,242,255,0.03)', bottom: 50, left: -80,
   },
 
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingTop: 56, paddingHorizontal: 24, paddingBottom: 8,
   },
-  headerTitle: { fontSize: 22, fontWeight: '900', color: COLORS.white },
+  headerTitle: { fontFamily: FONTS.headline, fontSize: 20, color: COLORS.textPrimary },
 
   blePill: {
-    flexDirection: 'row', alignItems: 'center', padding: 8, paddingHorizontal: 12,
-    backgroundColor: 'rgba(33,150,243,0.15)', borderRadius: 20,
-    borderWidth: 1, borderColor: 'rgba(33,150,243,0.3)', gap: 6,
+    flexDirection: 'row', alignItems: 'center', paddingVertical: 5, paddingHorizontal: 12,
+    backgroundColor: 'rgba(0,255,100,0.10)', borderRadius: 20,
+    borderWidth: 1, borderColor: 'rgba(0,255,100,0.20)', gap: 6,
   },
-  blePillOff: {
-    backgroundColor: 'rgba(211,47,47,0.12)',
-    borderColor: 'rgba(211,47,47,0.3)',
-  },
-  bleDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#2196F3' },
-  bleText: { fontSize: 11, fontWeight: '700', color: '#2196F3' },
+  blePillOff: { backgroundColor: 'rgba(244,67,54,0.12)', borderColor: 'rgba(244,67,54,0.30)' },
+  bleDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: GREEN },
+  bleText: { fontFamily: FONTS.label, fontSize: 10, color: GREEN, letterSpacing: 1 },
 
   memberCard: {
     flexDirection: 'row', alignItems: 'center', marginHorizontal: 24,
-    marginTop: 12, marginBottom: 4, backgroundColor: COLORS.surface,
-    borderRadius: 18, borderWidth: 1, borderColor: COLORS.border, padding: 14, gap: 16,
+    marginTop: 16, marginBottom: 4, backgroundColor: COLORS.glass,
+    borderRadius: 16, borderWidth: 1, borderColor: COLORS.glassBorder, padding: 14, gap: 14,
   },
   photoWrap: {},
-  memberPhoto: { width: 62, height: 62, borderRadius: 18 },
+  memberPhoto: { width: 56, height: 56, borderRadius: 28 },
   memberPhotoPlaceholder: {
-    width: 62, height: 62, borderRadius: 18, alignItems: 'center', justifyContent: 'center',
+    width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: COLORS.glassBorder,
   },
-  memberPhotoInitial: { fontSize: 28, fontWeight: '900', color: COLORS.white },
   memberCardInfo: { flex: 1 },
-  memberCardName: { fontSize: 16, fontWeight: '800', color: COLORS.white, marginBottom: 3 },
-  memberCardId: { fontSize: 11, color: COLORS.textMuted, fontWeight: '600', marginBottom: 6 },
-  memberCardBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start',
-    backgroundColor: COLORS.secondaryGlow, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3,
-    borderWidth: 1, borderColor: COLORS.secondaryBorder,
-  },
-  memberCardBadgeText: { fontSize: 9, fontWeight: '800', color: COLORS.secondary, letterSpacing: 1 },
-  memStatusDot: { width: 8, height: 8, borderRadius: 4 },
+  memberCardTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  memberCardName: { fontFamily: FONTS.headline, fontSize: 17, color: COLORS.textPrimary },
+  memberCardId: { fontFamily: FONTS.body, fontSize: 12, color: COLORS.textSecondary, letterSpacing: 1, marginTop: 2 },
+  statusChip: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, borderWidth: 1 },
+  statusChipActive: { backgroundColor: 'rgba(0,255,100,0.15)', borderColor: 'rgba(0,255,100,0.30)' },
+  statusChipInactive: { backgroundColor: 'rgba(244,67,54,0.12)', borderColor: 'rgba(244,67,54,0.30)' },
+  statusChipText: { fontFamily: FONTS.label, fontSize: 9, letterSpacing: 1 },
 
-  scroll: { paddingBottom: 40 },
-
-  modeRow: { flexDirection: 'row', paddingHorizontal: 24, gap: 12, marginTop: 20, marginBottom: 10 },
-  modeBtn: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    paddingVertical: 12, borderRadius: 14, backgroundColor: COLORS.surface,
-    borderWidth: 1, borderColor: COLORS.border, gap: 8,
-  },
-  modeBtnActive: { borderColor: COLORS.secondary, backgroundColor: COLORS.secondaryGlow },
-  modeBtnText: { fontSize: 14, fontWeight: '700', color: COLORS.textMuted },
-  modeBtnTextActive: { color: COLORS.secondary },
-  modeDesc: {
-    fontSize: 13, color: COLORS.textMuted, textAlign: 'center',
-    paddingHorizontal: 36, lineHeight: 18, marginBottom: 32,
-  },
-
-  btnArea: { alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
-  pulseRing: {
-    position: 'absolute', width: 200, height: 200, borderRadius: 100,
-    backgroundColor: COLORS.secondaryGlow, borderWidth: 2, borderColor: COLORS.secondary,
-  },
-  accessBtnOuter: { borderRadius: 90, overflow: 'hidden' },
-  accessBtn: {
-    width: 160, height: 160, borderRadius: 80,
-    alignItems: 'center', justifyContent: 'center',
-  },
-
-  statusMsg: { textAlign: 'center', fontSize: 15, fontWeight: '700', marginBottom: 20 },
+  scroll: { paddingBottom: 40, paddingTop: 24 },
+  dialArea: { alignItems: 'center', marginBottom: 24 },
 
   btOffCard: {
     marginHorizontal: 24, marginBottom: 20,
-    backgroundColor: 'rgba(211,47,47,0.08)', borderRadius: 16,
-    borderWidth: 1, borderColor: 'rgba(211,47,47,0.25)',
+    backgroundColor: 'rgba(244,67,54,0.08)', borderRadius: 16,
+    borderWidth: 1, borderColor: 'rgba(244,67,54,0.25)',
     padding: 18, alignItems: 'center',
   },
-  btOffTitle: { fontSize: 15, fontWeight: '800', color: COLORS.error, marginBottom: 4 },
-  btOffSub: { fontSize: 13, color: COLORS.textMuted, textAlign: 'center', marginBottom: 14 },
-  btSettingsBtn: {
-    backgroundColor: COLORS.error, borderRadius: 12,
-    paddingHorizontal: 20, paddingVertical: 10,
-  },
-  btSettingsBtnText: { fontSize: 13, fontWeight: '800', color: COLORS.white },
+  btOffTitle: { fontFamily: FONTS.bodyBold, fontSize: 15, color: COLORS.error, marginBottom: 4 },
+  btOffSub: { fontFamily: FONTS.body, fontSize: 13, color: COLORS.textMuted, textAlign: 'center', marginBottom: 14 },
+  btSettingsBtn: { backgroundColor: COLORS.error, borderRadius: 12, paddingHorizontal: 20, paddingVertical: 10 },
+  btSettingsBtnText: { fontFamily: FONTS.bodyBold, fontSize: 13, color: COLORS.white },
 
-  memStatusBadge: {
-    flexDirection: 'row', alignItems: 'center', alignSelf: 'center',
-    paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, gap: 6,
-    marginBottom: 32, borderWidth: 1,
-  },
-  memActive: { backgroundColor: COLORS.successLight, borderColor: `${COLORS.success}44` },
-  memInactive: { backgroundColor: COLORS.errorLight, borderColor: `${COLORS.error}44` },
-  memStatusText: { fontSize: 13, fontWeight: '700' },
-  memExpiry: { fontSize: 12, color: COLORS.textMuted },
-
-  logSection: { paddingHorizontal: 24 },
-  logTitle: {
-    fontSize: 12, fontWeight: '700', color: COLORS.textMuted, letterSpacing: 1.5,
-    marginBottom: 12, textTransform: 'uppercase',
-  },
-  logEmpty: { fontSize: 13, color: COLORS.textMuted, textAlign: 'center', paddingVertical: 16 },
-  logItem: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.surface,
-    borderRadius: 10, borderWidth: 1, borderColor: COLORS.border,
-    padding: 12, marginBottom: 8, gap: 10,
-  },
-  logDot: { width: 8, height: 8, borderRadius: 4 },
-  logText: { flex: 1, fontSize: 13, color: COLORS.textSecondary, fontWeight: '500' },
-  logTime: { fontSize: 11, color: COLORS.textMuted, fontWeight: '600' },
+  footer: { alignItems: 'center', gap: 6, marginTop: 8 },
+  footerRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  footerText: { fontFamily: FONTS.label, fontSize: 10, letterSpacing: 1.5 },
+  footerSub: { fontFamily: FONTS.label, fontSize: 10, color: COLORS.textMuted, letterSpacing: 1, opacity: 0.5 },
 });

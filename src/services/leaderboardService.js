@@ -11,7 +11,7 @@ import api from './apiService';
  * @returns {{ month, year, top10, myRank, totalParticipants }}
  */
 export async function getLeaderboard() {
-  const { data } = await api.get('/api/leaderboard');
+  const { data } = await api.get('/leaderboard');
   return data.data;
 }
 
@@ -20,7 +20,7 @@ export async function getLeaderboard() {
  * @returns {{ month, year, optedIn, attendance, currentStreak, longestStreak, totalVolume, rank, score, totalParticipants }}
  */
 export async function getMyLeaderboardStats() {
-  const { data } = await api.get('/api/leaderboard/my-stats');
+  const { data } = await api.get('/leaderboard/my-stats');
   return data.data;
 }
 
@@ -30,7 +30,7 @@ export async function getMyLeaderboardStats() {
  * @returns {Array<{ month, year, winners }>}
  */
 export async function getHallOfFame(page = 0) {
-  const { data } = await api.get('/api/leaderboard/hall-of-fame', {
+  const { data } = await api.get('/leaderboard/hall-of-fame', {
     params: { limit: 6, offset: page * 6 },
   });
   return data.data;

@@ -17,13 +17,26 @@ import { fetchMyMembership } from '../../services/membershipService';
 import { getSocket } from '../../services/socketService';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../../constants/colors';
+import { COLORS as THEME, FONTS } from '../../theme';
 import { useAuthStore } from '../../store/authStore';
 import { logEvent } from '../../services/analyticsService';
+import AccessDial from '../../components/AccessDial';
 
+// Theme-compat: legacy colour keys → new "Holographic Noir" palette.
+const COLORS = {
+  background: '#050405', surface: '#1B191E', surface2: THEME.surface2,
+  secondary: THEME.primaryLight, secondaryDark: THEME.primary, secondaryGlow: THEME.primarySoft, secondaryBorder: THEME.primaryBorder,
+  primary: THEME.primary, cyan: '#00F2FF',
+  success: THEME.success, successLight: THEME.successSoft, error: '#F44336', errorLight: 'rgba(244,67,54,0.12)',
+  textPrimary: THEME.textPrimary, textSecondary: THEME.textSecondary, textMuted: THEME.textMuted,
+  border: THEME.border, glass: 'rgba(255,255,255,0.05)', glassBorder: 'rgba(255,255,255,0.08)',
+  white: THEME.white,
+};
+
+const GREEN = '#00FF64';
 const COOLDOWN_MS = 2 * 60 * 1000; // 2 minutes
 
-export default function PresenceScreen() {
+export default function PresenceScreen({ navigation }) {
   const user = useAuthStore((s) => s.user);
 
   const [myStatus, setMyStatus] = useState('out'); // 'in' | 'out'
@@ -181,14 +194,6 @@ export default function PresenceScreen() {
 
   const isCheckingIn = myStatus === 'out';
 
-  const getButtonColors = () => {
-    if (actionStatus === 'success') return ['#1B5E20', '#4CAF50'];
-    if (actionStatus === 'error') return ['#7F0000', '#D32F2F'];
-    if (actionStatus === 'loading') return ['#1A0800', COLORS.secondaryDark];
-    if (!isCheckingIn) return ['#1B5E20', '#388E3C']; // green when checked in
-    return [COLORS.secondaryDark, COLORS.secondary];
-  };
-
   const getStatusMsg = () => {
     if (cooldownUntil && actionStatus === 'idle') return `Wait ${cooldownSecs}s before next tap`;
     if (actionStatus === 'loading') return isCheckingIn ? 'Checking in...' : 'Checking out...';
@@ -210,21 +215,38 @@ export default function PresenceScreen() {
 
   const displayName = user?.fullName || `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim() || 'Member';
   const photoUrl = user?.profilePhotoUrl || null;
-  const initials = displayName.charAt(0).toUpperCase();
   const shortId = user?.id ? user.id.split('-')[0].toUpperCase() : '------';
 
-  const planName = membership?.plan?.name ?? 'Member';
   const memStatus = membership?.membership?.status ?? 'inactive';
   const memActive = memStatus === 'active';
+
+  // Action-available colour: check-in = lavender, check-out = green.
+  const coreAccent = isCheckingIn ? COLORS.secondary : COLORS.success;
+
+  const coreIcon = actionStatus === 'loading'
+    ? <ActivityIndicator size="small" color={coreAccent} />
+    : actionStatus === 'success'
+      ? <Ionicons name="checkmark-circle" size={34} color={COLORS.success} />
+      : actionStatus === 'error'
+        ? <Ionicons name="close-circle" size={34} color={COLORS.error} />
+        : myStatus === 'in'
+          ? <Ionicons name="exit-outline" size={34} color={coreAccent} />
+          : <Ionicons name="enter-outline" size={34} color={coreAccent} />;
+
+  const coreLabel = actionStatus === 'loading'
+    ? (isCheckingIn ? 'Checking In…' : 'Checking Out…')
+    : (isCheckingIn ? 'Tap to Check In' : 'Tap to Check Out');
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+      {/* Purple radial glow from the bottom */}
       <LinearGradient
-        colors={['#1A0800', '#0D0D0D', '#0D0D0D']}
+        colors={['transparent', 'rgba(127,41,130,0.35)']}
         style={StyleSheet.absoluteFill}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 0.4 }}
+        start={{ x: 0.5, y: 0.4 }}
+        end={{ x: 0.5, y: 1 }}
+        pointerEvents="none"
       />
       <View style={styles.circle1} />
       <View style={styles.circle2} />
@@ -232,37 +254,44 @@ export default function PresenceScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Gym Presence</Text>
-        <View style={[styles.countPill, myStatus === 'in' && styles.countPillIn]}>
-          <View style={[styles.countDot, { backgroundColor: myStatus === 'in' ? COLORS.success : COLORS.textMuted }]} />
-          <Text style={[styles.countPillText, { color: myStatus === 'in' ? COLORS.success : COLORS.textMuted }]}>
-            {count} IN GYM
-          </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          {/* TEMP: entry point to the real Access Control screen (remove once wired into the flow) */}
+          <TouchableOpacity style={styles.liveChip} onPress={() => navigation?.navigate('AccessControl')} hitSlop={6}>
+            <Ionicons name="flash-outline" size={12} color={COLORS.cyan} />
+            <Text style={styles.liveChipText}>LIVE</Text>
+          </TouchableOpacity>
+          <View style={[styles.countPill, myStatus === 'in' && styles.countPillIn]}>
+            <View style={[styles.countDot, { backgroundColor: myStatus === 'in' ? GREEN : COLORS.textMuted }]} />
+            <Text style={[styles.countPillText, { color: myStatus === 'in' ? GREEN : COLORS.textMuted }]}>
+              {count} IN GYM
+            </Text>
+          </View>
         </View>
       </View>
 
-      {/* Member photo card */}
+      {/* Member card */}
       <View style={styles.memberCard}>
         <View style={styles.photoWrap}>
           {photoUrl ? (
             <Image source={{ uri: photoUrl }} style={styles.memberPhoto} />
           ) : (
-            <LinearGradient
-              colors={[COLORS.secondaryDark, '#2A1200']}
-              style={styles.memberPhotoPlaceholder}
-            >
-              <Text style={styles.memberPhotoInitial}>{initials}</Text>
+            <LinearGradient colors={['rgba(127,41,130,0.4)', COLORS.surface2]} style={styles.memberPhotoPlaceholder}>
+              <Ionicons name="person-circle-outline" size={36} color={COLORS.secondary} />
             </LinearGradient>
           )}
         </View>
         <View style={styles.memberCardInfo}>
-          <Text style={styles.memberCardName}>{displayName}</Text>
+          <View style={styles.memberCardTopRow}>
+            <Text style={styles.memberCardName}>{displayName}</Text>
+            {!membershipLoading && (
+              <View style={[styles.statusChip, memActive ? styles.statusChipActive : styles.statusChipInactive]}>
+                <Text style={[styles.statusChipText, { color: memActive ? GREEN : COLORS.error }]}>
+                  {memActive ? 'ACTIVE' : 'INACTIVE'}
+                </Text>
+              </View>
+            )}
+          </View>
           <Text style={styles.memberCardId}>ID: {shortId}</Text>
-          {!membershipLoading && (
-            <View style={styles.memberCardBadge}>
-              <View style={[styles.memStatusDot, { backgroundColor: memActive ? COLORS.success : COLORS.error }]} />
-              <Text style={styles.memberCardBadgeText}>{planName.toUpperCase()} MEMBER</Text>
-            </View>
-          )}
         </View>
       </View>
 
@@ -271,55 +300,30 @@ export default function PresenceScreen() {
         contentContainerStyle={styles.scroll}
         keyboardShouldPersistTaps="handled"
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            tintColor={COLORS.secondary}
-            colors={[COLORS.secondary]}
-          />
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={COLORS.secondary} colors={[COLORS.secondary]} />
         }
       >
-        {/* Status description */}
-        <Text style={styles.modeDesc}>
-          {myStatus === 'in'
-            ? 'You are currently checked in. Tap the button when you leave.'
-            : 'Tap the button below to check in when you arrive at the gym.'}
-        </Text>
-
-        {/* Big tap button */}
-        <View style={styles.btnArea}>
-          <Animated.View
-            style={[
-              styles.pulseRing,
-              { transform: [{ scale: pulseAnim }], opacity: pulseOpacity },
-            ]}
+        {/* Precision dial — arc is a CHECK IN / CHECK OUT status indicator */}
+        <View style={styles.dialArea}>
+          <AccessDial
+            leftLabel="CHECK IN"
+            rightLabel="CHECK OUT"
+            leftColor={COLORS.secondary}
+            rightColor={COLORS.success}
+            activeSide={isCheckingIn ? 'left' : 'right'}
+            onCorePress={handleTap}
+            coreDisabled={isButtonDisabled}
+            coreIcon={coreIcon}
+            coreLabel={coreLabel}
+            coreAccent={coreAccent}
+            scanning={actionStatus === 'loading'}
+            pulseScale={pulseAnim}
+            pulseOpacity={pulseOpacity}
           />
-          <TouchableOpacity
-            onPress={handleTap}
-            activeOpacity={0.85}
-            disabled={isButtonDisabled}
-            style={styles.accessBtnOuter}
-          >
-            <LinearGradient colors={getButtonColors()} style={styles.accessBtn}>
-              {actionStatus === 'loading' ? (
-                <ActivityIndicator size="large" color={COLORS.white} />
-              ) : actionStatus === 'success' ? (
-                <Ionicons name="checkmark-circle" size={56} color={COLORS.white} />
-              ) : actionStatus === 'error' ? (
-                <Ionicons name="close-circle" size={56} color={COLORS.white} />
-              ) : myStatus === 'in' ? (
-                <Ionicons name="exit-outline" size={52} color={COLORS.white} />
-              ) : (
-                <Ionicons name="enter-outline" size={52} color={COLORS.white} />
-              )}
-            </LinearGradient>
-          </TouchableOpacity>
         </View>
 
         {/* Status text */}
-        <Text style={[styles.statusMsg, { color: getStatusColor() }]}>
-          {getStatusMsg()}
-        </Text>
+        <Text style={[styles.statusMsg, { color: getStatusColor() }]}>{getStatusMsg()}</Text>
 
         {/* Live count card */}
         <View style={styles.liveCard}>
@@ -342,24 +346,23 @@ export default function PresenceScreen() {
             <Ionicons
               name={myStatus === 'in' ? 'checkmark-circle' : 'ellipse-outline'}
               size={14}
-              color={myStatus === 'in' ? COLORS.success : COLORS.textMuted}
+              color={myStatus === 'in' ? GREEN : COLORS.textMuted}
             />
-            <Text style={[styles.myStatusText, { color: myStatus === 'in' ? COLORS.success : COLORS.textMuted }]}>
+            <Text style={[styles.myStatusText, { color: myStatus === 'in' ? GREEN : COLORS.textMuted }]}>
               {myStatus === 'in' ? 'YOU\'RE IN' : 'YOU\'RE OUT'}
             </Text>
           </View>
         </View>
 
-        {/* Membership status */}
+        {/* Membership footer */}
         {!membershipLoading && (
-          <View style={[
-            styles.memStatusBadge,
-            memActive ? styles.memActive : styles.memInactive,
-          ]}>
-            <View style={[styles.memStatusDot, { backgroundColor: memActive ? COLORS.success : COLORS.error }]} />
-            <Text style={[styles.memStatusText, { color: memActive ? COLORS.success : COLORS.error }]}>
-              Membership: {memStatus.toUpperCase()}
-            </Text>
+          <View style={styles.footer}>
+            <View style={styles.footerRow}>
+              <Ionicons name="shield-checkmark-outline" size={15} color={memActive ? GREEN : COLORS.error} />
+              <Text style={[styles.footerText, { color: memActive ? GREEN : COLORS.error }]}>
+                Membership: {memStatus.toUpperCase()}
+              </Text>
+            </View>
           </View>
         )}
       </ScrollView>
@@ -371,77 +374,63 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   circle1: {
     position: 'absolute', width: 400, height: 400, borderRadius: 200,
-    backgroundColor: 'rgba(255,107,0,0.04)', top: -100, right: -100,
+    backgroundColor: 'rgba(127,41,130,0.05)', top: -100, right: -100,
   },
   circle2: {
     position: 'absolute', width: 300, height: 300, borderRadius: 150,
-    backgroundColor: 'rgba(255,107,0,0.03)', bottom: 50, left: -80,
+    backgroundColor: 'rgba(0,242,255,0.03)', bottom: 50, left: -80,
   },
 
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingTop: 56, paddingHorizontal: 24, paddingBottom: 8,
   },
-  headerTitle: { fontSize: 22, fontWeight: '900', color: COLORS.white },
+  headerTitle: { fontFamily: FONTS.headline, fontSize: 20, color: COLORS.textPrimary },
+
+  liveChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingVertical: 5, paddingHorizontal: 10, borderRadius: 20,
+    backgroundColor: 'rgba(0,242,255,0.08)', borderWidth: 1, borderColor: 'rgba(0,242,255,0.25)',
+  },
+  liveChipText: { fontFamily: FONTS.label, fontSize: 9, color: COLORS.cyan, letterSpacing: 1 },
 
   countPill: {
-    flexDirection: 'row', alignItems: 'center', padding: 8, paddingHorizontal: 12,
-    backgroundColor: 'rgba(102,102,102,0.12)', borderRadius: 20,
-    borderWidth: 1, borderColor: 'rgba(102,102,102,0.25)', gap: 6,
+    flexDirection: 'row', alignItems: 'center', paddingVertical: 5, paddingHorizontal: 12,
+    backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 20,
+    borderWidth: 1, borderColor: COLORS.glassBorder, gap: 6,
   },
-  countPillIn: {
-    backgroundColor: 'rgba(76,175,80,0.12)',
-    borderColor: 'rgba(76,175,80,0.3)',
-  },
-  countDot: { width: 7, height: 7, borderRadius: 4 },
-  countPillText: { fontSize: 11, fontWeight: '700' },
+  countPillIn: { backgroundColor: 'rgba(0,255,100,0.10)', borderColor: 'rgba(0,255,100,0.30)' },
+  countDot: { width: 6, height: 6, borderRadius: 3 },
+  countPillText: { fontFamily: FONTS.label, fontSize: 10, letterSpacing: 0.5 },
 
   memberCard: {
     flexDirection: 'row', alignItems: 'center', marginHorizontal: 24,
-    marginTop: 12, marginBottom: 4, backgroundColor: COLORS.surface,
-    borderRadius: 18, borderWidth: 1, borderColor: COLORS.border, padding: 14, gap: 16,
+    marginTop: 16, marginBottom: 4, backgroundColor: COLORS.glass,
+    borderRadius: 16, borderWidth: 1, borderColor: COLORS.glassBorder, padding: 14, gap: 14,
   },
   photoWrap: {},
-  memberPhoto: { width: 62, height: 62, borderRadius: 18 },
+  memberPhoto: { width: 56, height: 56, borderRadius: 28 },
   memberPhotoPlaceholder: {
-    width: 62, height: 62, borderRadius: 18, alignItems: 'center', justifyContent: 'center',
+    width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: COLORS.glassBorder,
   },
-  memberPhotoInitial: { fontSize: 28, fontWeight: '900', color: COLORS.white },
   memberCardInfo: { flex: 1 },
-  memberCardName: { fontSize: 16, fontWeight: '800', color: COLORS.white, marginBottom: 3 },
-  memberCardId: { fontSize: 11, color: COLORS.textMuted, fontWeight: '600', marginBottom: 6 },
-  memberCardBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start',
-    backgroundColor: COLORS.secondaryGlow, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3,
-    borderWidth: 1, borderColor: COLORS.secondaryBorder,
-  },
-  memberCardBadgeText: { fontSize: 9, fontWeight: '800', color: COLORS.secondary, letterSpacing: 1 },
-  memStatusDot: { width: 8, height: 8, borderRadius: 4 },
+  memberCardTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  memberCardName: { fontFamily: FONTS.headline, fontSize: 17, color: COLORS.textPrimary },
+  memberCardId: { fontFamily: FONTS.body, fontSize: 12, color: COLORS.textSecondary, letterSpacing: 1, marginTop: 2 },
+  statusChip: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, borderWidth: 1 },
+  statusChipActive: { backgroundColor: 'rgba(0,255,100,0.15)', borderColor: 'rgba(0,255,100,0.30)' },
+  statusChipInactive: { backgroundColor: 'rgba(244,67,54,0.12)', borderColor: 'rgba(244,67,54,0.30)' },
+  statusChipText: { fontFamily: FONTS.label, fontSize: 9, letterSpacing: 1 },
 
-  scroll: { paddingBottom: 40 },
-
-  modeDesc: {
-    fontSize: 13, color: COLORS.textMuted, textAlign: 'center',
-    paddingHorizontal: 36, lineHeight: 18, marginTop: 20, marginBottom: 32,
-  },
-
-  btnArea: { alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
-  pulseRing: {
-    position: 'absolute', width: 200, height: 200, borderRadius: 100,
-    backgroundColor: COLORS.secondaryGlow, borderWidth: 2, borderColor: COLORS.secondary,
-  },
-  accessBtnOuter: { borderRadius: 90, overflow: 'hidden' },
-  accessBtn: {
-    width: 160, height: 160, borderRadius: 80,
-    alignItems: 'center', justifyContent: 'center',
-  },
-
-  statusMsg: { textAlign: 'center', fontSize: 15, fontWeight: '700', marginBottom: 24 },
+  scroll: { paddingBottom: 40, paddingTop: 24 },
+  dialArea: { alignItems: 'center', marginBottom: 12 },
+  statusMsg: { textAlign: 'center', fontFamily: FONTS.bodyBold, fontSize: 14, marginBottom: 24 },
 
   liveCard: {
     marginHorizontal: 24, marginBottom: 20,
-    backgroundColor: COLORS.surface, borderRadius: 18,
-    borderWidth: 1, borderColor: COLORS.border,
+    backgroundColor: COLORS.glass, borderRadius: 18,
+    borderWidth: 1, borderColor: COLORS.glassBorder,
     padding: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
   },
   liveCardLeft: { flexDirection: 'row', alignItems: 'center', gap: 14 },
@@ -451,26 +440,21 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: COLORS.secondaryBorder,
   },
   liveLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 3 },
-  liveDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#22C55E' },
-  liveLabel: { fontSize: 9, fontWeight: '700', color: COLORS.textMuted, letterSpacing: 2 },
+  liveDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: GREEN },
+  liveLabel: { fontFamily: FONTS.label, fontSize: 9, color: COLORS.textMuted, letterSpacing: 2 },
   liveValueRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6 },
-  liveValue: { fontSize: 28, fontWeight: '900', color: COLORS.white },
-  liveUnit: { fontSize: 13, fontWeight: '500', color: COLORS.textSecondary },
+  liveValue: { fontFamily: FONTS.headline, fontSize: 26, color: COLORS.white },
+  liveUnit: { fontFamily: FONTS.body, fontSize: 13, color: COLORS.textSecondary },
 
   myStatusBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
     paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12, borderWidth: 1,
   },
-  myStatusIn: { backgroundColor: 'rgba(76,175,80,0.1)', borderColor: 'rgba(76,175,80,0.3)' },
-  myStatusOut: { backgroundColor: 'rgba(102,102,102,0.1)', borderColor: 'rgba(102,102,102,0.25)' },
-  myStatusText: { fontSize: 11, fontWeight: '800', letterSpacing: 0.5 },
+  myStatusIn: { backgroundColor: 'rgba(0,255,100,0.10)', borderColor: 'rgba(0,255,100,0.30)' },
+  myStatusOut: { backgroundColor: 'rgba(255,255,255,0.05)', borderColor: COLORS.glassBorder },
+  myStatusText: { fontFamily: FONTS.label, fontSize: 10, letterSpacing: 0.5 },
 
-  memStatusBadge: {
-    flexDirection: 'row', alignItems: 'center', alignSelf: 'center',
-    paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, gap: 6,
-    marginBottom: 32, borderWidth: 1,
-  },
-  memActive: { backgroundColor: COLORS.successLight, borderColor: `${COLORS.success}44` },
-  memInactive: { backgroundColor: COLORS.errorLight, borderColor: `${COLORS.error}44` },
-  memStatusText: { fontSize: 13, fontWeight: '700' },
+  footer: { alignItems: 'center', gap: 6, marginTop: 4 },
+  footerRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  footerText: { fontFamily: FONTS.label, fontSize: 10, letterSpacing: 1.5 },
 });

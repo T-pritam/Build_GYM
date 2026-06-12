@@ -7,6 +7,8 @@ import {
   StatusBar,
   Dimensions,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { COLORS, FONTS, GRADIENTS } from '../../theme';
 import { useAuthStore } from '../../store/authStore';
 import { consumeColdStartData, handleNotificationData } from '../../services/notificationService';
 
@@ -62,7 +64,7 @@ function BuildLogoMark({ size = LOGO }) {
         <Dumbbell rotation="90deg" size={size * 0.85} />
       </View>
       {/* Center knot */}
-      <View style={{ position: 'absolute', width: size * 0.085, height: size * 0.085, borderRadius: size * 0.042, backgroundColor: '#000' }} />
+      <View style={{ position: 'absolute', width: size * 0.085, height: size * 0.085, borderRadius: size * 0.042, backgroundColor: COLORS.background }} />
     </View>
   );
 }
@@ -110,10 +112,16 @@ export default function SplashScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#000" />
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
 
-      {/* Subtle center glow */}
-      <View style={styles.glow} />
+      {/* Holographic center glow */}
+      <LinearGradient
+        colors={['rgba(127,41,130,0.22)', 'rgba(6,182,212,0.06)', 'transparent']}
+        style={styles.glow}
+        start={{ x: 0.5, y: 0.5 }}
+        end={{ x: 1, y: 1 }}
+        pointerEvents="none"
+      />
 
       {/* Logo mark + brand name */}
       <Animated.View
@@ -124,7 +132,7 @@ export default function SplashScreen({ navigation }) {
         {/* "BUILD" word-mark */}
         <Text style={styles.brandName}>BUILD</Text>
 
-        {/* Divider line */}
+        {/* Divider line — holographic gradient */}
         <Animated.View
           style={[
             styles.divider,
@@ -135,7 +143,14 @@ export default function SplashScreen({ navigation }) {
               }),
             },
           ]}
-        />
+        >
+          <LinearGradient
+            colors={GRADIENTS.violetCyan}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={StyleSheet.absoluteFill}
+          />
+        </Animated.View>
       </Animated.View>
 
       {/* Tagline */}
@@ -154,18 +169,17 @@ export default function SplashScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: COLORS.background,
     alignItems: 'center',
     justifyContent: 'center',
   },
   glow: {
     position: 'absolute',
-    width: 420,
-    height: 420,
-    borderRadius: 210,
-    backgroundColor: 'rgba(255,107,0,0.05)',
+    width: 460,
+    height: 460,
+    borderRadius: 230,
     alignSelf: 'center',
-    top: height * 0.5 - 210,
+    top: height * 0.5 - 230,
   },
   logoWrap: {
     alignItems: 'center',
@@ -178,29 +192,30 @@ const styles = StyleSheet.create({
     position: 'absolute',
   },
   brandName: {
-    fontSize: 52,
-    fontWeight: '900',
-    color: '#FFFFFF',
+    fontFamily: FONTS.display,
+    fontSize: 50,
+    color: COLORS.white,
     letterSpacing: 14,
     marginTop: 8,
   },
   divider: {
     height: 2,
-    backgroundColor: '#FF6B00',
     borderRadius: 2,
+    overflow: 'hidden',
   },
   tagline: {
+    fontFamily: FONTS.label,
     fontSize: 10,
-    fontWeight: '700',
-    color: '#FF6B00',
+    color: COLORS.primaryLight,
     letterSpacing: 3,
     marginTop: 22,
   },
   footer: {
     position: 'absolute',
     bottom: 44,
+    fontFamily: FONTS.body,
     fontSize: 11,
-    color: '#444444',
+    color: 'rgba(255,255,255,0.25)',
     letterSpacing: 1,
   },
 });

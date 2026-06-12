@@ -1,14 +1,27 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  StatusBar, Image, Linking, Alert, ActivityIndicator,
+  StatusBar, Image, Linking, Alert, ActivityIndicator, Animated, PanResponder,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../../constants/colors';
+import { LinearGradient } from 'expo-linear-gradient';
+import { COLORS as THEME, FONTS } from '../../theme';
 import SafeBottomBar from '../../components/SafeBottomBar';
-import { requestTrialSession, checkTrainerTrialStatus, fetchTrainers } from '../../services/trainerService';
+import {
+  requestTrialSession, checkTrainerTrialStatus, fetchTrainers, fetchMyTrainer,
+} from '../../services/trainerService';
 import { logEvent } from '../../services/analyticsService';
 
+// Theme-compat: legacy colour keys → new "Holographic Noir" palette.
+const COLORS = {
+  background: '#0B0B14', surface: '#1A1A2E', surface2: '#2A2A42',
+  secondary: THEME.primaryLight, secondaryBorder: THEME.primaryBorder, primary: THEME.primary, primaryBright: THEME.primaryBright, cyan: THEME.cyan,
+  textPrimary: THEME.textPrimary, textSecondary: THEME.textSecondary, textMuted: THEME.textMuted,
+  border: 'rgba(255,255,255,0.10)', glass: 'rgba(255,255,255,0.04)', glassBorder: 'rgba(255,255,255,0.08)',
+  white: THEME.white,
+};
+
+const GOLD_GRADIENT = ['#FFD700', '#FFC200'];
 const RECEPTION_PHONE = '+919876543210';
 
 const WHAT_TO_EXPECT = [
@@ -17,44 +30,94 @@ const WHAT_TO_EXPECT = [
   { title: 'Weekly Check-ins:', body: 'Constant monitoring of progress and diet adjustments as your body adapts.' },
 ];
 
+// Rotating accent palette for the specialisation pills.
+const PILL_STYLES = [
+  { bg: 'rgba(127,41,130,0.20)', color: COLORS.primaryBright, border: 'rgba(124,58,237,0.35)' },
+  { bg: 'rgba(6,182,212,0.12)', color: COLORS.cyan, border: 'rgba(6,182,212,0.30)' },
+  { bg: 'rgba(255,255,255,0.05)', color: COLORS.textPrimary, border: 'rgba(255,255,255,0.12)' },
+];
+
 export default function TrainerDetailScreen({ navigation, route }) {
-  const { trainer, isMyTrainer = false } = route.params || {};
+  const [list, setList] = useState(route.params?.trainerList?.length ? route.params.trainerList : []);
+  const [currentIndex, setCurrentIndex] = useState(route.params?.index ?? 0);
+  const [assignedTrainerId, setAssignedTrainerId] = useState(null);
   const [requesting, setRequesting] = useState(false);
   // null = no active trial | 'pending' | 'accepted' | 'member_confirmed'
   const [trialStatus, setTrialStatus] = useState(null);
-  const [fetchedTrainer, setFetchedTrainer] = useState(null);
 
-  const resolvedTrainer = trainer || fetchedTrainer;
+  const listRef = useRef(list);
+  const fade = useRef(new Animated.Value(1)).current;
 
-  // Deeplink support: fetch by ID when navigated without a full trainer object
+  const current = list[currentIndex] || null;
+
+  // ── Resolve the trainer list + starting index (params or fetch / deeplink) ──
   useEffect(() => {
-    const trainerId = route.params?.trainerId;
-    if (!trainer && trainerId) {
-      fetchTrainers()
-        .then(list => {
-          const found = list.find(t => t.id === trainerId);
-          if (found) setFetchedTrainer(found);
-        })
-        .catch(() => {});
-    }
+    let mounted = true;
+    (async () => {
+      let l = route.params?.trainerList;
+      if (!l || l.length === 0) {
+        try { l = await fetchTrainers(); } catch { l = []; }
+      }
+      if ((!l || !l.length) && route.params?.trainer) l = [route.params.trainer];
+      l = l || [];
+
+      let idx = route.params?.index;
+      if (idx == null) {
+        const tid = route.params?.trainer?.id ?? route.params?.trainerId;
+        const found = l.findIndex((t) => t.id === tid);
+        idx = found >= 0 ? found : 0;
+      }
+      if (mounted) {
+        listRef.current = l;
+        setList(l);
+        setCurrentIndex(idx);
+      }
+    })();
+
+    fetchMyTrainer()
+      .then((t) => mounted && setAssignedTrainerId(t?.id ?? null))
+      .catch(() => {});
+
+    return () => { mounted = false; };
   }, []);
 
+  useEffect(() => { listRef.current = list; }, [list]);
+
+  // Per-trainer trial status — re-checked whenever the current trainer changes.
   useEffect(() => {
-    if (!resolvedTrainer?.id) return;
-    checkTrainerTrialStatus(resolvedTrainer.id)
-      .then(d => setTrialStatus(d.hasActive ? d.status : null))
-      .catch(() => { });
-  }, [resolvedTrainer?.id]);
+    if (!current?.id) return;
+    setTrialStatus(null);
+    checkTrainerTrialStatus(current.id)
+      .then((d) => setTrialStatus(d.hasActive ? d.status : null))
+      .catch(() => {});
+  }, [current?.id]);
 
-  if (!resolvedTrainer) return null;
+  // ── Swipe / arrow navigation with fade transition ──────────────────────────
+  const go = useCallback((dir) => {
+    const n = listRef.current.length;
+    if (n < 2) return;
+    Animated.timing(fade, { toValue: 0, duration: 150, useNativeDriver: true }).start(() => {
+      setCurrentIndex((i) => (i + dir + n) % n);
+      Animated.timing(fade, { toValue: 1, duration: 220, useNativeDriver: true }).start();
+    });
+  }, [fade]);
 
-  const initials = (resolvedTrainer.name || 'T').charAt(0).toUpperCase();
+  const pan = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > Math.abs(g.dy) && Math.abs(g.dx) > 12,
+      onPanResponderRelease: (_, g) => {
+        if (g.dx < -50) go(1);
+        else if (g.dx > 50) go(-1);
+      },
+    }),
+  ).current;
 
   async function handleTrialRequest() {
+    if (!current || requesting || trialStatus !== null) return;
     setRequesting(true);
     try {
-      await requestTrialSession(resolvedTrainer.id);
-      logEvent('trial_session_requested', { trainer_id: resolvedTrainer.id }).catch(() => {});
+      await requestTrialSession(current.id);
+      logEvent('trial_session_requested', { trainer_id: current.id }).catch(() => {});
       setTrialStatus('pending');
       Alert.alert('Request Sent', "Your trial session request has been submitted. You'll receive a notification once it's confirmed by the admin.");
     } catch (err) {
@@ -64,359 +127,388 @@ export default function TrainerDetailScreen({ navigation, route }) {
     }
   }
 
+  if (!current) {
+    return (
+      <View style={[styles.container, styles.center]}>
+        <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
+        <ActivityIndicator size="large" color={COLORS.secondary} />
+      </View>
+    );
+  }
+
+  const initials = (current.name || 'T').charAt(0).toUpperCase();
+  const isCurrentAssigned = !!assignedTrainerId && current.id === assignedTrainerId;
+  const pills = current.specialisations?.length ? current.specialisations : (current.tags || []);
+
   const trialBtnLabel =
     trialStatus === 'pending' ? 'Request Sent ✓' :
       trialStatus === 'accepted' ? 'Session Scheduled' :
         trialStatus === 'member_confirmed' ? 'Session Confirmed ✓' :
-          'Request Trial';
+          'Book Trial Session';
 
   const stats = [
-    {
-      label: 'Experience',
-      value: resolvedTrainer.experience || (resolvedTrainer.yearsOfExperience ? `${resolvedTrainer.yearsOfExperience} years` : '—'),
-      icon: 'time-outline',
-      color: COLORS.secondary,
-      bg: `${COLORS.secondary}25`,
-    },
-    {
-      label: 'Clients',
-      value: resolvedTrainer.clients > 0 ? `${resolvedTrainer.clients}+` : '0+',
-      icon: 'people-outline',
-      color: '#3B82F6',
-      bg: 'rgba(59,130,246,0.15)',
-    },
-    {
-      label: 'Rating',
-      value: String(resolvedTrainer.rating ?? 4.8),
-      icon: 'star-outline',
-      color: '#EAB308',
-      bg: 'rgba(234,179,8,0.15)',
-    },
-    {
-      label: 'Status',
-      value: resolvedTrainer.available ? 'Available' : 'Full',
-      icon: resolvedTrainer.available ? 'checkmark-circle-outline' : 'time-outline',
-      color: resolvedTrainer.available ? '#22C55E' : '#94A3B8',
-      bg: resolvedTrainer.available ? 'rgba(34,197,94,0.15)' : 'rgba(148,163,184,0.15)',
-    },
+    { label: 'Experience', value: current.experience || (current.yearsOfExperience ? `${current.yearsOfExperience} years` : '—'), icon: 'time-outline', color: COLORS.secondary, bg: 'rgba(167,139,250,0.15)' },
+    { label: 'Clients', value: current.clients > 0 ? `${current.clients}+` : '0+', icon: 'people-outline', color: '#3B82F6', bg: 'rgba(59,130,246,0.15)' },
+    { label: 'Rating', value: String(current.rating ?? 4.8), icon: 'star-outline', color: '#EAB308', bg: 'rgba(234,179,8,0.15)' },
+    { label: 'Status', value: current.available ? 'Available' : 'Full', icon: current.available ? 'checkmark-circle-outline' : 'time-outline', color: current.available ? '#22C55E' : '#94A3B8', bg: current.available ? 'rgba(34,197,94,0.15)' : 'rgba(148,163,184,0.15)' },
   ];
 
-  // Parse certifications text into lines (filter blanks)
-  const certLines = resolvedTrainer.certificationsText
-    ? resolvedTrainer.certificationsText.split('\n').map((l) => l.trim()).filter(Boolean)
+  const certLines = current.certificationsText
+    ? current.certificationsText.split('\n').map((l) => l.trim()).filter(Boolean)
     : [];
 
   return (
-    <View style={s.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#000" />
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
 
       {/* Sticky top bar */}
-      <View style={s.topBar}>
-        <TouchableOpacity style={s.backBtn} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={22} color="#fff" />
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={22} color={COLORS.cyan} />
         </TouchableOpacity>
+        {list.length > 1 && (
+          <Text style={styles.counter}>{currentIndex + 1} / {list.length}</Text>
+        )}
       </View>
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={s.scroll}
-      >
-        {/* ── Profile header ─────────────────────────────────────── */}
-        <View style={s.profileHeader}>
-          {resolvedTrainer.profilePhotoUrl ? (
-            <Image source={{ uri: resolvedTrainer.profilePhotoUrl }} style={s.avatar} />
-          ) : (
-            <View style={[s.avatar, s.avatarFallback]}>
-              <Text style={s.avatarText}>{initials}</Text>
-            </View>
-          )}
-          <Text style={s.trainerName}>{resolvedTrainer.name}</Text>
-          <Text style={s.trainerSpec}>{resolvedTrainer.specialisation}</Text>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+        {/* ── Swipeable hero card ──────────────────────────────────── */}
+        <Animated.View style={[styles.heroCard, { opacity: fade }]} {...pan.panHandlers}>
+          <View style={styles.heroImageWrap}>
+            {current.profilePhotoUrl ? (
+              <Image source={{ uri: current.profilePhotoUrl }} style={styles.heroImage} />
+            ) : (
+              <LinearGradient colors={['rgba(127,41,130,0.5)', COLORS.surface]} style={styles.heroImage}>
+                <Text style={styles.heroInitial}>{initials}</Text>
+              </LinearGradient>
+            )}
+            <LinearGradient colors={['transparent', 'rgba(26,26,46,0.6)', COLORS.surface]} style={styles.heroFade} />
 
-          {/* Stars + rating */}
-          <View style={s.ratingRow}>
-            {[1, 2, 3, 4, 5].map((i) => (
-              <Ionicons
-                key={i}
-                name={i <= Math.round(resolvedTrainer.rating ?? 4.8) ? 'star' : 'star-outline'}
-                size={17}
-                color={COLORS.secondary}
-              />
-            ))}
-            <Text style={s.ratingNum}>{resolvedTrainer.rating ?? 4.8}</Text>
+            {/* Arrows */}
+            {list.length > 1 && (
+              <>
+                <TouchableOpacity style={[styles.arrowBtn, styles.arrowLeft]} onPress={() => go(-1)} hitSlop={8}>
+                  <Ionicons name="chevron-back" size={22} color={COLORS.white} />
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.arrowBtn, styles.arrowRight]} onPress={() => go(1)} hitSlop={8}>
+                  <Ionicons name="chevron-forward" size={22} color={COLORS.white} />
+                </TouchableOpacity>
+              </>
+            )}
           </View>
-        </View>
+
+          <View style={styles.heroInfo}>
+            <View style={styles.heroNameRow}>
+              <Text style={styles.heroName} numberOfLines={1}>{(current.name || '').toUpperCase()}</Text>
+              <View style={styles.heroRating}>
+                <Ionicons name="star" size={14} color="#FF9E00" />
+                <Text style={styles.heroRatingText}>{current.rating ?? 4.8}{current.experience ? ` · ${current.experience}` : ''}</Text>
+              </View>
+            </View>
+
+            {pills.length > 0 && (
+              <View style={styles.pillRow}>
+                {pills.slice(0, 3).map((p, i) => {
+                  const ps = PILL_STYLES[i % PILL_STYLES.length];
+                  return (
+                    <View key={p} style={[styles.pill, { backgroundColor: ps.bg, borderColor: ps.border }]}>
+                      <Text style={[styles.pillText, { color: ps.color }]}>{p}</Text>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+
+            {!!current.bio && (
+              <Text style={styles.heroBio} numberOfLines={3}>"{current.bio}"</Text>
+            )}
+          </View>
+        </Animated.View>
+
+        {/* Swipe hint */}
+        {list.length > 1 && (
+          <Text style={styles.swipeHint}>Swipe to browse trainers</Text>
+        )}
 
         {/* ── Availability banner ─────────────────────────────────── */}
-        {resolvedTrainer.available ? (
-          <View style={s.availBanner}>
+        {current.available ? (
+          <View style={styles.availBanner}>
             <Ionicons name="checkmark-circle" size={20} color="#22C55E" />
-            <Text style={s.availText}>Currently accepting new clients</Text>
+            <Text style={styles.availText}>Currently accepting new clients</Text>
           </View>
         ) : (
-          <View style={[s.availBanner, s.availBannerFull]}>
+          <View style={[styles.availBanner, styles.availBannerFull]}>
             <Ionicons name="time-outline" size={20} color="#94A3B8" />
-            <Text style={[s.availText, { color: '#94A3B8' }]}>At full capacity — contact reception for waitlist</Text>
+            <Text style={[styles.availText, { color: '#94A3B8' }]}>At full capacity — contact reception for waitlist</Text>
           </View>
         )}
 
         {/* ── Stats grid ─────────────────────────────────────────── */}
-        <View style={s.statsGrid}>
+        <View style={styles.statsGrid}>
           {stats.map((st) => (
-            <View key={st.label} style={s.statCard}>
-              <View style={[s.statIcon, { backgroundColor: st.bg }]}>
+            <View key={st.label} style={styles.statCard}>
+              <View style={[styles.statIcon, { backgroundColor: st.bg }]}>
                 <Ionicons name={st.icon} size={20} color={st.color} />
               </View>
-              <Text style={[s.statValue, { color: st.color }]}>{st.value}</Text>
-              <Text style={s.statLabel}>{st.label}</Text>
+              <Text style={[styles.statValue, { color: st.color }]}>{st.value}</Text>
+              <Text style={styles.statLabel}>{st.label}</Text>
             </View>
           ))}
         </View>
 
         {/* ── About ──────────────────────────────────────────────── */}
-        {!!resolvedTrainer.bio && (
-          <View style={s.section}>
-            <Text style={s.sectionTitle}>ABOUT</Text>
-            <View style={s.card}>
-              <Text style={s.cardBody}>{resolvedTrainer.bio}</Text>
-            </View>
-          </View>
+        {!!current.bio && (
+          <Section title="ABOUT">
+            <View style={styles.card}><Text style={styles.cardBody}>{current.bio}</Text></View>
+          </Section>
         )}
 
         {/* ── Training Philosophy ────────────────────────────────── */}
-        {!!resolvedTrainer.trainingPhilosophy && (
-          <View style={s.section}>
-            <Text style={s.sectionTitle}>TRAINING PHILOSOPHY</Text>
-            <View style={s.card}>
-              <Text style={s.cardBody}>{resolvedTrainer.trainingPhilosophy}</Text>
-            </View>
-          </View>
+        {!!current.trainingPhilosophy && (
+          <Section title="TRAINING PHILOSOPHY">
+            <View style={styles.card}><Text style={styles.cardBody}>{current.trainingPhilosophy}</Text></View>
+          </Section>
         )}
 
         {/* ── Certifications ─────────────────────────────────────── */}
         {certLines.length > 0 && (
-          <View style={s.section}>
-            <Text style={s.sectionTitle}>CERTIFICATIONS</Text>
-            <View style={s.card}>
+          <Section title="CERTIFICATIONS">
+            <View style={styles.card}>
               {certLines.map((cert, i) => (
-                <View key={i} style={[s.certRow, i > 0 && { marginTop: 10 }]}>
+                <View key={i} style={[styles.certRow, i > 0 && { marginTop: 10 }]}>
                   <Ionicons name="shield-checkmark" size={16} color={COLORS.secondary} style={{ marginTop: 1 }} />
-                  <Text style={s.certText}>{cert}</Text>
+                  <Text style={styles.certText}>{cert}</Text>
                 </View>
               ))}
             </View>
-          </View>
+          </Section>
         )}
 
         {/* ── Expertise chips ────────────────────────────────────── */}
-        {(resolvedTrainer.specialisations?.length > 0 || resolvedTrainer.tags?.length > 0) && (
-          <View style={s.section}>
-            <Text style={s.sectionTitle}>EXPERTISE</Text>
-            <View style={s.chipRow}>
-              {(resolvedTrainer.specialisations || resolvedTrainer.tags || []).map((tag) => (
-                <View key={tag} style={s.expertiseChip}>
+        {(current.specialisations?.length > 0 || current.tags?.length > 0) && (
+          <Section title="EXPERTISE">
+            <View style={styles.chipRow}>
+              {(current.specialisations || current.tags || []).map((tag) => (
+                <View key={tag} style={styles.expertiseChip}>
                   <Ionicons name="checkmark" size={13} color={COLORS.secondary} />
-                  <Text style={s.expertiseChipText}>{tag}</Text>
+                  <Text style={styles.expertiseChipText}>{tag}</Text>
                 </View>
               ))}
             </View>
-          </View>
+          </Section>
         )}
 
         {/* ── Languages ──────────────────────────────────────────── */}
-        {resolvedTrainer.languages?.length > 0 && (
-          <View style={s.section}>
-            <Text style={s.sectionTitle}>LANGUAGES</Text>
-            <View style={s.chipRow}>
-              {resolvedTrainer.languages.map((lang) => (
-                <View key={lang} style={s.langChip}>
-                  <Text style={s.langChipText}>{lang}</Text>
+        {current.languages?.length > 0 && (
+          <Section title="LANGUAGES">
+            <View style={styles.chipRow}>
+              {current.languages.map((lang) => (
+                <View key={lang} style={styles.langChip}>
+                  <Text style={styles.langChipText}>{lang}</Text>
                 </View>
               ))}
             </View>
-          </View>
+          </Section>
         )}
 
         {/* ── What to Expect ─────────────────────────────────────── */}
-        <View style={s.section}>
-          <Text style={s.sectionTitle}>WHAT TO EXPECT</Text>
+        <Section title="WHAT TO EXPECT">
           {WHAT_TO_EXPECT.map((pt, i) => (
-            <View key={i} style={s.pointRow}>
-              <View style={s.pointDot} />
-              <Text style={s.pointText}>
-                <Text style={s.pointBold}>{pt.title} </Text>
-                <Text style={s.pointMuted}>{pt.body}</Text>
+            <View key={i} style={styles.pointRow}>
+              <View style={styles.pointDot} />
+              <Text style={styles.pointText}>
+                <Text style={styles.pointBold}>{pt.title} </Text>
+                <Text style={styles.pointMuted}>{pt.body}</Text>
               </Text>
             </View>
           ))}
-        </View>
+        </Section>
 
         {/* ── Info banner ────────────────────────────────────────── */}
-        <View style={s.infoBanner}>
+        <View style={styles.infoBanner}>
           <Ionicons name="information-circle-outline" size={20} color={COLORS.secondary} style={{ flexShrink: 0 }} />
-          <Text style={s.infoBannerText}>
+          <Text style={styles.infoBannerText}>
             Trainer assignment is handled by the gym admin. To request this trainer, contact the reception desk.
           </Text>
+        </View>
+
+        {/* ── Call + WhatsApp (below the details) ─────────────────── */}
+        <View style={styles.contactRow}>
+          <TouchableOpacity style={styles.callBtn} onPress={() => Linking.openURL(`tel:${RECEPTION_PHONE}`)} activeOpacity={0.85}>
+            <Ionicons name="call-outline" size={18} color={COLORS.white} />
+            <Text style={styles.callBtnText}>Call</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.waBtn} onPress={() => Linking.openURL(`whatsapp://send?phone=${RECEPTION_PHONE}`)} activeOpacity={0.85}>
+            <Ionicons name="logo-whatsapp" size={18} color="#22C55E" />
+            <Text style={styles.waBtnText}>WhatsApp</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={{ height: 24 }} />
       </ScrollView>
 
-      {/* ── Sticky footer ──────────────────────────────────────────── */}
-      <SafeBottomBar style={s.footer} minPadding={16}>
-        <TouchableOpacity
-          style={s.callBtn}
-          onPress={() => Linking.openURL(`tel:${RECEPTION_PHONE}`)}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="call-outline" size={18} color="#fff" />
-          <Text style={s.callBtnText}>Call</Text>
-        </TouchableOpacity>
-        {/* {!isMyTrainer && (
+      {/* ── Sticky Book Trial (only for trainers NOT assigned to the user) ── */}
+      {!isCurrentAssigned && (
+        <SafeBottomBar style={styles.footer} minPadding={16}>
           <TouchableOpacity
-            style={[s.trialBtn, (requesting || trialStatus !== null) && { opacity: 0.6 }]}
+            activeOpacity={0.9}
             onPress={handleTrialRequest}
             disabled={requesting || trialStatus !== null}
-            activeOpacity={0.8}
+            style={styles.trialWrap}
           >
-            {requesting ? (
-              <ActivityIndicator color="#000" size="small" />
-            ) : (
-              <Text style={s.trialBtnText}>{trialBtnLabel}</Text>
-            )}
+            <LinearGradient
+              colors={GOLD_GRADIENT}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={[styles.trialBtn, (requesting || trialStatus !== null) && { opacity: 0.55 }]}
+            >
+              {requesting ? (
+                <ActivityIndicator color="#1A1206" size="small" />
+              ) : (
+                <Text style={styles.trialBtnText}>{trialBtnLabel}</Text>
+              )}
+            </LinearGradient>
           </TouchableOpacity>
-        )} */}
-        <TouchableOpacity
-          style={s.waBtn}
-          onPress={() => Linking.openURL(`whatsapp://send?phone=${RECEPTION_PHONE}`)}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="logo-whatsapp" size={18} color="#22C55E" />
-          <Text style={s.waBtnText}>WhatsApp</Text>
-        </TouchableOpacity>
-      </SafeBottomBar>
+        </SafeBottomBar>
+      )}
     </View>
   );
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000' },
+function Section({ title, children }) {
+  return (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>{title}</Text>
+      {children}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: COLORS.background },
+  center: { justifyContent: 'center', alignItems: 'center' },
 
   // Top bar
   topBar: {
     position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingTop: 52, paddingHorizontal: 16, paddingBottom: 12,
-    backgroundColor: 'rgba(0,0,0,0.8)',
   },
   backBtn: {
     width: 40, height: 40, borderRadius: 20,
-    backgroundColor: '#2A2A2A', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.4)', borderWidth: 1, borderColor: COLORS.glassBorder,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  counter: {
+    fontFamily: FONTS.label, fontSize: 11, color: COLORS.white, letterSpacing: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999,
+    overflow: 'hidden',
   },
 
-  // Scroll
-  scroll: { paddingTop: 108, paddingHorizontal: 16, paddingBottom: 24 },
+  scroll: { paddingTop: 100, paddingHorizontal: 16, paddingBottom: 24 },
 
-  // Profile header
-  profileHeader: { alignItems: 'center', marginBottom: 20 },
-  avatar: { width: 96, height: 96, borderRadius: 20, marginBottom: 14 },
-  avatarFallback: { backgroundColor: COLORS.secondary, alignItems: 'center', justifyContent: 'center' },
-  avatarText: { fontSize: 44, fontWeight: '900', color: '#fff' },
-  trainerName: { fontSize: 24, fontWeight: '800', color: '#fff', marginBottom: 4 },
-  trainerSpec: { fontSize: 14, color: '#9A9A9A', marginBottom: 10, fontWeight: '400' },
-  ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  ratingNum: { fontSize: 14, fontWeight: '700', color: '#9A9A9A', marginLeft: 4 },
+  // Hero card
+  heroCard: {
+    backgroundColor: COLORS.surface, borderRadius: 20, overflow: 'hidden',
+    borderWidth: 1, borderColor: COLORS.glassBorder, marginBottom: 6,
+  },
+  heroImageWrap: { height: 300, position: 'relative' },
+  heroImage: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' },
+  heroInitial: { fontFamily: FONTS.display, fontSize: 72, color: COLORS.white },
+  heroFade: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 120 },
+  arrowBtn: {
+    position: 'absolute', top: '45%', width: 40, height: 40, borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.4)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  arrowLeft: { left: 12 },
+  arrowRight: { right: 12 },
+
+  heroInfo: { padding: 18 },
+  heroNameRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 10 },
+  heroName: { flex: 1, fontFamily: FONTS.display, fontSize: 22, color: COLORS.white, letterSpacing: 1 },
+  heroRating: { flexDirection: 'row', alignItems: 'center', gap: 3, marginLeft: 8 },
+  heroRatingText: { fontFamily: FONTS.bodyBold, fontSize: 12, color: '#FF9E00' },
+  pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
+  pill: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 7, borderWidth: 1 },
+  pillText: { fontFamily: FONTS.label, fontSize: 11 },
+  heroBio: { fontFamily: FONTS.body, fontStyle: 'italic', fontSize: 13, color: COLORS.textSecondary, lineHeight: 20 },
+
+  swipeHint: { fontFamily: FONTS.label, fontSize: 10, color: COLORS.textMuted, textAlign: 'center', letterSpacing: 1, marginBottom: 16, marginTop: 6 },
 
   // Availability banner
   availBanner: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: 'rgba(10,42,26,0.9)', borderRadius: 10,
+    backgroundColor: 'rgba(34,197,94,0.10)', borderRadius: 12,
+    borderWidth: 1, borderColor: 'rgba(34,197,94,0.25)',
     paddingVertical: 12, paddingHorizontal: 16, marginBottom: 16,
   },
-  availBannerFull: { backgroundColor: 'rgba(30,30,35,0.9)' },
-  availText: { fontSize: 13, fontWeight: '600', color: '#22C55E' },
+  availBannerFull: { backgroundColor: 'rgba(148,163,184,0.08)', borderColor: 'rgba(148,163,184,0.2)' },
+  availText: { fontFamily: FONTS.bodyBold, fontSize: 13, color: '#22C55E' },
 
   // Stats grid
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 24 },
   statCard: {
-    width: '47%', backgroundColor: '#1C1C1E', borderRadius: 14,
-    borderWidth: 1, borderColor: '#333', padding: 14, gap: 8,
+    width: '47%', backgroundColor: COLORS.glass, borderRadius: 14,
+    borderWidth: 1, borderColor: COLORS.glassBorder, padding: 14, gap: 8,
   },
   statIcon: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  statValue: { fontSize: 18, fontWeight: '800' },
-  statLabel: { fontSize: 11, color: '#9A9A9A', fontWeight: '500' },
+  statValue: { fontFamily: FONTS.headline, fontSize: 18 },
+  statLabel: { fontFamily: FONTS.body, fontSize: 11, color: COLORS.textMuted },
 
   // Sections
   section: { marginBottom: 22 },
-  sectionTitle: {
-    fontSize: 10, fontWeight: '800', color: COLORS.secondary,
-    letterSpacing: 2, textTransform: 'uppercase', marginBottom: 10,
-  },
-  card: {
-    backgroundColor: '#1C1C1E', borderRadius: 14, borderWidth: 1,
-    borderColor: '#333', padding: 16,
-  },
-  cardBody: { fontSize: 13, color: '#9A9A9A', lineHeight: 20 },
+  sectionTitle: { fontFamily: FONTS.label, fontSize: 10, color: COLORS.secondary, letterSpacing: 2, marginBottom: 10 },
+  card: { backgroundColor: COLORS.glass, borderRadius: 14, borderWidth: 1, borderColor: COLORS.glassBorder, padding: 16 },
+  cardBody: { fontFamily: FONTS.body, fontSize: 13, color: COLORS.textSecondary, lineHeight: 20 },
 
-  // Certifications
   certRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
-  certText: { flex: 1, fontSize: 13, color: '#9A9A9A', lineHeight: 20 },
+  certText: { flex: 1, fontFamily: FONTS.body, fontSize: 13, color: COLORS.textSecondary, lineHeight: 20 },
 
-  // Expertise chips
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   expertiseChip: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
-    paddingHorizontal: 12, paddingVertical: 7,
-    borderRadius: 999, borderWidth: 1, borderColor: `${COLORS.secondary}66`,
-    backgroundColor: `${COLORS.secondary}0D`,
+    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999,
+    borderWidth: 1, borderColor: COLORS.secondaryBorder ?? 'rgba(127,41,130,0.40)',
+    backgroundColor: 'rgba(167,139,250,0.08)',
   },
-  expertiseChipText: { fontSize: 12, fontWeight: '600', color: '#fff' },
+  expertiseChipText: { fontFamily: FONTS.bodyMedium, fontSize: 12, color: COLORS.white },
+  langChip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 999, backgroundColor: COLORS.glass, borderWidth: 1, borderColor: COLORS.glassBorder },
+  langChipText: { fontFamily: FONTS.body, fontSize: 12, color: COLORS.textSecondary },
 
-  // Language chips
-  langChip: {
-    paddingHorizontal: 14, paddingVertical: 7, borderRadius: 999,
-    backgroundColor: '#1C1C1E', borderWidth: 1, borderColor: '#333',
-  },
-  langChipText: { fontSize: 12, fontWeight: '500', color: '#9A9A9A' },
-
-  // What to Expect
   pointRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 12 },
-  pointDot: {
-    width: 6, height: 6, borderRadius: 3, backgroundColor: COLORS.secondary,
-    marginTop: 6, flexShrink: 0,
-  },
+  pointDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: COLORS.secondary, marginTop: 6, flexShrink: 0 },
   pointText: { flex: 1, fontSize: 13, lineHeight: 20 },
-  pointBold: { fontWeight: '700', color: '#fff' },
-  pointMuted: { color: '#9A9A9A' },
+  pointBold: { fontFamily: FONTS.bodyBold, color: COLORS.white },
+  pointMuted: { fontFamily: FONTS.body, color: COLORS.textSecondary },
 
-  // Info banner
   infoBanner: {
     flexDirection: 'row', gap: 10, alignItems: 'flex-start',
-    backgroundColor: 'rgba(42,26,10,0.8)', borderRadius: 12,
-    borderWidth: 1, borderColor: `${COLORS.secondary}44`,
-    padding: 14, marginTop: 4,
+    backgroundColor: 'rgba(127,41,130,0.08)', borderRadius: 12,
+    borderWidth: 1, borderColor: COLORS.secondaryBorder ?? 'rgba(127,41,130,0.40)',
+    padding: 14, marginTop: 4, marginBottom: 20,
   },
-  infoBannerText: { flex: 1, fontSize: 13, color: '#9A9A9A', lineHeight: 18 },
+  infoBannerText: { flex: 1, fontFamily: FONTS.body, fontSize: 13, color: COLORS.textSecondary, lineHeight: 18 },
+
+  // Call + WhatsApp (below details)
+  contactRow: { flexDirection: 'row', gap: 12 },
+  callBtn: {
+    flex: 1, height: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    borderRadius: 12, backgroundColor: COLORS.glass, borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)',
+  },
+  callBtnText: { fontFamily: FONTS.bodyBold, fontSize: 13, color: COLORS.white },
+  waBtn: {
+    flex: 1, height: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    borderRadius: 12, backgroundColor: COLORS.glass, borderWidth: 1, borderColor: 'rgba(34,197,94,0.5)',
+  },
+  waBtnText: { fontFamily: FONTS.bodyBold, fontSize: 13, color: '#22C55E' },
 
   // Sticky footer
   footer: {
-    flexDirection: 'row', gap: 12, padding: 16,
-    backgroundColor: 'rgba(0,0,0,0.92)', borderTopWidth: 1, borderTopColor: '#333',
+    paddingHorizontal: 16, paddingTop: 12,
+    backgroundColor: 'rgba(11,11,20,0.95)', borderTopWidth: 1, borderTopColor: COLORS.glassBorder,
   },
-  callBtn: {
-    flex: 1, height: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 8, borderRadius: 10, backgroundColor: '#1C1C1E',
-    borderWidth: 1, borderColor: '#fff',
-  },
-  callBtnText: { fontSize: 13, fontWeight: '700', color: '#fff' },
-  trialBtn: {
-    flex: 1, height: 48, borderRadius: 10, backgroundColor: COLORS.secondary,
-    justifyContent: 'center', alignItems: 'center',
-  },
-  trialBtnText: { fontSize: 12, fontWeight: '800', color: '#000' },
-  waBtn: {
-    flex: 1, height: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 8, borderRadius: 10, backgroundColor: '#1C1C1E',
-    borderWidth: 1, borderColor: '#22C55E',
-  },
-  waBtnText: { fontSize: 13, fontWeight: '700', color: '#22C55E' },
+  trialWrap: { borderRadius: 16, overflow: 'hidden' },
+  trialBtn: { height: 52, alignItems: 'center', justifyContent: 'center' },
+  trialBtnText: { fontFamily: FONTS.bodyBold, fontSize: 14, color: '#1A1206', letterSpacing: 1.5, textTransform: 'uppercase' },
 });
