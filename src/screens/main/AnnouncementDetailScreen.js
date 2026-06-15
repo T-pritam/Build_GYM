@@ -6,14 +6,13 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  StatusBar, ActivityIndicator, Alert,
+  StatusBar, ActivityIndicator,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import { fetchAnnouncement, markAnnouncementRead } from '../../services/announcementService';
 import { useAnnouncementStore } from '../../store/announcementStore';
-import { fetchTrialRequest, confirmTrialSession, rejectTrialSession } from '../../services/trainerService';
 
 // ─── Type config ──────────────────────────────────────────────────────────────
 const TYPE_LABEL = {
@@ -22,7 +21,6 @@ const TYPE_LABEL = {
   maintenance:   'Maintenance',
   promotion:     'Promotion',
   health:        'Health',
-  trial_booking: 'Trial Session',
 };
 const TYPE_COLOR = {
   event:         '#3B82F6',
@@ -30,7 +28,6 @@ const TYPE_COLOR = {
   general:       '#64748B',
   promotion:     '#EAB308',
   health:        '#22C55E',
-  trial_booking: '#E96316',
 };
 
 const formatDate = (iso) =>
@@ -55,8 +52,6 @@ export default function AnnouncementDetailScreen({ route, navigation }) {
   const [item, setItem]               = useState(null);
   const [loading, setLoading]         = useState(true);
   const [error, setError]             = useState(false);
-  const [trialRequest, setTrialRequest] = useState(null);
-  const [trialLoading, setTrialLoading] = useState(false);
 
   const markOneRead = useAnnouncementStore((s) => s.markOneRead);
 
@@ -70,12 +65,6 @@ export default function AnnouncementDetailScreen({ route, navigation }) {
         if (!data.is_read) {
           markAnnouncementRead(id).catch(() => {});
           markOneRead();
-        }
-        // Load trial request status for trial_booking announcements
-        if (data.type === 'trial_booking' && data.trialRequestId) {
-          fetchTrialRequest(data.trialRequestId)
-            .then(r => { if (!cancelled) setTrialRequest(r); })
-            .catch(() => {});
         }
       } catch {
         if (!cancelled) setError(true);
@@ -153,59 +142,6 @@ export default function AnnouncementDetailScreen({ route, navigation }) {
         {/* Body */}
         <Text style={s.body_text}>{item.message}</Text>
 
-        {/* Trial booking actions */}
-        {item.type === 'trial_booking' && trialRequest && (
-          <View style={s.trialActions}>
-            {trialRequest.status === 'accepted' && (
-              <>
-                <TouchableOpacity
-                  style={[s.confirmBtn, trialLoading && { opacity: 0.6 }]}
-                  disabled={trialLoading}
-                  onPress={async () => {
-                    setTrialLoading(true);
-                    try {
-                      await confirmTrialSession(trialRequest.id);
-                      setTrialRequest(prev => ({ ...prev, status: 'member_confirmed' }));
-                    } catch (e) {
-                      Alert.alert('Error', e?.response?.data?.message ?? 'Failed to confirm.');
-                    } finally { setTrialLoading(false); }
-                  }}
-                >
-                  {trialLoading
-                    ? <ActivityIndicator color="#000" size="small" />
-                    : <Text style={s.confirmBtnText}>Confirm Session</Text>}
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[s.rejectBtn, trialLoading && { opacity: 0.6 }]}
-                  disabled={trialLoading}
-                  onPress={async () => {
-                    setTrialLoading(true);
-                    try {
-                      await rejectTrialSession(trialRequest.id);
-                      setTrialRequest(prev => ({ ...prev, status: 'member_rejected' }));
-                    } catch (e) {
-                      Alert.alert('Error', e?.response?.data?.message ?? 'Failed to reject.');
-                    } finally { setTrialLoading(false); }
-                  }}
-                >
-                  <Text style={s.rejectBtnText}>Reject</Text>
-                </TouchableOpacity>
-              </>
-            )}
-            {trialRequest.status === 'member_confirmed' && (
-              <View style={s.trialConfirmedBadge}>
-                <Ionicons name="checkmark-circle" size={16} color="#22C55E" />
-                <Text style={s.trialConfirmedText}>Session Confirmed</Text>
-              </View>
-            )}
-            {trialRequest.status === 'member_rejected' && (
-              <View style={s.trialRejectedBadge}>
-                <Text style={s.trialRejectedText}>You declined this session</Text>
-              </View>
-            )}
-          </View>
-        )}
-
         {/* Close / back */}
         <TouchableOpacity style={s.closeBtn} onPress={() => navigation.goBack()} activeOpacity={0.85}>
           <Text style={s.closeBtnText}>CLOSE</Text>
@@ -257,31 +193,4 @@ const s = StyleSheet.create({
     paddingVertical: 14, alignItems: 'center',
   },
   closeBtnText: { color: '#000', fontWeight: '800', fontSize: 14, letterSpacing: 1 },
-
-  // Trial booking actions
-  trialActions: { paddingHorizontal: 20, gap: 10, marginBottom: 8 },
-  confirmBtn: {
-    height: 48, borderRadius: 12, backgroundColor: COLORS.secondary,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  confirmBtnText: { color: '#000', fontWeight: '800', fontSize: 14 },
-  rejectBtn: {
-    height: 44, borderRadius: 12,
-    borderWidth: 1, borderColor: COLORS.border,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  rejectBtnText: { color: COLORS.textMuted, fontWeight: '700', fontSize: 13 },
-  trialConfirmedBadge: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 6, paddingVertical: 12,
-    backgroundColor: 'rgba(34,197,94,0.08)', borderRadius: 12,
-    borderWidth: 1, borderColor: 'rgba(34,197,94,0.2)',
-  },
-  trialConfirmedText: { color: '#22C55E', fontWeight: '700', fontSize: 13 },
-  trialRejectedBadge: {
-    alignItems: 'center', justifyContent: 'center',
-    paddingVertical: 12, borderRadius: 12,
-    backgroundColor: 'rgba(148,163,184,0.08)', borderWidth: 1, borderColor: COLORS.border,
-  },
-  trialRejectedText: { color: COLORS.textMuted, fontWeight: '600', fontSize: 13 },
 });

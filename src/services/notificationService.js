@@ -129,7 +129,6 @@ const TYPE_FALLBACK_DEEPLINK = {
   MEMBERSHIP_EXPIRY_REMINDER:  'buildfitness://membership',
   booking_cancelled:           'buildfitness://mybookings',
   slot_cancelled:              'buildfitness://mybookings',
-  trial_booking:               'buildfitness://mybookings',
   // blog_published: deep_link already in FCM data from blog.worker.js
   // COINS_GRANTED / COINS_PURCHASED: transaction ID needed for specific screen
   COINS_GRANTED:               'buildfitness://transactions',

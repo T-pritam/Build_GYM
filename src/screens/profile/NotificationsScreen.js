@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useRef } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, StatusBar,
-  TouchableOpacity, ActivityIndicator, RefreshControl, Modal, Alert,
+  TouchableOpacity, ActivityIndicator, RefreshControl, Modal,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { useFocusEffect } from '@react-navigation/native';
@@ -11,8 +11,6 @@ import { fetchAnnouncements, markAnnouncementRead } from '../../services/announc
 import { useAnnouncementStore } from '../../store/announcementStore';
 import { handleDeepLink } from '../../services/notificationService';
 import SafeBottomBar from '../../components/SafeBottomBar';
-import { HoloButton } from '../../components/auth';
-import api from '../../services/apiService';
 
 // ─── Type config ──────────────────────────────────────────────────────────────
 const TYPE_LABEL = {
@@ -21,7 +19,6 @@ const TYPE_LABEL = {
   maintenance:   'Maintenance',
   promotion:     'Promotion',
   health:        'Health',
-  trial_booking: 'Trial Session',
 };
 const TYPE_COLOR = {
   event:         '#3B82F6',
@@ -29,7 +26,6 @@ const TYPE_COLOR = {
   general:       '#94A3B8',
   promotion:     '#F5B041',
   health:        '#4ADE80',
-  trial_booking: COLORS.primaryLight,
 };
 
 const formatDate = (iso) =>
@@ -81,7 +77,6 @@ export default function NotificationsScreen({ navigation }) {
   const [selected, setSelected]         = useState(null);
   const [error, setError]               = useState(null);
   const [nextCursor, setNextCursor]     = useState(null);
-  const [confirmingTrial, setConfirmingTrial] = useState(false);
 
   const { unreadCount, refreshUnreadCount, markOneRead, clearUnread } =
     useAnnouncementStore();
@@ -132,36 +127,6 @@ export default function NotificationsScreen({ navigation }) {
   };
 
   const handleClose = () => setSelected(null);
-
-  // ── Accept trial session ──────────────────────────────────────────────────
-  const handleAcceptTrial = async (announcement) => {
-    setConfirmingTrial(true);
-    try {
-      await api.post(`/member/trial-requests/${announcement.trialRequestId}/confirm`);
-      setItems((prev) => prev.map((a) => a.id === announcement.id ? { ...a, _confirmed: true } : a));
-      setSelected((s) => s ? { ...s, _confirmed: true } : null);
-      Alert.alert('Confirmed!', 'Your trial session has been confirmed. Your trainer has been notified.');
-    } catch {
-      Alert.alert('Error', 'Could not confirm. Please try again.');
-    } finally {
-      setConfirmingTrial(false);
-    }
-  };
-
-  // ── Decline trial session ─────────────────────────────────────────────────
-  const handleRejectTrial = async (announcement) => {
-    setConfirmingTrial(true);
-    try {
-      await api.post(`/member/trial-requests/${announcement.trialRequestId}/reject`);
-      setItems((prev) => prev.map((a) => a.id === announcement.id ? { ...a, _rejected: true } : a));
-      setSelected((s) => s ? { ...s, _rejected: true } : null);
-      Alert.alert('Declined', 'You have declined this trial session.');
-    } catch {
-      Alert.alert('Error', 'Could not decline. Please try again.');
-    } finally {
-      setConfirmingTrial(false);
-    }
-  };
 
   // ── Mark all read ─────────────────────────────────────────────────────────
   const handleMarkAllRead = () => {
@@ -289,32 +254,6 @@ export default function NotificationsScreen({ navigation }) {
                 <Text style={s.modalMeta}>{formatDate(selected.publishedAt)}</Text>
                 <Text style={s.modalBody}>{selected.message}</Text>
 
-                {selected.type === 'trial_booking' && selected.trialRequestId
-                  && !selected._confirmed && !selected._rejected && (
-                  <View style={s.trialActionRow}>
-                    <TouchableOpacity
-                      style={[s.declineTrialBtn, confirmingTrial && { opacity: 0.5 }]}
-                      onPress={() => handleRejectTrial(selected)}
-                      disabled={confirmingTrial}
-                      activeOpacity={0.85}
-                    >
-                      <Text style={s.declineTrialBtnText}>Decline</Text>
-                    </TouchableOpacity>
-                    <HoloButton
-                      label="Accept Session"
-                      loading={confirmingTrial}
-                      onPress={() => handleAcceptTrial(selected)}
-                      style={s.acceptTrialBtn}
-                    />
-                  </View>
-                )}
-                {selected.type === 'trial_booking' && selected._confirmed && (
-                  <Text style={s.trialResponseText}>✓ Session confirmed</Text>
-                )}
-                {selected.type === 'trial_booking' && selected._rejected && (
-                  <Text style={[s.trialResponseText, { color: '#EF4444' }]}>✗ Session declined</Text>
-                )}
-
                 <TouchableOpacity style={s.closeBtn} onPress={handleClose} activeOpacity={0.85}>
                   <Text style={s.closeBtnText}>CLOSE</Text>
                 </TouchableOpacity>
@@ -410,18 +349,6 @@ const s = StyleSheet.create({
   modalTitle: { color: COLORS.white, fontSize: 20, fontFamily: FONTS.headline, marginBottom: 6, lineHeight: 28 },
   modalMeta: { color: COLORS.textMuted, fontSize: 12, fontFamily: FONTS.body, marginBottom: 14 },
   modalBody: { color: COLORS.textSecondary, fontSize: 14, fontFamily: FONTS.body, lineHeight: 22, marginBottom: 20 },
-  trialActionRow: { flexDirection: 'row', gap: 10, marginBottom: 10, alignItems: 'center' },
-  declineTrialBtn: {
-    flex: 0.4, borderRadius: 12, paddingVertical: 15, alignItems: 'center',
-    borderWidth: 1, borderColor: 'rgba(239,68,68,0.4)',
-    backgroundColor: 'rgba(239,68,68,0.1)',
-  },
-  declineTrialBtnText: { color: '#EF4444', fontFamily: FONTS.bodyBold, fontSize: 14 },
-  acceptTrialBtn: { flex: 0.6 },
-  trialResponseText: {
-    color: '#4ADE80', fontFamily: FONTS.bodyBold, fontSize: 13,
-    textAlign: 'center', marginBottom: 10,
-  },
   closeBtn: {
     borderRadius: 14, paddingVertical: 14, alignItems: 'center',
     borderWidth: 1, borderColor: COLORS.primaryBorder, backgroundColor: COLORS.primarySoft,

@@ -7,10 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS as THEME, FONTS } from '../../theme';
 import SafeBottomBar from '../../components/SafeBottomBar';
-import {
-  requestTrialSession, checkTrainerTrialStatus, fetchTrainers, fetchMyTrainer,
-} from '../../services/trainerService';
-import { logEvent } from '../../services/analyticsService';
+import { fetchTrainers, fetchMyTrainer } from '../../services/trainerService';
 
 // Theme-compat: legacy colour keys → new "Holographic Noir" palette.
 const COLORS = {
@@ -41,9 +38,6 @@ export default function TrainerDetailScreen({ navigation, route }) {
   const [list, setList] = useState(route.params?.trainerList?.length ? route.params.trainerList : []);
   const [currentIndex, setCurrentIndex] = useState(route.params?.index ?? 0);
   const [assignedTrainerId, setAssignedTrainerId] = useState(null);
-  const [requesting, setRequesting] = useState(false);
-  // null = no active trial | 'pending' | 'accepted' | 'member_confirmed'
-  const [trialStatus, setTrialStatus] = useState(null);
 
   const listRef = useRef(list);
   const fade = useRef(new Animated.Value(1)).current;
@@ -83,15 +77,6 @@ export default function TrainerDetailScreen({ navigation, route }) {
 
   useEffect(() => { listRef.current = list; }, [list]);
 
-  // Per-trainer trial status — re-checked whenever the current trainer changes.
-  useEffect(() => {
-    if (!current?.id) return;
-    setTrialStatus(null);
-    checkTrainerTrialStatus(current.id)
-      .then((d) => setTrialStatus(d.hasActive ? d.status : null))
-      .catch(() => {});
-  }, [current?.id]);
-
   // ── Swipe / arrow navigation with fade transition ──────────────────────────
   const go = useCallback((dir) => {
     const n = listRef.current.length;
@@ -112,21 +97,6 @@ export default function TrainerDetailScreen({ navigation, route }) {
     }),
   ).current;
 
-  async function handleTrialRequest() {
-    if (!current || requesting || trialStatus !== null) return;
-    setRequesting(true);
-    try {
-      await requestTrialSession(current.id);
-      logEvent('trial_session_requested', { trainer_id: current.id }).catch(() => {});
-      setTrialStatus('pending');
-      Alert.alert('Request Sent', "Your trial session request has been submitted. You'll receive a notification once it's confirmed by the admin.");
-    } catch (err) {
-      Alert.alert('Error', err.response?.data?.message ?? 'Failed to send request.');
-    } finally {
-      setRequesting(false);
-    }
-  }
-
   if (!current) {
     return (
       <View style={[styles.container, styles.center]}>
@@ -139,12 +109,6 @@ export default function TrainerDetailScreen({ navigation, route }) {
   const initials = (current.name || 'T').charAt(0).toUpperCase();
   const isCurrentAssigned = !!assignedTrainerId && current.id === assignedTrainerId;
   const pills = current.specialisations?.length ? current.specialisations : (current.tags || []);
-
-  const trialBtnLabel =
-    trialStatus === 'pending' ? 'Request Sent ✓' :
-      trialStatus === 'accepted' ? 'Session Scheduled' :
-        trialStatus === 'member_confirmed' ? 'Session Confirmed ✓' :
-          'Book Trial Session';
 
   const stats = [
     { label: 'Experience', value: current.experience || (current.yearsOfExperience ? `${current.yearsOfExperience} years` : '—'), icon: 'time-outline', color: COLORS.secondary, bg: 'rgba(167,139,250,0.15)' },
@@ -352,21 +316,16 @@ export default function TrainerDetailScreen({ navigation, route }) {
         <SafeBottomBar style={styles.footer} minPadding={16}>
           <TouchableOpacity
             activeOpacity={0.9}
-            onPress={handleTrialRequest}
-            disabled={requesting || trialStatus !== null}
+            onPress={() => Alert.alert('Coming Soon', 'Trial session booking will be available soon.')}
             style={styles.trialWrap}
           >
             <LinearGradient
               colors={GOLD_GRADIENT}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
-              style={[styles.trialBtn, (requesting || trialStatus !== null) && { opacity: 0.55 }]}
+              style={styles.trialBtn}
             >
-              {requesting ? (
-                <ActivityIndicator color="#1A1206" size="small" />
-              ) : (
-                <Text style={styles.trialBtnText}>{trialBtnLabel}</Text>
-              )}
+              <Text style={styles.trialBtnText}>Book Trial Session</Text>
             </LinearGradient>
           </TouchableOpacity>
         </SafeBottomBar>
