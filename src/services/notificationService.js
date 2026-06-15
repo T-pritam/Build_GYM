@@ -102,6 +102,10 @@ export const handleDeepLink = (deepLink) => {
         if (id) navigateTo('TrainerDetail', { trainerId: id });
         else navigateTo('Trainers');
         break;
+      case 'trials':
+        if (id) navigateTo('TrialDetail', { trialId: id });
+        else navigateTo('MyBookings');
+        break;
       case 'community':
         if (id) navigateTo('PostDetail', { postId: id });
         break;

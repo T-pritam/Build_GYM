@@ -89,6 +89,7 @@ import ActivityDetailScreen from '../screens/main/ActivityDetailScreen';
 import MyBookingsScreen from '../screens/main/MyBookingsScreen';
 import BookingDetailScreen from '../screens/main/BookingDetailScreen';
 import BookingCancelledScreen from '../screens/main/BookingCancelledScreen';
+import TrialDetailScreen from '../screens/main/TrialDetailScreen';
 import BookingConfirmationScreen from '../screens/main/BookingConfirmationScreen';
 import BookingQRScreen from '../screens/main/BookingQRScreen';
 import TrainersScreen from '../screens/main/TrainersScreen';
@@ -313,6 +314,11 @@ export default function AppNavigator() {
         <Stack.Screen
           name="BookingDetail"
           component={BookingDetailScreen}
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="TrialDetail"
+          component={TrialDetailScreen}
           options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen

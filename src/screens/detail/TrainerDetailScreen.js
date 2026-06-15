@@ -8,6 +8,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS as THEME, FONTS } from '../../theme';
 import SafeBottomBar from '../../components/SafeBottomBar';
 import { fetchTrainers, fetchMyTrainer } from '../../services/trainerService';
+import { useAuthStore } from '../../store/authStore';
 
 // Theme-compat: legacy colour keys → new "Holographic Noir" palette.
 const COLORS = {
@@ -43,6 +44,28 @@ export default function TrainerDetailScreen({ navigation, route }) {
   const fade = useRef(new Animated.Value(1)).current;
 
   const current = list[currentIndex] || null;
+  const user = useAuthStore((st) => st.user);
+
+  // ── Book Trial → WhatsApp the front desk with a prefilled message (§3.2). ──
+  // Substitutes real member (name + code) + trainer name; falls back to a
+  // number + Copy sheet if WhatsApp / dialer is unavailable (E1).
+  const bookTrialViaWhatsApp = useCallback(() => {
+    const memberName = user?.fullName || [user?.firstName, user?.lastName].filter(Boolean).join(' ') || 'a member';
+    const memberCode = user?.displayId || '—';
+    const trainerName = current?.name || 'your coach';
+    const msg = `Hi! I'm ${memberName} (Member ID: ${memberCode}). I'd like to book a free trial session with Coach ${trainerName}. Please share available slots. — sent from the BuildGym app`;
+    const waUrl = `whatsapp://send?phone=${RECEPTION_PHONE}&text=${encodeURIComponent(msg)}`;
+    Linking.openURL(waUrl).catch(() => {
+      Alert.alert(
+        'WhatsApp not found',
+        `Call or message the front desk at ${RECEPTION_PHONE}`,
+        [
+          { text: 'Call', onPress: () => Linking.openURL(`tel:${RECEPTION_PHONE}`).catch(() => {}) },
+          { text: 'OK', style: 'cancel' },
+        ],
+      );
+    });
+  }, [user, current]);
 
   // ── Resolve the trainer list + starting index (params or fetch / deeplink) ──
   useEffect(() => {
@@ -316,7 +339,7 @@ export default function TrainerDetailScreen({ navigation, route }) {
         <SafeBottomBar style={styles.footer} minPadding={16}>
           <TouchableOpacity
             activeOpacity={0.9}
-            onPress={() => Alert.alert('Coming Soon', 'Trial session booking will be available soon.')}
+            onPress={bookTrialViaWhatsApp}
             style={styles.trialWrap}
           >
             <LinearGradient

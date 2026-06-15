@@ -6,6 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS } from '../../theme';
 import { fetchMyBookings } from '../../services/activityService';
+import { fetchMyTrials, TRIAL_STATUS_META } from '../../services/trialService';
 import SafeBottomBar from '../../components/SafeBottomBar';
 
 const TABS = ['All', 'Upcoming', 'Past', 'Cancelled'];
@@ -23,17 +24,24 @@ export default function MyBookingsScreen({ navigation }) {
   const [tab, setTab] = useState('All');
   const [upcoming, setUpcoming] = useState([]);
   const [past, setPast] = useState([]);
+  const [trials, setTrials] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const loadBookings = useCallback(async () => {
     try {
-      const [upRes, pastRes] = await Promise.all([
+      const [upRes, pastRes, trialUpRes, trialPastRes] = await Promise.all([
         fetchMyBookings({ status: 'upcoming', limit: 50 }),
         fetchMyBookings({ status: 'past', limit: 50 }),
+        fetchMyTrials('upcoming').catch(() => null),
+        fetchMyTrials('past').catch(() => null),
       ]);
       setUpcoming(upRes.data?.data || []);
       setPast(pastRes.data?.data || []);
+      setTrials([
+        ...((trialUpRes?.data?.data || []).map((t) => ({ ...t, _bucket: 'upcoming', _isTrial: true }))),
+        ...((trialPastRes?.data?.data || []).map((t) => ({ ...t, _bucket: 'past', _isTrial: true }))),
+      ]);
     } catch (err) {
       console.warn('Failed to load bookings:', err.message);
     } finally {
@@ -55,15 +63,18 @@ export default function MyBookingsScreen({ navigation }) {
     loadBookings();
   }, [loadBookings]);
 
-  // Tag each row with its bucket, then filter by tab.
+  // Tag each row with its bucket, then filter by tab. Trials ride alongside bookings.
+  const isTrialCancelled = (r) => r._isTrial && (r.status === 'cancelled_by_member' || r.status === 'cancelled_by_admin');
   const tagged = [
     ...upcoming.map((r) => ({ ...r, _bucket: 'upcoming' })),
+    ...trials.filter((r) => r._bucket === 'upcoming'),
     ...past.map((r) => ({ ...r, _bucket: 'past' })),
+    ...trials.filter((r) => r._bucket === 'past'),
   ];
   const rows = tagged.filter((r) => {
     if (tab === 'All') return true;
     if (tab === 'Upcoming') return r._bucket === 'upcoming';
-    if (tab === 'Cancelled') return r.booking?.status === 'cancelled';
+    if (tab === 'Cancelled') return r._isTrial ? isTrialCancelled(r) : r.booking?.status === 'cancelled';
     if (tab === 'Past') return r._bucket === 'past';
     return true;
   });
@@ -115,6 +126,33 @@ export default function MyBookingsScreen({ navigation }) {
           </View>
         ) : (
           rows.map((row) => {
+            // ── Trial row ──
+            if (row._isTrial) {
+              const meta = TRIAL_STATUS_META[row.status] || TRIAL_STATUS_META.scheduled;
+              const cancelled = isTrialCancelled(row);
+              const when = new Date(row.scheduledAt);
+              return (
+                <TouchableOpacity
+                  key={`trial-${row.id}`}
+                  style={[styles.card, cancelled && styles.cardDim]}
+                  activeOpacity={0.8}
+                  onPress={() => navigation.navigate('TrialDetail', { trialId: row.id })}
+                >
+                  <View style={styles.cardTop}>
+                    <Text style={[styles.cardTitle, cancelled && { color: COLORS.textMuted }]} numberOfLines={1}>
+                      Trial · Coach {row.trainerName}
+                    </Text>
+                    <View style={[styles.badge, { backgroundColor: meta.bg, borderColor: meta.border }]}>
+                      <Text style={[styles.badgeText, { color: meta.color }]}>TRIAL</Text>
+                    </View>
+                  </View>
+                  <Text style={[styles.cardDate, cancelled && { color: COLORS.textDim }]}>
+                    {when.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} · {when.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                  </Text>
+                </TouchableOpacity>
+              );
+            }
+            // ── Activity booking row ──
             const b = row.booking;
             const meta = statusMeta(b.status, row._bucket);
             const cancelled = b.status === 'cancelled';

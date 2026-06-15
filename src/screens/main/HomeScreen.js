@@ -13,6 +13,7 @@ import { fetchAnnouncements } from '../../services/announcementService';
 import { getSocket } from '../../services/socketService';
 import { fetchTodaysPlan, fetchStreak } from '../../services/workoutService';
 import { getMyLeaderboardStats } from '../../services/leaderboardService';
+import { fetchMyTrials } from '../../services/trialService';
 import ActiveOrderBar from '../../components/ActiveOrderBar';
 
 // Mockup accent palette (kept as literals — multi-colour KPI / quick-access tiles).
@@ -23,6 +24,18 @@ const SILVER = '#C8C6C8';
 const GREEN = '#4ADE80';
 
 const DOW = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
+// Friendly countdown for the upcoming-trial card ("in 2 days", "in 3 hrs").
+function countdownLabel(iso) {
+  const diff = new Date(iso).getTime() - Date.now();
+  if (diff <= 0) return 'now';
+  const days = Math.floor(diff / 86400000);
+  if (days >= 1) return `in ${days} day${days > 1 ? 's' : ''}`;
+  const hrs = Math.floor(diff / 3600000);
+  if (hrs >= 1) return `in ${hrs} hr${hrs > 1 ? 's' : ''}`;
+  const mins = Math.max(1, Math.floor(diff / 60000));
+  return `in ${mins} min`;
+}
 
 // Quick-access tiles → real routes.
 const QUICK = [
@@ -55,6 +68,7 @@ export default function HomeScreen({ navigation }) {
   const [todaysPlan, setTodaysPlan] = useState(null);
   const [streakData, setStreakData] = useState(null);
   const [leaderboardStats, setLeaderboardStats] = useState(null);
+  const [upcomingTrial, setUpcomingTrial] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
 
   // Live wallet balance (fetch + socket).
@@ -82,6 +96,9 @@ export default function HomeScreen({ navigation }) {
       getMyLeaderboardStats()
         .then((data) => setLeaderboardStats(data || null))
         .catch(() => setLeaderboardStats(null)),
+      fetchMyTrials('upcoming')
+        .then((res) => setUpcomingTrial((res.data?.data || [])[0] || null))
+        .catch(() => setUpcomingTrial(null)),
     ]);
   }, []);
 
@@ -323,6 +340,41 @@ export default function HomeScreen({ navigation }) {
           </View>
         </TouchableOpacity>
 
+        {/* ── UPCOMING TRIAL (bottom of dashboard) ──────────── */}
+        {upcomingTrial && (
+          <TouchableOpacity
+            style={styles.trialCard}
+            activeOpacity={0.9}
+            onPress={() => navigation.navigate('TrialDetail', { trialId: upcomingTrial.id })}
+          >
+            <View style={styles.trialTopRow}>
+              <View style={styles.trialBadge}>
+                <Ionicons name="flash" size={11} color={CYAN} />
+                <Text style={styles.trialBadgeText}>TRIAL</Text>
+              </View>
+              <Text style={styles.trialCountdown}>{countdownLabel(upcomingTrial.scheduledAt)}</Text>
+            </View>
+            <View style={styles.trialBody}>
+              {upcomingTrial.trainerPhoto ? (
+                <Image source={{ uri: upcomingTrial.trainerPhoto }} style={styles.trialPhoto} />
+              ) : (
+                <View style={[styles.trialPhoto, styles.trialPhotoFallback]}>
+                  <Text style={styles.trialInitials}>{(upcomingTrial.trainerName || 'C').slice(0, 2).toUpperCase()}</Text>
+                </View>
+              )}
+              <View style={{ flex: 1 }}>
+                <Text style={styles.trialCoach}>Coach {upcomingTrial.trainerName}</Text>
+                <Text style={styles.trialWhen}>
+                  {new Date(upcomingTrial.scheduledAt).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
+                  {' · '}
+                  {new Date(upcomingTrial.scheduledAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
+            </View>
+          </TouchableOpacity>
+        )}
+
         <View style={{ height: 140 }} />
       </ScrollView>
 
@@ -488,6 +540,26 @@ const styles = StyleSheet.create({
   workoutExercises: { fontFamily: FONTS.label, fontSize: 10, color: COLORS.textMuted, opacity: 0.6, letterSpacing: 0.5 },
   workoutLink: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-end' },
   workoutLinkText: { fontFamily: FONTS.label, fontSize: 10, color: COLORS.primaryLight, letterSpacing: 1 },
+
+  // Upcoming trial card
+  trialCard: {
+    backgroundColor: '#16242A', borderRadius: 18, borderLeftWidth: 2, borderLeftColor: CYAN,
+    padding: 16, gap: 12, marginTop: 16,
+  },
+  trialTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  trialBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: 'rgba(0,206,209,0.12)', borderWidth: 1, borderColor: 'rgba(0,206,209,0.4)',
+    borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3,
+  },
+  trialBadgeText: { fontFamily: FONTS.label, fontSize: 9, color: CYAN, letterSpacing: 1 },
+  trialCountdown: { fontFamily: FONTS.label, fontSize: 10, color: COLORS.textMuted },
+  trialBody: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  trialPhoto: { width: 44, height: 44, borderRadius: 22 },
+  trialPhotoFallback: { backgroundColor: 'rgba(0,206,209,0.15)', alignItems: 'center', justifyContent: 'center' },
+  trialInitials: { fontFamily: FONTS.bodyBold, fontSize: 15, color: CYAN },
+  trialCoach: { fontFamily: FONTS.headline, fontSize: 16, color: COLORS.white },
+  trialWhen: { fontFamily: FONTS.body, fontSize: 12, color: COLORS.textSecondary, marginTop: 2 },
 
   // Active order bar (sits above the FAB)
   orderBarWrap: { position: 'absolute', left: 0, right: 0, bottom: 96 },
