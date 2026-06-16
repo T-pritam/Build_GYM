@@ -81,7 +81,17 @@ export default function TrainerDetailScreen({ navigation, route }) {
       let idx = route.params?.index;
       if (idx == null) {
         const tid = route.params?.trainer?.id ?? route.params?.trainerId;
-        const found = l.findIndex((t) => t.id === tid);
+        let found = l.findIndex((t) => t.id === tid);
+        // The member's own assigned trainer is excluded from /customer/trainers,
+        // so a deeplink to it (TRAINER_ASSIGNED/CHANGED → buildfitness://trainers/<id>)
+        // isn't in the list. Pull the target in so we show the right coach instead
+        // of silently falling back to the first trainer.
+        if (found < 0 && tid) {
+          let target = null;
+          try { const mine = await fetchMyTrainer(); if (mine?.id === tid) target = mine; } catch {}
+          if (!target && route.params?.trainer?.id === tid) target = route.params.trainer;
+          if (target) { l = [target, ...l]; found = 0; }
+        }
         idx = found >= 0 ? found : 0;
       }
       if (mounted) {
