@@ -1,19 +1,29 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, Alert, StatusBar,
+  ActivityIndicator, Alert, StatusBar, Animated, Easing, TextInput,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import {
   fetchActiveWorkout, startWorkout, logSet, getWorkoutSets, completeWorkout,
+  skipInstanceExercise, setInstanceRemark, startInstance,
 } from '../../services/workoutService';
+
+const SKIP_REASONS = [
+  { key: 'pain', label: 'Pain/discomfort' },
+  { key: 'no_equipment', label: 'No equipment' },
+  { key: 'out_of_time', label: 'Out of time' },
+  { key: 'trainers_call', label: "Trainer's call" },
+  { key: 'other', label: 'Other' },
+];
 
 export default function WorkoutSessionScreen({ route, navigation }) {
   const insets = useSafeAreaInsets();
-  const { planId, plan, selfLogExercises, muscleGroups } = route.params || {};
-  const isCaseA = !!planId;
+  const { planId, plan, selfLogExercises, muscleGroups, workoutId } = route.params || {};
+  const isInstance = !!workoutId && !planId;
+  const isCaseA = !!planId || isInstance; // instances behave like assigned workouts (targets, rest timers)
 
   const [workoutLog, setWorkoutLog] = useState(null);
   const [exercises, setExercises] = useState([]);
@@ -23,14 +33,29 @@ export default function WorkoutSessionScreen({ route, navigation }) {
   const [completing, setCompleting] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
   const [restTimer, setRestTimer] = useState(0);
+  const [skipped, setSkipped] = useState({});       // { [exerciseId]: reason }
+  const [showSkipFor, setShowSkipFor] = useState(null);
+  const [prCelebrate, setPrCelebrate] = useState(null);
+  const [workoutRemark, setWorkoutRemark] = useState('');
   const timerRef = useRef(null);
   const startTimeRef = useRef(Date.now());
+  const prAnim = useRef(new Animated.Value(0)).current;
+
+  const celebratePR = (prsHit) => {
+    setPrCelebrate(prsHit);
+    prAnim.setValue(0);
+    Animated.sequence([
+      Animated.timing(prAnim, { toValue: 1, duration: 350, easing: Easing.out(Easing.back(1.6)), useNativeDriver: true }),
+      Animated.delay(1400),
+      Animated.timing(prAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
+    ]).start(() => setPrCelebrate(null));
+  };
 
   // Build exercise list from a source array (plan exercises or server exercises)
   const buildExerciseList = (source) => source.map((ex) => ({
     id: ex.exerciseId || ex.id,
     name: ex.exerciseName || ex.name,
-    targetSets: ex.targetSets ?? null,
+    targetSets: ex.targetSets ?? ex.sets ?? null,   // snapshot uses `sets`
     targetReps: ex.targetReps ?? null,
     targetWeight: ex.targetWeight ?? null,
     restSeconds: ex.restSeconds || 90,
@@ -60,8 +85,19 @@ export default function WorkoutSessionScreen({ route, navigation }) {
   useEffect(() => {
     (async () => {
       try {
+        // ── Instance mode: a dated trainer-assigned workout (Doc 4) ──────────
+        if (isInstance) {
+          const inst = await startInstance(workoutId); // flips assigned→in_progress, returns detail
+          setWorkoutLog(inst);
+          const snapExs = inst?.snapshot?.exercises || plan?.exercises || [];
+          setExercises(buildExerciseList(snapExs));
+          if (inst?.sets?.length > 0) setSetsByExercise(groupSets(inst.sets));
+          setLoading(false);
+          return;
+        }
+
         // ── Step 1: Check if there's already an in_progress log for today ──────
-        let log = isCaseA ? await fetchActiveWorkout(planId) : null;
+        let log = (isCaseA && planId) ? await fetchActiveWorkout(planId) : null;
 
         if (log) {
           // Resume existing session — sets are already in log.sets
@@ -140,45 +176,65 @@ export default function WorkoutSessionScreen({ route, navigation }) {
     }, 1000);
   };
 
-  const handleLogSet = async (weight, reps, setType = 'normal') => {
+  const handleLogSet = async (weight, reps, setType = 'normal', remark = null) => {
     if (!workoutLog || !currentExercise || isCompleted) return;
+    const setNumber = nextSetNumber;
+    const clientTs = new Date().toISOString();
+    // Idempotency key makes offline retries safe (server dedupes — Doc 4 §7.3).
+    const idempotencyKey = `${workoutLog.id}:${currentExercise.id}:${setNumber}:${clientTs}`;
+
+    // Optimistic UI — show the set immediately.
+    const optimistic = {
+      setNumber, actualWeight: parseFloat(weight) || 0, actualReps: parseInt(reps) || 0,
+      setType, isPr: false, pending: true,
+    };
+    setSetsByExercise((prev) => ({ ...prev, [currentExercise.id]: [...(prev[currentExercise.id] || []), optimistic] }));
+    if (isCaseA && currentExercise.restSeconds) startRestTimer(currentExercise.restSeconds);
+
     try {
       const result = await logSet(workoutLog.id, {
-        exerciseId: currentExercise.id,
-        setNumber: nextSetNumber,
-        actualWeight: parseFloat(weight) || 0,
-        actualReps: parseInt(reps) || 0,
-        setType,
+        exerciseId: currentExercise.id, setNumber,
+        actualWeight: parseFloat(weight) || 0, actualReps: parseInt(reps) || 0,
+        setType, remark, idempotencyKey, clientTs,
       });
-
-      // result = { success, data: { setLog, prsHit } }
       const prsHit = result?.data?.prsHit || [];
-      const newSet = {
-        setNumber: nextSetNumber,
-        actualWeight: parseFloat(weight) || 0,
-        actualReps: parseInt(reps) || 0,
-        setType,
-        isPr: prsHit.length > 0,
-      };
-
       setSetsByExercise((prev) => ({
         ...prev,
-        [currentExercise.id]: [...(prev[currentExercise.id] || []), newSet],
+        [currentExercise.id]: (prev[currentExercise.id] || []).map((st) =>
+          st.setNumber === setNumber && st.pending ? { ...st, isPr: prsHit.length > 0, pending: false } : st),
       }));
-
-      // Auto-start rest timer for Case A
-      if (isCaseA && currentExercise.restSeconds) {
-        startRestTimer(currentExercise.restSeconds);
-      }
+      if (prsHit.length > 0) celebratePR(prsHit);
     } catch (e) {
-      Alert.alert('Error', e.response?.data?.message || 'Could not log set');
+      // Keep the optimistic set flagged as unsynced; the idempotency key means a
+      // later retry (e.g. on Finish) will not duplicate it.
+      setSetsByExercise((prev) => ({
+        ...prev,
+        [currentExercise.id]: (prev[currentExercise.id] || []).map((st) =>
+          st.setNumber === setNumber && st.pending ? { ...st, unsynced: true } : st),
+      }));
     }
+  };
+
+  const handleSkip = async (reasonKey) => {
+    const exId = showSkipFor;
+    setShowSkipFor(null);
+    setSkipped((prev) => ({ ...prev, [exId]: reasonKey }));
+    try { await skipInstanceExercise(workoutLog.id, { exerciseId: exId, skipped: true, reason: reasonKey }); }
+    catch { /* best-effort; will re-sync */ }
+  };
+
+  const handleUnskip = async (exId) => {
+    setSkipped((prev) => { const n = { ...prev }; delete n[exId]; return n; });
+    try { await skipInstanceExercise(workoutLog.id, { exerciseId: exId, skipped: false }); } catch { /* */ }
   };
 
   const handleCompleteWorkout = async () => {
     if (!workoutLog || isCompleted || completing) return;
     setCompleting(true);
     try {
+      if (workoutRemark.trim()) {
+        try { await setInstanceRemark(workoutLog.id, workoutRemark.trim()); } catch { /* non-blocking */ }
+      }
       const result = await completeWorkout(workoutLog.id);
       setIsCompleted(true);
       // Replace immediately — user should not be able to come back to this screen
@@ -263,6 +319,35 @@ export default function WorkoutSessionScreen({ route, navigation }) {
         </View>
       )}
 
+      {/* PR celebration burst */}
+      {prCelebrate && (
+        <Animated.View pointerEvents="none" style={[styles.prOverlay, {
+          opacity: prAnim,
+          transform: [{ scale: prAnim.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] }) }],
+        }]}>
+          <Text style={styles.prEmoji}>🏆✨</Text>
+          <Text style={styles.prTitle}>New PR!</Text>
+          <Text style={styles.prSub}>{prCelebrate.map((p) => p.replace('max_', '').replace('_', ' ')).join(' · ')}</Text>
+        </Animated.View>
+      )}
+
+      {/* Skip reason sheet */}
+      {showSkipFor && (
+        <View style={styles.skipSheetOverlay}>
+          <View style={styles.skipSheet}>
+            <Text style={styles.skipSheetTitle}>Why skip this exercise?</Text>
+            {SKIP_REASONS.map((r) => (
+              <TouchableOpacity key={r.key} style={styles.skipReasonRow} onPress={() => handleSkip(r.key)}>
+                <Text style={styles.skipReasonTxt}>{r.label}</Text>
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity style={styles.skipCancel} onPress={() => setShowSkipFor(null)}>
+              <Text style={styles.skipCancelTxt}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
       {/* Exercise tabs */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabs}>
         {exercises.map((ex, idx) => {
@@ -286,7 +371,26 @@ export default function WorkoutSessionScreen({ route, navigation }) {
       {/* Current exercise detail */}
       {currentExercise && (
         <ScrollView style={styles.body} contentContainerStyle={{ paddingBottom: 120 }}>
-          <Text style={styles.exerciseName}>{currentExercise.name}</Text>
+          <View style={styles.exHeaderRow}>
+            <Text style={[styles.exerciseName, skipped[currentExercise.id] && styles.exNameSkipped]}>{currentExercise.name}</Text>
+            {!isCompleted && (
+              skipped[currentExercise.id] ? (
+                <TouchableOpacity onPress={() => handleUnskip(currentExercise.id)} style={styles.unskipBtn}>
+                  <Text style={styles.unskipTxt}>Un-skip</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity onPress={() => setShowSkipFor(currentExercise.id)} style={styles.skipBtn}>
+                  <Ionicons name="play-skip-forward-outline" size={14} color={COLORS.textMuted} />
+                  <Text style={styles.skipBtnTxt}>Skip</Text>
+                </TouchableOpacity>
+              )
+            )}
+          </View>
+          {skipped[currentExercise.id] && (
+            <View style={styles.skippedBanner}>
+              <Text style={styles.skippedBannerTxt}>Skipped — {SKIP_REASONS.find((r) => r.key === skipped[currentExercise.id])?.label || 'skipped'}. It won't count against completion.</Text>
+            </View>
+          )}
 
           {/* Targets (Case A only) */}
           {isCaseA && currentExercise.targetSets && (
@@ -334,8 +438,8 @@ export default function WorkoutSessionScreen({ route, navigation }) {
             );
           })}
 
-          {/* Log set form — hidden after completion */}
-          {!isCompleted && (
+          {/* Log set form — hidden after completion (or when skipped) */}
+          {!isCompleted && !skipped[currentExercise.id] && (
             <SetInputForm
               onSubmit={handleLogSet}
               defaultWeight={isCaseA ? currentExercise.targetWeight : ''}
@@ -343,84 +447,76 @@ export default function WorkoutSessionScreen({ route, navigation }) {
               setNumber={nextSetNumber}
             />
           )}
+
+          {/* Workout-level remark (flows to the trainer) */}
+          {!isCompleted && currentExIdx === exercises.length - 1 && (
+            <View style={styles.remarkCard}>
+              <Text style={styles.remarkLabel}>Workout note (optional)</Text>
+              <TextInput
+                style={styles.remarkInput}
+                value={workoutRemark}
+                onChangeText={setWorkoutRemark}
+                placeholder="How did it go? Anything for your coach…"
+                placeholderTextColor={COLORS.textMuted}
+                multiline
+                maxLength={300}
+              />
+            </View>
+          )}
         </ScrollView>
       )}
     </View>
   );
 }
 
-// ── Set input form ───────────────────────────────────────────────────────────
-
-import { TextInput } from 'react-native';
+// ── Set input form — prefilled steppers + one-tap ✓ (Doc 4 §7.2) ─────────────
 
 function SetInputForm({ onSubmit, defaultWeight, defaultReps, setNumber }) {
-  const [weight, setWeight] = useState(defaultWeight?.toString() || '');
-  const [reps, setReps] = useState(defaultReps?.toString() || '');
+  const [weight, setWeight] = useState(defaultWeight != null ? Number(defaultWeight) : 0);
+  const [reps, setReps] = useState(defaultReps != null ? Number(defaultReps) : 0);
   const [setType, setSetType] = useState('normal');
   const [submitting, setSubmitting] = useState(false);
 
   const SET_TYPES = ['normal', 'warmup', 'drop', 'failure'];
+  const clamp = (n) => Math.max(0, n);
 
   const handleSubmit = async () => {
-    if (!weight || !reps) return;
     setSubmitting(true);
     await onSubmit(weight, reps, setType);
     setSubmitting(false);
-    // Reset reps but keep weight for convenience
-    setReps(defaultReps?.toString() || '');
+    setReps(defaultReps != null ? Number(defaultReps) : reps); // keep weight, reset reps to target
   };
+
+  const Stepper = ({ label, value, onDec, onInc }) => (
+    <View style={styles.stepperGroup}>
+      <Text style={styles.inputLabel}>{label}</Text>
+      <View style={styles.stepperRow}>
+        <TouchableOpacity style={styles.stepBtn} onPress={onDec}><Ionicons name="remove" size={20} color={COLORS.white} /></TouchableOpacity>
+        <Text style={styles.stepVal}>{value}</Text>
+        <TouchableOpacity style={styles.stepBtn} onPress={onInc}><Ionicons name="add" size={20} color={COLORS.white} /></TouchableOpacity>
+      </View>
+    </View>
+  );
 
   return (
     <View style={styles.inputCard}>
       <Text style={styles.inputTitle}>Set {setNumber}</Text>
-
       <View style={styles.inputRow}>
-        <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>Weight (kg)</Text>
-          <TextInput
-            style={styles.input}
-            value={weight}
-            onChangeText={setWeight}
-            keyboardType="decimal-pad"
-            placeholder="0"
-            placeholderTextColor={COLORS.textMuted}
-          />
-        </View>
-        <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>Reps</Text>
-          <TextInput
-            style={styles.input}
-            value={reps}
-            onChangeText={setReps}
-            keyboardType="number-pad"
-            placeholder="0"
-            placeholderTextColor={COLORS.textMuted}
-          />
-        </View>
+        <Stepper label="Weight (kg)" value={weight} onDec={() => setWeight((w) => clamp(w - 2.5))} onInc={() => setWeight((w) => w + 2.5)} />
+        <Stepper label="Reps" value={reps} onDec={() => setReps((r) => clamp(r - 1))} onInc={() => setReps((r) => r + 1)} />
       </View>
 
-      {/* Set type selector */}
       <View style={styles.typeRow}>
         {SET_TYPES.map((t) => (
-          <TouchableOpacity
-            key={t}
-            style={[styles.typeChip, setType === t && styles.typeChipActive]}
-            onPress={() => setSetType(t)}
-          >
-            <Text style={[styles.typeText, setType === t && styles.typeTextActive]}>
-              {t.charAt(0).toUpperCase() + t.slice(1)}
-            </Text>
+          <TouchableOpacity key={t} style={[styles.typeChip, setType === t && styles.typeChipActive]} onPress={() => setSetType(t)}>
+            <Text style={[styles.typeText, setType === t && styles.typeTextActive]}>{t.charAt(0).toUpperCase() + t.slice(1)}</Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      <TouchableOpacity
-        style={[styles.logBtn, submitting && { opacity: 0.6 }]}
-        onPress={handleSubmit}
-        disabled={submitting || !weight || !reps}
-      >
-        <Ionicons name="checkmark" size={20} color={COLORS.white} />
-        <Text style={styles.logBtnText}>{submitting ? 'Logging…' : 'Log Set'}</Text>
+      <TouchableOpacity style={[styles.logBtn, submitting && { opacity: 0.6 }]} onPress={handleSubmit} disabled={submitting}>
+        <Ionicons name="checkmark" size={22} color={COLORS.white} />
+        <Text style={styles.logBtnText}>{submitting ? 'Logging…' : 'Log set'}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -514,6 +610,42 @@ const styles = StyleSheet.create({
   typeTextActive: { color: COLORS.white, fontWeight: '600' },
 
   // Log button
-  logBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: COLORS.secondary, borderRadius: 12, paddingVertical: 14, marginTop: 16 },
-  logBtnText: { color: COLORS.white, fontSize: 16, fontWeight: '700' },
+  logBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: COLORS.secondary, borderRadius: 12, paddingVertical: 16, marginTop: 16 },
+  logBtnText: { color: COLORS.white, fontSize: 17, fontWeight: '800' },
+
+  // Steppers
+  stepperGroup: { flex: 1 },
+  stepperRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: COLORS.background, borderRadius: 10, borderWidth: 1, borderColor: COLORS.border, paddingHorizontal: 6, paddingVertical: 6 },
+  stepBtn: { width: 38, height: 38, borderRadius: 8, backgroundColor: COLORS.surface, alignItems: 'center', justifyContent: 'center' },
+  stepVal: { color: COLORS.white, fontSize: 20, fontWeight: '800' },
+
+  // Exercise header + skip
+  exHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 },
+  exNameSkipped: { textDecorationLine: 'line-through', color: COLORS.textMuted },
+  skipBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 14, borderWidth: 1, borderColor: COLORS.border },
+  skipBtnTxt: { color: COLORS.textMuted, fontSize: 12, fontWeight: '600' },
+  unskipBtn: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 14, backgroundColor: COLORS.surface },
+  unskipTxt: { color: COLORS.secondary, fontSize: 12, fontWeight: '700' },
+  skippedBanner: { backgroundColor: 'rgba(255,193,7,0.12)', borderRadius: 10, padding: 10, marginTop: 8 },
+  skippedBannerTxt: { color: '#FFC107', fontSize: 12 },
+
+  // Skip reason sheet
+  skipSheetOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', zIndex: 20, justifyContent: 'flex-end' },
+  skipSheet: { backgroundColor: COLORS.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 40 },
+  skipSheetTitle: { color: COLORS.white, fontSize: 16, fontWeight: '700', marginBottom: 12 },
+  skipReasonRow: { paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  skipReasonTxt: { color: COLORS.textPrimary, fontSize: 15 },
+  skipCancel: { marginTop: 14, alignItems: 'center', paddingVertical: 12 },
+  skipCancelTxt: { color: COLORS.textMuted, fontWeight: '700' },
+
+  // Remark
+  remarkCard: { backgroundColor: COLORS.surface, borderRadius: 16, padding: 16, marginTop: 16, borderWidth: 1, borderColor: COLORS.border },
+  remarkLabel: { color: COLORS.textSecondary, fontSize: 12, marginBottom: 8 },
+  remarkInput: { backgroundColor: COLORS.background, borderRadius: 10, padding: 12, color: COLORS.white, minHeight: 64, textAlignVertical: 'top', borderWidth: 1, borderColor: COLORS.border },
+
+  // PR celebration
+  prOverlay: { position: 'absolute', top: '38%', left: 0, right: 0, alignItems: 'center', zIndex: 30 },
+  prEmoji: { fontSize: 56 },
+  prTitle: { color: '#FFD700', fontSize: 28, fontWeight: '900', marginTop: 6 },
+  prSub: { color: COLORS.white, fontSize: 14, marginTop: 4, textTransform: 'capitalize' },
 });

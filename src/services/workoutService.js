@@ -56,6 +56,28 @@ export const completeWorkout = async (workoutId) => {
   return data;
 };
 
+// ── Dated instances (Doc 4 §7) — trainer-assigned workouts by date ────────────
+export const fetchInstances = async () => {
+  const { data } = await api.get('/member/instances');
+  return data.data; // { today, upcoming, history }
+};
+
+export const startInstance = async (id) => {
+  const { data } = await api.post(`/member/instances/${id}/start`);
+  return data.data;
+};
+
+export const skipInstanceExercise = async (id, body) => {
+  // body: { exerciseId, skipped, reason }
+  const { data } = await api.post(`/member/instances/${id}/skip`, body);
+  return data;
+};
+
+export const setInstanceRemark = async (id, remark) => {
+  const { data } = await api.patch(`/member/instances/${id}/remark`, { remark });
+  return data;
+};
+
 export const fetchWorkoutHistory = async (params = {}) => {
   const { data } = await api.get('/member/workouts', { params });
   return data.data;

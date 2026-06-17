@@ -1,39 +1,32 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  StatusBar,
-  ActivityIndicator,
-  RefreshControl,
-  Image,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar,
+  ActivityIndicator, RefreshControl, Image, Modal,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS as THEME, FONTS } from '../../theme';
-import { getLeaderboard } from '../../services/leaderboardService';
+import {
+  getLeaderboard, getHallOfFame, getMemberStatSheet, setLeaderboardConsent,
+} from '../../services/leaderboardService';
 import { logEvent } from '../../services/analyticsService';
 
-// ── Theme-compat remap (keeps legacy key names readable in styles) ───────────
-const COLORS = {
-  ...THEME,
-  secondary: THEME.primaryLight,
-  secondaryGlow: THEME.primarySoft,
-  secondaryBorder: THEME.primaryBorder,
-  surface: THEME.surfaceLow,
-};
+const COLORS = { ...THEME, surface: THEME.surfaceLow };
+const MEDAL_COLORS = ['#FFD700', '#C0C0C0', '#CD7F32'];
+const MONTHS = ['', 'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'];
 
-const MEDAL_COLORS = ['#FFD700', '#C0C0C0', '#CD7F32']; // gold / silver / bronze
-const PERIODS = ['This Week', 'This Month', 'All Time'];
+function shortName(n) { return n || 'Member'; }
 
 export default function LeaderboardScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [data, setData] = useState(null);
-
+  const [tab, setTab] = useState('board'); // board | fame
+  const [hof, setHof] = useState([]);
+  const [statSheet, setStatSheet] = useState(null);
+  const [explainer, setExplainer] = useState(false);
+  const [joining, setJoining] = useState(false);
   const viewLogged = useRef(false);
 
   const fetchData = useCallback(async () => {
@@ -43,25 +36,27 @@ export default function LeaderboardScreen({ navigation }) {
       setData(lb);
       if (!viewLogged.current) {
         viewLogged.current = true;
-        logEvent('leaderboard_viewed', {
-          period: 'monthly',
-          member_rank: lb?.myRank?.rank ?? null,
-        }).catch(() => {});
+        logEvent('leaderboard_viewed', { period: 'monthly', member_rank: lb?.myRank?.rank ?? null }).catch(() => {});
       }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to load leaderboard');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
+    } finally { setLoading(false); setRefreshing(false); }
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => { if (tab === 'fame' && hof.length === 0) getHallOfFame(0).then(setHof).catch(() => {}); }, [tab]);
 
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    fetchData();
-  }, [fetchData]);
+  const onRefresh = useCallback(() => { setRefreshing(true); fetchData(); }, [fetchData]);
+
+  const openStatSheet = async (memberId) => {
+    try { const sheet = await getMemberStatSheet(memberId); setStatSheet(sheet); } catch { /* not top-10 */ }
+  };
+
+  const join = async () => {
+    setJoining(true);
+    try { await setLeaderboardConsent(true); await fetchData(); } catch { /* ignore */ }
+    setJoining(false);
+  };
 
   if (loading) {
     return (
@@ -72,412 +67,281 @@ export default function LeaderboardScreen({ navigation }) {
     );
   }
 
-  if (error) {
+  // Feature off → coming soon
+  if (data && data.enabled === false) {
     return (
       <View style={[styles.container, styles.center]}>
-        <Ionicons name="alert-circle-outline" size={48} color={COLORS.primaryLight} />
-        <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.retryBtn} onPress={fetchData}>
-          <Text style={styles.retryText}>Retry</Text>
-        </TouchableOpacity>
+        <Ionicons name="trophy-outline" size={48} color={COLORS.textMuted} />
+        <Text style={styles.comingSoon}>Leaderboard coming soon</Text>
       </View>
     );
   }
 
   const top10 = data?.top10 || [];
-  const topThree = top10.slice(0, 3);
-  const rest = top10.slice(3);
-  const myRank = data?.myRank;
-  const totalParticipants = data?.totalParticipants || 0;
+  const podium = top10.slice(0, 3);
+  const rest = top10.slice(3, 10);
+  const waitingSlots = Math.max(0, 3 - podium.length);
+
+  // "resets in X days"
+  const daysLeft = data ? new Date(data.year, data.month, 0).getDate() - new Date().getDate() : 0;
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+      <StatusBar barStyle="light-content" />
 
-      {/* Back button */}
-      <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} activeOpacity={0.7}>
-        <Ionicons name="arrow-back" size={22} color={COLORS.cyan} />
-      </TouchableOpacity>
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.title}>Leaderboard</Text>
+          <Text style={styles.subtitle}>
+            {MONTHS[data?.month]} {data?.year} · resets in {daysLeft} day{daysLeft === 1 ? '' : 's'}
+          </Text>
+          {!!data?.updatedAgo && <Text style={styles.updatedAgo}>Updated {data.updatedAgo}</Text>}
+        </View>
+        <TouchableOpacity onPress={() => setExplainer(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <Ionicons name="information-circle-outline" size={24} color={COLORS.primaryLight} />
+        </TouchableOpacity>
+      </View>
+
+      {/* Tabs */}
+      <View style={styles.tabRow}>
+        {[['board', 'This Month'], ['fame', 'Hall of Fame']].map(([k, label]) => (
+          <TouchableOpacity key={k} style={[styles.tabBtn, tab === k && styles.tabBtnOn]} onPress={() => setTab(k)}>
+            <Text style={[styles.tabTxt, tab === k && styles.tabTxtOn]}>{label}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
 
       <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scroll}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primaryLight} />
-        }
+        contentContainerStyle={{ paddingBottom: 140 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primaryLight} />}
       >
-        {/* Header */}
-        <View style={styles.headerWrap}>
-          <Text style={styles.headerTitle}>RANKINGS</Text>
-          <Text style={styles.headerSub}>CONNECT AND COMPETE</Text>
+        {error && <Text style={styles.errorText}>{error}</Text>}
 
-          {/* Period toggle — only "This Month" active (backend is monthly-only) */}
-          <View style={styles.toggleRow}>
-            {PERIODS.map((p) => {
-              const active = p === 'This Month';
-              return (
-                <View key={p} style={[styles.toggleItem, active && styles.toggleItemActive]}>
-                  <Text style={[styles.toggleText, active && styles.toggleTextActive]}>{p}</Text>
-                </View>
-              );
-            })}
-          </View>
-        </View>
+        {tab === 'board' ? (
+          <>
+            {/* Excluded banner */}
+            {data?.excluded && (
+              <View style={styles.banner}>
+                <Ionicons name="alert-circle-outline" size={18} color={COLORS.warning} />
+                <Text style={styles.bannerTxt}>You're currently not eligible for the leaderboard — please contact the front desk.</Text>
+              </View>
+            )}
 
-        {/* Podium */}
-        {topThree.length >= 3 && (
-          <View style={styles.podiumSection}>
-            <View style={styles.podiumGlow} pointerEvents="none" />
-            <View style={styles.podiumRow}>
-              <PodiumCard entry={topThree[1]} height={104} place={2} medalColor={MEDAL_COLORS[1]} myId={myRank?.memberId} />
-              <PodiumCard entry={topThree[0]} height={150} place={1} medalColor={MEDAL_COLORS[0]} highlight myId={myRank?.memberId} />
-              <PodiumCard entry={topThree[2]} height={80} place={3} medalColor={MEDAL_COLORS[2]} myId={myRank?.memberId} />
+            {/* Podium */}
+            <View style={styles.podium}>
+              {/* order: #2 left, #1 center, #3 right */}
+              {[podium[1], podium[0], podium[2]].map((p, i) => {
+                const place = i === 1 ? 0 : i === 0 ? 1 : 2; // map to rank index
+                if (!p) return <View key={i} style={[styles.podCard, styles.podPlaceholder, place === 0 && styles.podCenter]}>
+                  <Ionicons name="person-outline" size={20} color={COLORS.textDim} />
+                  <Text style={styles.waitTxt}>This spot is{'\n'}waiting for you</Text>
+                </View>;
+                return (
+                  <TouchableOpacity key={p.memberId} style={[styles.podCard, place === 0 && styles.podCenter]} onPress={() => openStatSheet(p.memberId)}>
+                    <View style={[styles.podRing, { borderColor: MEDAL_COLORS[place] }]}>
+                      {p.avatarUrl ? <Image source={{ uri: p.avatarUrl }} style={styles.podAvatar} /> : <Text style={styles.podInitial}>{(p.name || '?')[0]}</Text>}
+                      {place === 0 && <Text style={styles.crown}>👑</Text>}
+                    </View>
+                    <Text style={styles.podName} numberOfLines={1}>{shortName(p.name)}</Text>
+                    <Text style={styles.podPts}>{p.points} pts</Text>
+                    <Text style={styles.podStreak}>🔥 {p.currentStreak}</Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
-          </View>
-        )}
 
-        {/* Not-ranked hint */}
-        {!myRank && (
-          <View style={styles.notRankedStrip}>
-            <Ionicons name="information-circle-outline" size={18} color={COLORS.textMuted} />
-            <Text style={styles.notRankedText}>
-              You're not on the leaderboard. Opt in from Settings → Preferences to participate!
-            </Text>
-          </View>
-        )}
-
-        {myRank && myRank.rank > 10 && (
-          <View style={styles.outsideTop10}>
-            <Text style={styles.outsideTop10Text}>
-              Your rank: #{myRank.rank} out of {totalParticipants} members
-            </Text>
-          </View>
-        )}
-
-        {/* Leaderboard list (rank 4+) */}
-        {rest.length > 0 && (
-          <View style={styles.listSection}>
-            {rest.map((entry) => {
-              const isMe = myRank && entry.memberId === myRank.memberId;
+            {/* Ranks 4–10 */}
+            {rest.map((p) => {
+              const mine = p.memberId === data?.myRank?.memberId;
               return (
-                <View key={entry.rank} style={[styles.rankRow, isMe && styles.rankRowMe]}>
-                  {isMe && (
-                    <LinearGradient
-                      colors={[COLORS.primarySoft, 'transparent']}
-                      start={{ x: 0, y: 0.5 }}
-                      end={{ x: 1, y: 0.5 }}
-                      style={StyleSheet.absoluteFill}
-                      pointerEvents="none"
-                    />
-                  )}
-                  <Text style={[styles.rankNum, isMe && { color: COLORS.primaryLight }]}>#{entry.rank}</Text>
-                  <View style={[styles.rankAvatar, isMe && styles.rankAvatarMe]}>
-                    {entry.avatarUrl ? (
-                      <Image source={{ uri: entry.avatarUrl }} style={styles.rankAvatarImg} />
-                    ) : (
-                      <Text style={styles.rankAvatarText}>{(entry.name || '?').charAt(0)}</Text>
-                    )}
+                <TouchableOpacity key={p.memberId} style={[styles.row, mine && styles.rowMine]} onPress={() => openStatSheet(p.memberId)}>
+                  <Text style={styles.rowRank}>#{p.rank}</Text>
+                  <View style={styles.rowAvatar}>
+                    {p.avatarUrl ? <Image source={{ uri: p.avatarUrl }} style={styles.rowAvatarImg} /> : <Text style={styles.rowInitial}>{(p.name || '?')[0]}</Text>}
                   </View>
-                  <View style={styles.rankNameWrap}>
-                    <Text style={[styles.rankName, isMe && { color: COLORS.textPrimary }]} numberOfLines={1}>
-                      {entry.name}
-                    </Text>
-                    {isMe && (
-                      <View style={styles.youChip}>
-                        <Text style={styles.youChipText}>YOU</Text>
-                      </View>
-                    )}
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.rowName}>{shortName(p.name)}</Text>
+                    <Text style={styles.rowMeta}>🔥 {p.currentStreak} · {p.checkinDays} check-ins</Text>
                   </View>
-                  <Text style={[styles.rankScore, isMe && { color: COLORS.primaryLight }]}>
-                    {entry.score} <Text style={styles.rankScoreUnit}>pts</Text>
-                  </Text>
-                </View>
+                  <Text style={styles.rowPts}>{p.points}</Text>
+                </TouchableOpacity>
               );
             })}
+
+            {/* Waiting placeholders to fill out the list for a new gym */}
+            {top10.length < 10 && Array.from({ length: Math.min(3, 10 - top10.length) }).map((_, i) => (
+              <View key={`w${i}`} style={[styles.row, styles.rowWaiting]}>
+                <Text style={styles.rowRank}>#{top10.length + i + 1}</Text>
+                <View style={styles.rowAvatar}><Ionicons name="person-outline" size={16} color={COLORS.textDim} /></View>
+                <Text style={[styles.rowName, { color: COLORS.textDim, flex: 1 }]}>This spot is waiting for you</Text>
+              </View>
+            ))}
+          </>
+        ) : (
+          // Hall of Fame
+          <View style={{ paddingHorizontal: 16 }}>
+            {hof.length === 0 ? (
+              <Text style={styles.emptyTxt}>No past champions yet.</Text>
+            ) : hof.map((m) => (
+              <View key={`${m.month}-${m.year}`} style={styles.hofCard}>
+                <Text style={styles.hofMonth}>{MONTHS[m.month]} {m.year}</Text>
+                <View style={styles.hofRow}>
+                  {(m.winners || []).map((w) => (
+                    <View key={w.id} style={styles.hofWinner}>
+                      <Text style={styles.hofMedal}>{['🥇', '🥈', '🥉'][w.rank - 1]}</Text>
+                      {w.profileSnapshot?.avatarUrl
+                        ? <Image source={{ uri: w.profileSnapshot.avatarUrl }} style={styles.hofAvatar} />
+                        : <View style={styles.hofAvatar}><Text style={styles.rowInitial}>{(w.profileSnapshot?.name || '?')[0]}</Text></View>}
+                      <Text style={styles.hofName} numberOfLines={1}>{shortName(w.profileSnapshot?.name)}</Text>
+                      <Text style={styles.hofPts}>{w.score} pts</Text>
+                      {!!w.profileSnapshot?.perk && <Text style={styles.hofPerk}>Won: {w.profileSnapshot.perk}</Text>}
+                    </View>
+                  ))}
+                </View>
+              </View>
+            ))}
           </View>
         )}
-
-        {/* Scoring info */}
-        <View style={styles.infoBox}>
-          <Ionicons name="information-circle-outline" size={16} color={COLORS.primaryLight} />
-          <Text style={styles.infoText}>
-            Score = (Attendance × 0.4) + (Streak × 0.35) + (Volume × 0.25).
-            Streak capped at 30 for scoring. Rankings reset on the 1st of every month.
-          </Text>
-        </View>
-
-        <View style={{ height: myRank ? 110 : 40 }} />
       </ScrollView>
 
-      {/* Sticky "Your Rank" bar */}
-      {myRank && (
-        <View style={styles.stickyBar}>
-          <View style={styles.stickyInner}>
-            <Text style={styles.stickyRank}>
-              YOUR RANK: <Text style={styles.stickyRankNum}>#{myRank.rank}</Text>
-            </Text>
-            <Text style={styles.stickyDivider}>|</Text>
-            <Text style={styles.stickyPts}>{myRank.score} pts</Text>
-          </View>
+      {/* Pinned own-rank / Join banner */}
+      {tab === 'board' && (
+        <View style={styles.pinned}>
+          {!data?.optedIn ? (
+            <View style={styles.joinCard}>
+              <Text style={styles.joinTxt}>Join the leaderboard to see your rank and win monthly rewards</Text>
+              <TouchableOpacity style={styles.joinBtn} onPress={join} disabled={joining}>
+                {joining ? <ActivityIndicator color="#fff" /> : <Text style={styles.joinBtnTxt}>Join 💪</Text>}
+              </TouchableOpacity>
+            </View>
+          ) : data?.myRank && data.myRank.rank > 10 ? (
+            <View style={styles.myCard}>
+              <Text style={styles.myRankTxt}>Your rank: #{data.myRank.rank} of {data.totalParticipants}</Text>
+              <Text style={styles.myPtsTxt}>
+                {data.myRank.points} pts{data.ptsToTop10 != null ? ` · ${data.ptsToTop10} pts to break into the Top 10` : ''}
+              </Text>
+            </View>
+          ) : null}
         </View>
       )}
+
+      {/* Stat-sheet drawer */}
+      <Modal visible={!!statSheet} transparent animationType="slide" onRequestClose={() => setStatSheet(null)}>
+        <TouchableOpacity style={styles.drawerOverlay} activeOpacity={1} onPress={() => setStatSheet(null)}>
+          <View style={styles.drawer}>
+            <View style={styles.drawerHandle} />
+            <Text style={styles.drawerName}>{shortName(statSheet?.name)}</Text>
+            <Text style={styles.drawerRank}>Rank #{statSheet?.rank} · {statSheet?.points} pts</Text>
+            <View style={styles.drawerStats}>
+              <Stat label="Check-ins" value={statSheet?.checkinDays} />
+              <Stat label="Workouts" value={statSheet?.workoutDays} />
+              <Stat label="Streak" value={`${statSheet?.currentStreak}🔥`} />
+              <Stat label="Longest" value={statSheet?.longestStreak} />
+            </View>
+            {statSheet?.breakdown && (
+              <Text style={styles.breakdown}>
+                Check-ins {statSheet.breakdown.checkins} · Workouts {statSheet.breakdown.workouts} · Streak {statSheet.breakdown.streak} · Bonuses {statSheet.breakdown.bonuses}
+              </Text>
+            )}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Explainer */}
+      <Modal visible={explainer} transparent animationType="slide" onRequestClose={() => setExplainer(false)}>
+        <TouchableOpacity style={styles.drawerOverlay} activeOpacity={1} onPress={() => setExplainer(false)}>
+          <View style={styles.drawer}>
+            <View style={styles.drawerHandle} />
+            <Text style={styles.drawerName}>How ranking works</Text>
+            <Text style={styles.explainLine}>• +10 points for each day you check in.</Text>
+            <Text style={styles.explainLine}>• +10 points for each day you complete a workout.</Text>
+            <Text style={styles.explainLine}>• Your streak adds live points (×5/day, up to 30 days).</Text>
+            <Text style={styles.explainLine}>• Weekly bonus: +30 for 4+ check-in days (Mon–Sun).</Text>
+            <Text style={styles.explainLine}>• Milestones: 7-day +50 · 14-day +100 · 30-day +250.</Text>
+            <Text style={styles.explainLine}>• Board resets on the 1st. Top 10 win Build Coins & perks.</Text>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
 
-function PodiumCard({ entry, height, place, medalColor, highlight, myId }) {
-  if (!entry) return null;
-  const isMe = myId && entry.memberId === myId;
+function Stat({ label, value }) {
   return (
-    <View style={[styles.podiumCard, highlight && styles.podiumCardHighlight]}>
-      <View style={[styles.podiumAvatar, { borderColor: medalColor, shadowColor: medalColor }]}>
-        {entry.avatarUrl ? (
-          <Image source={{ uri: entry.avatarUrl }} style={styles.podiumAvatarImg} />
-        ) : (
-          <Text style={styles.podiumAvatarText}>{(entry.name || '?').charAt(0)}</Text>
-        )}
-        <View style={[styles.podiumBadge, { borderColor: medalColor }]}>
-          <Text style={[styles.podiumBadgeText, { color: medalColor }]}>{place}</Text>
-        </View>
-      </View>
-      <Text
-        style={[styles.podiumName, highlight && styles.podiumNameFirst]}
-        numberOfLines={1}
-      >
-        {entry.name?.split(' ')[0]}{isMe ? ' (You)' : ''}
-      </Text>
-      <Text style={[styles.podiumPts, highlight && { color: COLORS.primaryLight }]}>
-        {entry.score} pts
-      </Text>
-      <LinearGradient
-        colors={[`${medalColor}33`, 'transparent']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-        style={[styles.podiumBar, { height, borderTopColor: medalColor }]}
-      />
+    <View style={styles.statBox}>
+      <Text style={styles.statVal}>{value ?? 0}</Text>
+      <Text style={styles.statLbl}>{label}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
-  center: { justifyContent: 'center', alignItems: 'center', gap: 12 },
-
-  loadingText: { fontFamily: FONTS.body, fontSize: 13, color: COLORS.textMuted, marginTop: 8 },
-  errorText: { fontFamily: FONTS.body, fontSize: 14, color: COLORS.textSecondary, textAlign: 'center', paddingHorizontal: 40 },
-  retryBtn: { backgroundColor: COLORS.primary, paddingHorizontal: 24, paddingVertical: 10, borderRadius: 12 },
-  retryText: { fontFamily: FONTS.bodyBold, color: COLORS.white, fontSize: 14 },
-
-  // Back
-  backBtn: {
-    position: 'absolute',
-    top: 52,
-    left: 16,
-    zIndex: 20,
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: COLORS.glass,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-
-  scroll: { paddingHorizontal: 20, paddingTop: 64 },
-
-  // Header
-  headerWrap: { alignItems: 'center', marginBottom: 8 },
-  headerTitle: {
-    fontFamily: FONTS.display,
-    fontSize: 34,
-    color: COLORS.textPrimary,
-    letterSpacing: 6,
-    textShadowColor: COLORS.primaryGlow,
-    textShadowRadius: 14,
-    textShadowOffset: { width: 0, height: 0 },
-  },
-  headerSub: {
-    fontFamily: FONTS.label,
-    fontSize: 10,
-    color: COLORS.textSecondary,
-    letterSpacing: 3,
-    marginTop: 6,
-  },
-
-  // Toggle
-  toggleRow: { flexDirection: 'row', justifyContent: 'center', gap: 24, marginTop: 18 },
-  toggleItem: { paddingBottom: 4, borderBottomWidth: 2, borderBottomColor: 'transparent' },
-  toggleItemActive: { borderBottomColor: COLORS.primaryLight },
-  toggleText: { fontFamily: FONTS.label, fontSize: 11, color: COLORS.textMuted, letterSpacing: 1.5 },
-  toggleTextActive: { color: COLORS.primaryLight },
-
-  // Podium
-  podiumSection: {
-    marginTop: 24,
-    marginBottom: 28,
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-  },
-  podiumGlow: {
-    position: 'absolute',
-    width: 260,
-    height: 260,
-    borderRadius: 130,
-    backgroundColor: COLORS.primarySoft,
-    top: -10,
-  },
-  podiumRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-    gap: 12,
-    width: '100%',
-  },
-  podiumCard: { flex: 1, alignItems: 'center' },
-  podiumCardHighlight: { marginBottom: 18 },
-  podiumAvatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: COLORS.surface2,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    overflow: 'visible',
-    shadowOpacity: 0.6,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 0 },
-    marginBottom: 10,
-  },
-  podiumAvatarText: { fontFamily: FONTS.display, fontSize: 24, color: COLORS.textPrimary },
-  podiumAvatarImg: { width: '100%', height: '100%', borderRadius: 32 },
-  podiumBadge: {
-    position: 'absolute',
-    bottom: -6,
-    right: -6,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: COLORS.surface2,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-  },
-  podiumBadgeText: { fontFamily: FONTS.bodyBold, fontSize: 11 },
-  podiumName: { fontFamily: FONTS.label, fontSize: 11, color: COLORS.textPrimary, letterSpacing: 0.5, marginBottom: 3 },
-  podiumNameFirst: {
-    color: COLORS.primaryLight,
-    textShadowColor: COLORS.primaryGlow,
-    textShadowRadius: 10,
-    textShadowOffset: { width: 0, height: 0 },
-  },
-  podiumPts: { fontFamily: FONTS.body, fontSize: 11, color: COLORS.textMuted, marginBottom: 12 },
-  podiumBar: {
-    width: '100%',
-    borderTopLeftRadius: 10,
-    borderTopRightRadius: 10,
-    borderTopWidth: 2,
-  },
-
-  // Not ranked / outside top 10
-  notRankedStrip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    padding: 14,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    backgroundColor: COLORS.glass,
-    marginBottom: 20,
-  },
-  notRankedText: { flex: 1, fontFamily: FONTS.body, fontSize: 12, color: COLORS.textMuted, lineHeight: 18 },
-  outsideTop10: {
-    backgroundColor: COLORS.primarySoft,
-    borderRadius: 10,
-    padding: 10,
-    marginBottom: 16,
-    alignItems: 'center',
-  },
-  outsideTop10Text: { fontFamily: FONTS.bodyBold, fontSize: 12, color: COLORS.primaryLight },
-
-  // List
-  listSection: { gap: 8, marginBottom: 18 },
-  rankRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.glass,
-    borderRadius: 14,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    gap: 12,
-    overflow: 'hidden',
-  },
-  rankRowMe: {
-    borderColor: COLORS.primaryBorder,
-    backgroundColor: COLORS.surface3,
-  },
-  rankNum: { fontFamily: FONTS.label, fontSize: 12, color: COLORS.textMuted, width: 30, textAlign: 'right' },
-  rankAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: COLORS.surface2,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    overflow: 'hidden',
-  },
-  rankAvatarMe: { borderColor: COLORS.primaryBorder },
-  rankAvatarText: { fontFamily: FONTS.bodyBold, fontSize: 15, color: COLORS.textPrimary },
-  rankAvatarImg: { width: '100%', height: '100%', borderRadius: 20 },
-  rankNameWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  rankName: { fontFamily: FONTS.label, fontSize: 13, color: COLORS.textPrimary, letterSpacing: 0.5 },
-  youChip: {
-    backgroundColor: COLORS.surface2,
-    borderWidth: 1,
-    borderColor: COLORS.primaryBorder,
-    borderRadius: 999,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-  },
-  youChipText: { fontFamily: FONTS.label, fontSize: 9, color: COLORS.primaryLight, letterSpacing: 2 },
-  rankScore: { fontFamily: FONTS.bodyBold, fontSize: 13, color: COLORS.textPrimary },
-  rankScoreUnit: { fontFamily: FONTS.body, fontSize: 10, color: COLORS.textMuted },
-
-  // Info box
-  infoBox: {
-    flexDirection: 'row',
-    gap: 10,
-    backgroundColor: COLORS.glass,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    padding: 14,
-    alignItems: 'flex-start',
-    marginBottom: 8,
-  },
-  infoText: { flex: 1, fontFamily: FONTS.body, fontSize: 12, color: COLORS.textSecondary, lineHeight: 18 },
-
-  // Sticky bar
-  stickyBar: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: COLORS.surface3,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-    paddingTop: 14,
-    paddingBottom: 26,
-    paddingHorizontal: 20,
-  },
-  stickyInner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12 },
-  stickyRank: { fontFamily: FONTS.label, fontSize: 12, color: COLORS.textPrimary, letterSpacing: 1.5 },
-  stickyRankNum: { color: COLORS.primaryLight },
-  stickyDivider: { color: COLORS.textMuted, opacity: 0.5 },
-  stickyPts: { fontFamily: FONTS.body, fontSize: 13, color: COLORS.textSecondary },
+  center: { alignItems: 'center', justifyContent: 'center', gap: 12 },
+  loadingText: { color: COLORS.textMuted, fontFamily: FONTS?.body },
+  comingSoon: { color: COLORS.textSecondary, fontSize: 16 },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 56, paddingBottom: 12 },
+  title: { color: COLORS.textPrimary, fontSize: 24, fontWeight: '800' },
+  subtitle: { color: COLORS.textSecondary, fontSize: 12, marginTop: 2 },
+  updatedAgo: { color: COLORS.textMuted, fontSize: 10, marginTop: 2 },
+  tabRow: { flexDirection: 'row', paddingHorizontal: 16, gap: 8, marginBottom: 12 },
+  tabBtn: { flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: 'center', backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border },
+  tabBtnOn: { backgroundColor: COLORS.primarySoft, borderColor: COLORS.primaryBorder },
+  tabTxt: { color: COLORS.textMuted, fontWeight: '700', fontSize: 13 },
+  tabTxtOn: { color: COLORS.primaryLight },
+  errorText: { color: COLORS.errorBright, textAlign: 'center', margin: 16 },
+  banner: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 16, marginBottom: 12, padding: 12, borderRadius: 12, backgroundColor: COLORS.warningSoft },
+  bannerTxt: { color: COLORS.warning, fontSize: 12, flex: 1 },
+  podium: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'center', gap: 10, paddingHorizontal: 16, marginBottom: 16 },
+  podCard: { flex: 1, alignItems: 'center', backgroundColor: COLORS.surface, borderRadius: 16, paddingVertical: 14, borderWidth: 1, borderColor: COLORS.border },
+  podCenter: { paddingVertical: 22, borderColor: COLORS.primaryBorder, backgroundColor: COLORS.primarySoft },
+  podPlaceholder: { opacity: 0.5 },
+  podRing: { width: 56, height: 56, borderRadius: 28, borderWidth: 2, alignItems: 'center', justifyContent: 'center', overflow: 'visible' },
+  podAvatar: { width: 50, height: 50, borderRadius: 25 },
+  podInitial: { color: COLORS.textPrimary, fontSize: 20, fontWeight: '800' },
+  crown: { position: 'absolute', top: -18, fontSize: 18 },
+  podName: { color: COLORS.textPrimary, fontSize: 13, fontWeight: '700', marginTop: 8 },
+  podPts: { color: COLORS.primaryLight, fontSize: 12, fontWeight: '700', marginTop: 2 },
+  podStreak: { color: COLORS.textMuted, fontSize: 11 },
+  waitTxt: { color: COLORS.textDim, fontSize: 10, textAlign: 'center', marginTop: 6 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 16, marginBottom: 8, backgroundColor: COLORS.surface, borderRadius: 14, padding: 12, borderWidth: 1, borderColor: COLORS.border },
+  rowMine: { borderColor: COLORS.primaryNeon, borderWidth: 1.5 },
+  rowWaiting: { opacity: 0.5 },
+  rowRank: { color: COLORS.textMuted, fontWeight: '800', width: 30 },
+  rowAvatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: COLORS.surface2, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  rowAvatarImg: { width: 36, height: 36, borderRadius: 18 },
+  rowInitial: { color: COLORS.textPrimary, fontWeight: '800' },
+  rowName: { color: COLORS.textPrimary, fontSize: 14, fontWeight: '600' },
+  rowMeta: { color: COLORS.textMuted, fontSize: 11, marginTop: 2 },
+  rowPts: { color: COLORS.primaryLight, fontSize: 16, fontWeight: '900' },
+  emptyTxt: { color: COLORS.textMuted, textAlign: 'center', marginTop: 40 },
+  hofCard: { backgroundColor: COLORS.surface, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: COLORS.border, marginBottom: 10 },
+  hofMonth: { color: COLORS.textPrimary, fontWeight: '800', marginBottom: 10 },
+  hofRow: { flexDirection: 'row', gap: 10 },
+  hofWinner: { flex: 1, alignItems: 'center' },
+  hofMedal: { fontSize: 18 },
+  hofAvatar: { width: 40, height: 40, borderRadius: 20, marginVertical: 4, backgroundColor: COLORS.surface2, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  hofName: { color: COLORS.textPrimary, fontSize: 11, fontWeight: '700' },
+  hofPts: { color: COLORS.primaryLight, fontSize: 11 },
+  hofPerk: { color: COLORS.textMuted, fontSize: 9, textAlign: 'center', marginTop: 2 },
+  pinned: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: 16 },
+  joinCard: { backgroundColor: COLORS.surface2, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: COLORS.primaryBorder },
+  joinTxt: { color: COLORS.textPrimary, fontSize: 13, marginBottom: 10 },
+  joinBtn: { backgroundColor: COLORS.primaryBright, borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
+  joinBtnTxt: { color: '#fff', fontWeight: '800' },
+  myCard: { backgroundColor: COLORS.surface2, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: COLORS.primaryBorder },
+  myRankTxt: { color: COLORS.textPrimary, fontSize: 14, fontWeight: '800' },
+  myPtsTxt: { color: COLORS.primaryLight, fontSize: 12, marginTop: 2 },
+  drawerOverlay: { flex: 1, backgroundColor: COLORS.overlay, justifyContent: 'flex-end' },
+  drawer: { backgroundColor: COLORS.surfaceLow, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 40 },
+  drawerHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: COLORS.textDim, alignSelf: 'center', marginBottom: 16 },
+  drawerName: { color: COLORS.textPrimary, fontSize: 20, fontWeight: '800' },
+  drawerRank: { color: COLORS.primaryLight, fontSize: 13, marginTop: 4, marginBottom: 16 },
+  drawerStats: { flexDirection: 'row', gap: 10 },
+  statBox: { flex: 1, backgroundColor: COLORS.surface2, borderRadius: 12, padding: 12, alignItems: 'center' },
+  statVal: { color: COLORS.textPrimary, fontSize: 18, fontWeight: '900' },
+  statLbl: { color: COLORS.textMuted, fontSize: 10, marginTop: 2 },
+  breakdown: { color: COLORS.textSecondary, fontSize: 12, marginTop: 16, textAlign: 'center' },
+  explainLine: { color: COLORS.textSecondary, fontSize: 13, marginTop: 8 },
 });

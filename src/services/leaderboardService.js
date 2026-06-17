@@ -35,3 +35,19 @@ export async function getHallOfFame(page = 0) {
   });
   return data.data;
 }
+
+/**
+ * Fetch a Top-10 member's public stat sheet (Doc 1 §7.6). 403 if not Top-10.
+ */
+export async function getMemberStatSheet(memberId) {
+  const { data } = await api.get(`/leaderboard/member/${memberId}`);
+  return data.data;
+}
+
+/**
+ * Toggle leaderboard participation / Join (Doc 1 §5.2/§5.3).
+ */
+export async function setLeaderboardConsent(optIn) {
+  const { data } = await api.put('/leaderboard/consent', { optIn });
+  return data.data;
+}

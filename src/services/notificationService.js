@@ -109,6 +109,17 @@ export const handleDeepLink = (deepLink) => {
       case 'community':
         if (id) navigateTo('PostDetail', { postId: id });
         break;
+      case 'leaderboard':
+        navigateTo('Leaderboard');
+        break;
+      case 'workout':
+        // buildfitness://workout/<id> → resume that instance; bare → Workouts hub
+        if (id) navigateTo('WorkoutSession', { workoutId: id });
+        else navigateTo('WorkoutHome');
+        break;
+      case 'workouts':
+        navigateTo('WorkoutHome');
+        break;
       case 'call-admin':
         callAdmin();
         break;
@@ -142,6 +153,20 @@ const TYPE_FALLBACK_DEEPLINK = {
   COINS_LOW_BALANCE:           'buildfitness://transactions',
   complaint_submitted:         'buildfitness://complaints',
   complaint_in_progress:       'buildfitness://complaints',
+  // Leaderboard (Doc 1 N1–N8)
+  LEADERBOARD_MONTHLY_RESULT:  'buildfitness://leaderboard',
+  LEADERBOARD_SEASON_END:      'buildfitness://leaderboard',
+  LEADERBOARD_CHAMPION:        'buildfitness://leaderboard',
+  LEADERBOARD_REWARD:          'buildfitness://leaderboard',
+  LEADERBOARD_NEW_SEASON:      'buildfitness://leaderboard',
+  LEADERBOARD_STREAK_RISK:     'buildfitness://leaderboard',
+  LEADERBOARD_MILESTONE:       'buildfitness://leaderboard',
+  LEADERBOARD_ENTER_TOP10:     'buildfitness://leaderboard',
+  LEADERBOARD_DROP_TOP10:      'buildfitness://leaderboard',
+  // Workouts (Doc 4 §9)
+  WORKOUT_ASSIGNED:            'buildfitness://workouts',
+  WORKOUT_REMINDER:           'buildfitness://workouts',
+  WORKOUT_CANCELLED:          'buildfitness://workouts',
   // GATE_ACCESS_REVOKED / TRAINER_REMOVED carry action:'call_admin' (handled before deep links)
 };
 

@@ -9,7 +9,7 @@ import { COLORS } from '../../constants/colors';
 import { useAuthStore } from '../../store/authStore';
 import {
   fetchTodaysPlan, fetchActivityRings, fetchStreak,
-  fetchWeeklySummary, fetchNudges,
+  fetchWeeklySummary, fetchNudges, fetchInstances,
 } from '../../services/workoutService';
 import { fetchMyTrainer } from '../../services/trainerService';
 
@@ -24,18 +24,20 @@ export default function WorkoutHomeScreen({ navigation }) {
   const [streak, setStreak] = useState(null);
   const [weeklySummary, setWeeklySummary] = useState(null);
   const [nudges, setNudges] = useState([]);
+  const [instances, setInstances] = useState({ today: [], upcoming: [] });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
-      const [plan, trainerData, ringData, streakData, summary, nudgeData] = await Promise.allSettled([
+      const [plan, trainerData, ringData, streakData, summary, nudgeData, inst] = await Promise.allSettled([
         fetchTodaysPlan(),
         fetchMyTrainer(),
         fetchActivityRings(),
         fetchStreak(),
         fetchWeeklySummary(),
         fetchNudges('home'),
+        fetchInstances(),
       ]);
       setTodaysPlan(plan.status === 'fulfilled' ? plan.value : null);
       setMyTrainer(trainerData.status === 'fulfilled' ? trainerData.value : null);
@@ -43,6 +45,7 @@ export default function WorkoutHomeScreen({ navigation }) {
       setStreak(streakData.status === 'fulfilled' ? streakData.value : null);
       setWeeklySummary(summary.status === 'fulfilled' ? summary.value : null);
       setNudges(nudgeData.status === 'fulfilled' ? nudgeData.value : []);
+      setInstances(inst.status === 'fulfilled' ? (inst.value || { today: [], upcoming: [] }) : { today: [], upcoming: [] });
     } catch (e) {
       console.error(e);
     } finally {
@@ -142,6 +145,41 @@ export default function WorkoutHomeScreen({ navigation }) {
             <Ionicons name="time-outline" size={24} color={COLORS.textSecondary} />
           </TouchableOpacity>
         </View>
+
+        {/* Assigned workouts (dated instances — Doc 4) */}
+        {(instances.today?.length > 0 || instances.upcoming?.length > 0) && (
+          <View style={{ marginBottom: 16 }}>
+            {instances.today?.map((inst) => {
+              const exCount = Array.isArray(inst.snapshot?.exercises) ? inst.snapshot.exercises.length : 0;
+              const done = ['completed', 'partial'].includes(inst.status);
+              return (
+                <TouchableOpacity
+                  key={inst.id}
+                  style={styles.todayCard}
+                  activeOpacity={0.85}
+                  disabled={done}
+                  onPress={() => navigation.navigate('WorkoutSession', { workoutId: inst.id, plan: inst.snapshot })}
+                >
+                  <View style={styles.todayBadge}>
+                    <Ionicons name="barbell" size={18} color={COLORS.white} />
+                    <Text style={styles.todayBadgeText}>{done ? 'DONE TODAY' : 'TODAY · ASSIGNED'}</Text>
+                  </View>
+                  <Text style={styles.todayTitle}>{inst.snapshot?.name || 'Workout'}</Text>
+                  <Text style={styles.todaySubtitle}>{exCount} exercises{inst.status === 'in_progress' ? ' • in progress' : ''}</Text>
+                  {!done && (
+                    <View style={styles.startBtn}>
+                      <Text style={styles.startBtnText}>{inst.status === 'in_progress' ? 'Continue' : 'Start Workout'}</Text>
+                      <Ionicons name="play" size={18} color={COLORS.white} />
+                    </View>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+            {instances.upcoming?.length > 0 && (
+              <Text style={styles.upcomingHint}>{instances.upcoming.length} upcoming workout{instances.upcoming.length === 1 ? '' : 's'} this week</Text>
+            )}
+          </View>
+        )}
 
         {/* Activity Rings */}
         {rings && (
@@ -301,6 +339,7 @@ const styles = StyleSheet.create({
   todayBadgeText: { fontSize: 11, fontWeight: '700', color: COLORS.secondary, letterSpacing: 1 },
   todayTitle: { fontSize: 22, fontWeight: '700', color: COLORS.white, marginBottom: 4 },
   todaySubtitle: { fontSize: 14, color: COLORS.textSecondary, marginBottom: 2 },
+  upcomingHint: { color: COLORS.textMuted, fontSize: 12, marginTop: 2, marginLeft: 4 },
   todayTrainer: { fontSize: 13, color: COLORS.textMuted, marginBottom: 16 },
   startBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: COLORS.secondary, borderRadius: 12, paddingVertical: 14 },
   startBtnText: { fontSize: 16, fontWeight: '700', color: COLORS.white },
