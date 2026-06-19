@@ -10,6 +10,9 @@ import {
   fetchActiveWorkout, startWorkout, logSet, getWorkoutSets, completeWorkout,
   skipInstanceExercise, setInstanceRemark, startInstance,
 } from '../../services/workoutService';
+import {
+  formatLogged, formatTarget, secondsToMmss, mmssToSeconds, kmToMeters, metersToKm,
+} from '../../utils/measurement';
 
 const SKIP_REASONS = [
   { key: 'pain', label: 'Pain/discomfort' },
@@ -55,9 +58,12 @@ export default function WorkoutSessionScreen({ route, navigation }) {
   const buildExerciseList = (source) => source.map((ex) => ({
     id: ex.exerciseId || ex.id,
     name: ex.exerciseName || ex.name,
+    measurementType: ex.measurementType || 'weight_reps',
     targetSets: ex.targetSets ?? ex.sets ?? null,   // snapshot uses `sets`
     targetReps: ex.targetReps ?? null,
     targetWeight: ex.targetWeight ?? null,
+    targetTimeSeconds: ex.targetTimeSeconds ?? null,
+    targetDistance: ex.targetDistance ?? null,
     restSeconds: ex.restSeconds || 90,
   }));
 
@@ -69,8 +75,10 @@ export default function WorkoutSessionScreen({ route, navigation }) {
       if (!grouped[key]) grouped[key] = [];
       grouped[key].push({
         setNumber: s.setNumber,
-        actualWeight: parseFloat(s.actualWeight),
-        actualReps: s.actualReps,
+        actualWeight: s.actualWeight != null ? parseFloat(s.actualWeight) : null,
+        actualReps: s.actualReps ?? null,
+        actualTimeSeconds: s.actualTimeSeconds ?? null,
+        actualDistance: s.actualDistance != null ? parseFloat(s.actualDistance) : null,
         setType: s.setType || 'normal',
         isPr: s.isPr || false,
       });
@@ -140,9 +148,12 @@ export default function WorkoutSessionScreen({ route, navigation }) {
           setExercises(selfLogExercises.map((ex) => ({
             id: ex.id,
             name: ex.name,
+            measurementType: ex.measurementType || 'weight_reps',
             targetSets: null,
             targetReps: null,
             targetWeight: null,
+            targetTimeSeconds: null,
+            targetDistance: null,
             restSeconds: 90,
           })));
         }
@@ -176,7 +187,9 @@ export default function WorkoutSessionScreen({ route, navigation }) {
     }, 1000);
   };
 
-  const handleLogSet = async (weight, reps, setType = 'normal', remark = null) => {
+  // `values` carries only the actuals the exercise's measurement type uses, e.g.
+  // { actualWeight, actualReps } | { actualReps } | { actualTimeSeconds } | { actualDistance }.
+  const handleLogSet = async (values, setType = 'normal', remark = null) => {
     if (!workoutLog || !currentExercise || isCompleted) return;
     const setNumber = nextSetNumber;
     const clientTs = new Date().toISOString();
@@ -185,7 +198,11 @@ export default function WorkoutSessionScreen({ route, navigation }) {
 
     // Optimistic UI — show the set immediately.
     const optimistic = {
-      setNumber, actualWeight: parseFloat(weight) || 0, actualReps: parseInt(reps) || 0,
+      setNumber,
+      actualWeight: values.actualWeight ?? null,
+      actualReps: values.actualReps ?? null,
+      actualTimeSeconds: values.actualTimeSeconds ?? null,
+      actualDistance: values.actualDistance ?? null,
       setType, isPr: false, pending: true,
     };
     setSetsByExercise((prev) => ({ ...prev, [currentExercise.id]: [...(prev[currentExercise.id] || []), optimistic] }));
@@ -194,7 +211,7 @@ export default function WorkoutSessionScreen({ route, navigation }) {
     try {
       const result = await logSet(workoutLog.id, {
         exerciseId: currentExercise.id, setNumber,
-        actualWeight: parseFloat(weight) || 0, actualReps: parseInt(reps) || 0,
+        ...values,
         setType, remark, idempotencyKey, clientTs,
       });
       const prsHit = result?.data?.prsHit || [];
@@ -392,12 +409,11 @@ export default function WorkoutSessionScreen({ route, navigation }) {
             </View>
           )}
 
-          {/* Targets (Case A only) */}
+          {/* Targets (Case A only) — fields depend on measurement type */}
           {isCaseA && currentExercise.targetSets && (
             <View style={styles.targetsRow}>
               <TargetChip label="Sets" value={currentExercise.targetSets} />
-              <TargetChip label="Reps" value={currentExercise.targetReps} />
-              <TargetChip label="Weight" value={`${currentExercise.targetWeight} kg`} />
+              <TargetChipsForType exercise={currentExercise} />
             </View>
           )}
 
@@ -429,7 +445,7 @@ export default function WorkoutSessionScreen({ route, navigation }) {
                 <View style={styles.setNumBadge}>
                   <Text style={styles.setNum}>{s.setNumber}</Text>
                 </View>
-                <Text style={styles.setDetail}>{s.actualWeight} kg × {s.actualReps}</Text>
+                <Text style={styles.setDetail}>{formatLogged(s, currentExercise.measurementType)}</Text>
                 <View style={[styles.setTypeBadge, { backgroundColor: tc.bg }]}>
                   <Text style={[styles.setType, { color: tc.text }]}>{s.setType}</Text>
                 </View>
@@ -441,9 +457,10 @@ export default function WorkoutSessionScreen({ route, navigation }) {
           {/* Log set form — hidden after completion (or when skipped) */}
           {!isCompleted && !skipped[currentExercise.id] && (
             <SetInputForm
+              key={`${currentExercise.id}-${nextSetNumber}`}
+              exercise={currentExercise}
+              isCaseA={isCaseA}
               onSubmit={handleLogSet}
-              defaultWeight={isCaseA ? currentExercise.targetWeight : ''}
-              defaultReps={isCaseA ? currentExercise.targetReps : ''}
               setNumber={nextSetNumber}
             />
           )}
@@ -471,23 +488,136 @@ export default function WorkoutSessionScreen({ route, navigation }) {
 
 // ── Set input form — prefilled steppers + one-tap ✓ (Doc 4 §7.2) ─────────────
 
-function SetInputForm({ onSubmit, defaultWeight, defaultReps, setNumber }) {
-  const [weight, setWeight] = useState(defaultWeight != null ? Number(defaultWeight) : 0);
-  const [reps, setReps] = useState(defaultReps != null ? Number(defaultReps) : 0);
+function SetInputForm({ exercise, onSubmit, setNumber }) {
+  const type = exercise.measurementType || 'weight_reps';
+  const clamp = (n) => Math.max(0, n);
+
+  const [weight, setWeight] = useState(exercise.targetWeight != null ? Number(exercise.targetWeight) : 0);
+  const [reps, setReps] = useState(exercise.targetReps != null ? Number(exercise.targetReps) : 0);
+  // time (seconds) + count-up timer
+  const [seconds, setSeconds] = useState(exercise.targetTimeSeconds != null ? Number(exercise.targetTimeSeconds) : 0);
+  const [timerRunning, setTimerRunning] = useState(false);
+  const timerInt = useRef(null);
+  // distance
+  const initialKm = exercise.targetDistance != null && Number(exercise.targetDistance) >= 1000;
+  const [distUnit, setDistUnit] = useState(initialKm ? 'km' : 'm');
+  const [distInput, setDistInput] = useState(
+    exercise.targetDistance != null
+      ? String(initialKm ? metersToKm(Number(exercise.targetDistance)) : Number(exercise.targetDistance))
+      : ''
+  );
   const [setType, setSetType] = useState('normal');
   const [submitting, setSubmitting] = useState(false);
 
-  const SET_TYPES = ['normal', 'warmup', 'drop', 'failure'];
-  const clamp = (n) => Math.max(0, n);
+  useEffect(() => () => clearInterval(timerInt.current), []);
 
-  const handleSubmit = async () => {
-    setSubmitting(true);
-    await onSubmit(weight, reps, setType);
-    setSubmitting(false);
-    setReps(defaultReps != null ? Number(defaultReps) : reps); // keep weight, reset reps to target
+  const toggleTimer = () => {
+    if (timerRunning) {
+      clearInterval(timerInt.current);
+      setTimerRunning(false);
+    } else {
+      setTimerRunning(true);
+      timerInt.current = setInterval(() => setSeconds((s) => s + 1), 1000);
+    }
   };
 
-  const Stepper = ({ label, value, onDec, onInc }) => (
+  const buildValues = () => {
+    if (type === 'reps') return { actualReps: Math.round(reps) || 0 };
+    if (type === 'time') return { actualTimeSeconds: Math.round(seconds) || 0 };
+    if (type === 'distance') {
+      const meters = distUnit === 'km' ? kmToMeters(distInput) : Math.round(parseFloat(distInput) || 0);
+      return { actualDistance: meters };
+    }
+    return { actualWeight: clamp(weight) || 0, actualReps: Math.round(reps) || 0 };
+  };
+
+  const handleSubmit = async () => {
+    if (timerRunning) { clearInterval(timerInt.current); setTimerRunning(false); }
+    setSubmitting(true);
+    await onSubmit(buildValues(), setType);
+    setSubmitting(false);
+    // Reset to target for the next set (keep weight; reset reps/time).
+    if (type === 'time') setSeconds(exercise.targetTimeSeconds != null ? Number(exercise.targetTimeSeconds) : 0);
+    if ((type === 'weight_reps' || type === 'reps') && exercise.targetReps != null) setReps(Number(exercise.targetReps));
+  };
+
+  const showSetTypes = type === 'weight_reps' || type === 'reps';
+
+  return (
+    <View style={styles.inputCard}>
+      <Text style={styles.inputTitle}>Set {setNumber}</Text>
+
+      {type === 'weight_reps' && (
+        <View style={styles.inputRow}>
+          <Stepper label="Weight (kg)" value={weight} onDec={() => setWeight((w) => clamp(w - 2.5))} onInc={() => setWeight((w) => w + 2.5)} />
+          <Stepper label="Reps" value={reps} onDec={() => setReps((r) => clamp(r - 1))} onInc={() => setReps((r) => r + 1)} />
+        </View>
+      )}
+
+      {type === 'reps' && (
+        <View style={styles.inputRow}>
+          <Stepper label="Reps" value={reps} onDec={() => setReps((r) => clamp(r - 1))} onInc={() => setReps((r) => r + 1)} />
+        </View>
+      )}
+
+      {type === 'time' && (
+        <View style={styles.timeBlock}>
+          <Text style={styles.inputLabel}>Time (mm:ss)</Text>
+          <View style={styles.timeRow}>
+            <TextInput
+              style={styles.timeField}
+              value={secondsToMmss(seconds)}
+              onChangeText={(v) => setSeconds(mmssToSeconds(v))}
+              keyboardType="numbers-and-punctuation"
+              editable={!timerRunning}
+            />
+            <TouchableOpacity style={[styles.timerChip, timerRunning && styles.timerChipOn]} onPress={toggleTimer}>
+              <Ionicons name={timerRunning ? 'stop' : 'play'} size={16} color={timerRunning ? COLORS.white : COLORS.secondary} />
+              <Text style={[styles.timerChipTxt, timerRunning && { color: COLORS.white }]}>{timerRunning ? 'Stop' : 'Start'}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {type === 'distance' && (
+        <View style={styles.timeBlock}>
+          <Text style={styles.inputLabel}>Distance</Text>
+          <View style={styles.timeRow}>
+            <TextInput
+              style={[styles.timeField, { flex: 1 }]}
+              value={distInput}
+              onChangeText={setDistInput}
+              keyboardType="decimal-pad"
+              placeholder="0"
+              placeholderTextColor={COLORS.textMuted}
+            />
+            <TouchableOpacity style={styles.unitToggle} onPress={() => setDistUnit((u) => (u === 'km' ? 'm' : 'km'))}>
+              <Text style={styles.unitToggleTxt}>{distUnit}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {showSetTypes && (
+        <View style={styles.typeRow}>
+          {['normal', 'warmup', 'drop', 'failure'].map((t) => (
+            <TouchableOpacity key={t} style={[styles.typeChip, setType === t && styles.typeChipActive]} onPress={() => setSetType(t)}>
+              <Text style={[styles.typeText, setType === t && styles.typeTextActive]}>{t.charAt(0).toUpperCase() + t.slice(1)}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+
+      <TouchableOpacity style={[styles.logBtn, submitting && { opacity: 0.6 }]} onPress={handleSubmit} disabled={submitting}>
+        <Ionicons name="checkmark" size={22} color={COLORS.white} />
+        <Text style={styles.logBtnText}>{submitting ? 'Logging…' : 'Log set'}</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+function Stepper({ label, value, onDec, onInc }) {
+  return (
     <View style={styles.stepperGroup}>
       <Text style={styles.inputLabel}>{label}</Text>
       <View style={styles.stepperRow}>
@@ -495,29 +625,6 @@ function SetInputForm({ onSubmit, defaultWeight, defaultReps, setNumber }) {
         <Text style={styles.stepVal}>{value}</Text>
         <TouchableOpacity style={styles.stepBtn} onPress={onInc}><Ionicons name="add" size={20} color={COLORS.white} /></TouchableOpacity>
       </View>
-    </View>
-  );
-
-  return (
-    <View style={styles.inputCard}>
-      <Text style={styles.inputTitle}>Set {setNumber}</Text>
-      <View style={styles.inputRow}>
-        <Stepper label="Weight (kg)" value={weight} onDec={() => setWeight((w) => clamp(w - 2.5))} onInc={() => setWeight((w) => w + 2.5)} />
-        <Stepper label="Reps" value={reps} onDec={() => setReps((r) => clamp(r - 1))} onInc={() => setReps((r) => r + 1)} />
-      </View>
-
-      <View style={styles.typeRow}>
-        {SET_TYPES.map((t) => (
-          <TouchableOpacity key={t} style={[styles.typeChip, setType === t && styles.typeChipActive]} onPress={() => setSetType(t)}>
-            <Text style={[styles.typeText, setType === t && styles.typeTextActive]}>{t.charAt(0).toUpperCase() + t.slice(1)}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      <TouchableOpacity style={[styles.logBtn, submitting && { opacity: 0.6 }]} onPress={handleSubmit} disabled={submitting}>
-        <Ionicons name="checkmark" size={22} color={COLORS.white} />
-        <Text style={styles.logBtnText}>{submitting ? 'Logging…' : 'Log set'}</Text>
-      </TouchableOpacity>
     </View>
   );
 }
@@ -528,6 +635,28 @@ function TargetChip({ label, value }) {
       <Text style={styles.targetLabel}>{label}</Text>
       <Text style={styles.targetValue}>{value}</Text>
     </View>
+  );
+}
+
+// Renders the target chips (after the Sets chip) appropriate to the exercise's
+// measurement type.
+function TargetChipsForType({ exercise }) {
+  const type = exercise.measurementType || 'weight_reps';
+  if (type === 'reps') {
+    return <TargetChip label="Reps" value={exercise.targetReps ?? '—'} />;
+  }
+  if (type === 'time') {
+    return <TargetChip label="Time" value={secondsToMmss(exercise.targetTimeSeconds)} />;
+  }
+  if (type === 'distance') {
+    const m = Number(exercise.targetDistance) || 0;
+    return <TargetChip label="Distance" value={m >= 1000 ? `${metersToKm(m)} km` : `${Math.round(m)} m`} />;
+  }
+  return (
+    <>
+      <TargetChip label="Reps" value={exercise.targetReps ?? '—'} />
+      <TargetChip label="Weight" value={exercise.targetWeight != null ? `${exercise.targetWeight} kg` : '—'} />
+    </>
   );
 }
 
@@ -601,6 +730,16 @@ const styles = StyleSheet.create({
   inputGroup: { flex: 1 },
   inputLabel: { color: COLORS.textSecondary, fontSize: 12, marginBottom: 4 },
   input: { backgroundColor: COLORS.background, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, color: COLORS.white, fontSize: 18, fontWeight: '600', borderWidth: 1, borderColor: COLORS.border },
+
+  // Time / distance inputs
+  timeBlock: { marginTop: 4 },
+  timeRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  timeField: { backgroundColor: COLORS.background, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 12, color: COLORS.white, fontSize: 22, fontWeight: '800', borderWidth: 1, borderColor: COLORS.border, textAlign: 'center', minWidth: 110 },
+  timerChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 14, paddingVertical: 12, borderRadius: 10, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.secondary },
+  timerChipOn: { backgroundColor: COLORS.secondary, borderColor: COLORS.secondary },
+  timerChipTxt: { color: COLORS.secondary, fontSize: 14, fontWeight: '700' },
+  unitToggle: { paddingHorizontal: 16, paddingVertical: 12, borderRadius: 10, backgroundColor: COLORS.secondary, alignItems: 'center', minWidth: 50 },
+  unitToggleTxt: { color: COLORS.white, fontSize: 16, fontWeight: '800' },
 
   // Set type
   typeRow: { flexDirection: 'row', gap: 8, marginTop: 12 },

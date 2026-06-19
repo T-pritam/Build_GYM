@@ -4,6 +4,7 @@ import {
   ActivityIndicator, RefreshControl, Image, Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS as THEME, FONTS } from '../../theme';
 import {
   getLeaderboard, getHallOfFame, getMemberStatSheet, setLeaderboardConsent,
@@ -128,27 +129,14 @@ export default function LeaderboardScreen({ navigation }) {
               </View>
             )}
 
-            {/* Podium */}
-            <View style={styles.podium}>
-              {/* order: #2 left, #1 center, #3 right */}
-              {[podium[1], podium[0], podium[2]].map((p, i) => {
-                const place = i === 1 ? 0 : i === 0 ? 1 : 2; // map to rank index
-                if (!p) return <View key={i} style={[styles.podCard, styles.podPlaceholder, place === 0 && styles.podCenter]}>
-                  <Ionicons name="person-outline" size={20} color={COLORS.textDim} />
-                  <Text style={styles.waitTxt}>This spot is{'\n'}waiting for you</Text>
-                </View>;
-                return (
-                  <TouchableOpacity key={p.memberId} style={[styles.podCard, place === 0 && styles.podCenter]} onPress={() => openStatSheet(p.memberId)}>
-                    <View style={[styles.podRing, { borderColor: MEDAL_COLORS[place] }]}>
-                      {p.avatarUrl ? <Image source={{ uri: p.avatarUrl }} style={styles.podAvatar} /> : <Text style={styles.podInitial}>{(p.name || '?')[0]}</Text>}
-                      {place === 0 && <Text style={styles.crown}>👑</Text>}
-                    </View>
-                    <Text style={styles.podName} numberOfLines={1}>{shortName(p.name)}</Text>
-                    <Text style={styles.podPts}>{p.points} pts</Text>
-                    <Text style={styles.podStreak}>🔥 {p.currentStreak}</Text>
-                  </TouchableOpacity>
-                );
-              })}
+            {/* Podium — #2 left, #1 center (raised), #3 right */}
+            <View style={styles.podiumSection}>
+              <View style={styles.podiumGlow} pointerEvents="none" />
+              <View style={styles.podiumRow}>
+                <PodiumCard entry={podium[1]} height={104} place={2} medalColor={MEDAL_COLORS[1]} myId={data?.myRank?.memberId} onPress={openStatSheet} />
+                <PodiumCard entry={podium[0]} height={150} place={1} medalColor={MEDAL_COLORS[0]} highlight myId={data?.myRank?.memberId} onPress={openStatSheet} />
+                <PodiumCard entry={podium[2]} height={80} place={3} medalColor={MEDAL_COLORS[2]} myId={data?.myRank?.memberId} onPress={openStatSheet} />
+              </View>
             </View>
 
             {/* Ranks 4–10 */}
@@ -276,6 +264,54 @@ function Stat({ label, value }) {
   );
 }
 
+function PodiumCard({ entry, height, place, medalColor, highlight, myId, onPress }) {
+  // Empty podium slot (new gym / fewer than 3 ranked) — keep the column for layout.
+  if (!entry) {
+    return (
+      <View style={styles.podiumCard}>
+        <View style={[styles.podiumAvatar, styles.podiumAvatarEmpty]}>
+          <Ionicons name="person-outline" size={22} color={COLORS.textDim} />
+        </View>
+        <Text style={styles.podiumName} numberOfLines={1}>—</Text>
+        <Text style={styles.podiumPts}>Open spot</Text>
+        <LinearGradient
+          colors={['rgba(255,255,255,0.05)', 'transparent']}
+          start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
+          style={[styles.podiumBar, { height, borderTopColor: COLORS.border }]}
+        />
+      </View>
+    );
+  }
+  const isMe = myId && entry.memberId === myId;
+  return (
+    <TouchableOpacity
+      activeOpacity={0.85}
+      style={[styles.podiumCard, highlight && styles.podiumCardHighlight]}
+      onPress={() => onPress?.(entry.memberId)}
+    >
+      <View style={[styles.podiumAvatar, { borderColor: medalColor, shadowColor: medalColor }]}>
+        {entry.avatarUrl
+          ? <Image source={{ uri: entry.avatarUrl }} style={styles.podiumAvatarImg} />
+          : <Text style={styles.podiumAvatarText}>{(entry.name || '?').charAt(0)}</Text>}
+        <View style={[styles.podiumBadge, { borderColor: medalColor }]}>
+          <Text style={[styles.podiumBadgeText, { color: medalColor }]}>{place}</Text>
+        </View>
+      </View>
+      <Text style={[styles.podiumName, highlight && styles.podiumNameFirst]} numberOfLines={1}>
+        {shortName(entry.name).split(' ')[0]}{isMe ? ' (You)' : ''}
+      </Text>
+      <Text style={[styles.podiumPts, highlight && { color: COLORS.primaryLight }]}>
+        {entry.points} pts
+      </Text>
+      <LinearGradient
+        colors={[`${medalColor}33`, 'transparent']}
+        start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
+        style={[styles.podiumBar, { height, borderTopColor: medalColor }]}
+      />
+    </TouchableOpacity>
+  );
+}
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   center: { alignItems: 'center', justifyContent: 'center', gap: 12 },
@@ -293,18 +329,29 @@ const styles = StyleSheet.create({
   errorText: { color: COLORS.errorBright, textAlign: 'center', margin: 16 },
   banner: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 16, marginBottom: 12, padding: 12, borderRadius: 12, backgroundColor: COLORS.warningSoft },
   bannerTxt: { color: COLORS.warning, fontSize: 12, flex: 1 },
-  podium: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'center', gap: 10, paddingHorizontal: 16, marginBottom: 16 },
-  podCard: { flex: 1, alignItems: 'center', backgroundColor: COLORS.surface, borderRadius: 16, paddingVertical: 14, borderWidth: 1, borderColor: COLORS.border },
-  podCenter: { paddingVertical: 22, borderColor: COLORS.primaryBorder, backgroundColor: COLORS.primarySoft },
-  podPlaceholder: { opacity: 0.5 },
-  podRing: { width: 56, height: 56, borderRadius: 28, borderWidth: 2, alignItems: 'center', justifyContent: 'center', overflow: 'visible' },
-  podAvatar: { width: 50, height: 50, borderRadius: 25 },
-  podInitial: { color: COLORS.textPrimary, fontSize: 20, fontWeight: '800' },
-  crown: { position: 'absolute', top: -18, fontSize: 18 },
-  podName: { color: COLORS.textPrimary, fontSize: 13, fontWeight: '700', marginTop: 8 },
-  podPts: { color: COLORS.primaryLight, fontSize: 12, fontWeight: '700', marginTop: 2 },
-  podStreak: { color: COLORS.textMuted, fontSize: 11 },
-  waitTxt: { color: COLORS.textDim, fontSize: 10, textAlign: 'center', marginTop: 6 },
+  // Podium (top-3 pedestal)
+  podiumSection: { marginTop: 16, marginBottom: 24, alignItems: 'center', justifyContent: 'flex-end' },
+  podiumGlow: { position: 'absolute', width: 260, height: 260, borderRadius: 130, backgroundColor: COLORS.primarySoft, top: -10 },
+  podiumRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'center', gap: 12, width: '100%', paddingHorizontal: 16 },
+  podiumCard: { flex: 1, alignItems: 'center' },
+  podiumCardHighlight: { marginBottom: 18 },
+  podiumAvatar: {
+    width: 64, height: 64, borderRadius: 32, backgroundColor: COLORS.surface2,
+    alignItems: 'center', justifyContent: 'center', borderWidth: 2, overflow: 'visible',
+    shadowOpacity: 0.6, shadowRadius: 12, shadowOffset: { width: 0, height: 0 }, marginBottom: 10,
+  },
+  podiumAvatarEmpty: { borderColor: COLORS.border, shadowOpacity: 0 },
+  podiumAvatarText: { fontFamily: FONTS.display, fontSize: 24, color: COLORS.textPrimary },
+  podiumAvatarImg: { width: '100%', height: '100%', borderRadius: 32 },
+  podiumBadge: {
+    position: 'absolute', bottom: -6, right: -6, width: 24, height: 24, borderRadius: 12,
+    backgroundColor: COLORS.surface2, alignItems: 'center', justifyContent: 'center', borderWidth: 1,
+  },
+  podiumBadgeText: { fontFamily: FONTS.bodyBold, fontSize: 11 },
+  podiumName: { fontFamily: FONTS.label, fontSize: 11, color: COLORS.textPrimary, letterSpacing: 0.5, marginBottom: 3 },
+  podiumNameFirst: { color: COLORS.primaryLight, textShadowColor: COLORS.primaryGlow, textShadowRadius: 10, textShadowOffset: { width: 0, height: 0 } },
+  podiumPts: { fontFamily: FONTS.body, fontSize: 11, color: COLORS.textMuted, marginBottom: 12 },
+  podiumBar: { width: '100%', borderTopLeftRadius: 10, borderTopRightRadius: 10, borderTopWidth: 2 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 16, marginBottom: 8, backgroundColor: COLORS.surface, borderRadius: 14, padding: 12, borderWidth: 1, borderColor: COLORS.border },
   rowMine: { borderColor: COLORS.primaryNeon, borderWidth: 1.5 },
   rowWaiting: { opacity: 0.5 },

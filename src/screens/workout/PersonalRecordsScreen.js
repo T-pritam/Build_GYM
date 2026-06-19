@@ -7,12 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import { fetchPersonalRecords } from '../../services/workoutService';
-
-const PR_TYPE_LABELS = {
-  max_weight: { label: 'Max Weight', icon: 'barbell', unit: 'kg' },
-  max_reps: { label: 'Max Reps', icon: 'repeat', unit: 'reps' },
-  max_volume: { label: 'Max Volume', icon: 'layers', unit: 'kg' },
-};
+import { prMeta } from '../../utils/measurement';
 
 export default function PersonalRecordsScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -74,11 +69,11 @@ export default function PersonalRecordsScreen({ navigation }) {
           <Text style={styles.exerciseName}>{name}</Text>
           <View style={styles.prRow}>
             {prs.map((pr) => {
-              const meta = PR_TYPE_LABELS[pr.prType] || {};
+              const meta = prMeta(pr.prType);
               return (
                 <View key={pr.prType} style={styles.prChip}>
                   <Ionicons name={meta.icon || 'star'} size={16} color={COLORS.secondary} />
-                  <Text style={styles.prValue}>{pr.value} {meta.unit}</Text>
+                  <Text style={styles.prValue}>{meta.format(Number(pr.value))}</Text>
                   <Text style={styles.prLabel}>{meta.label}</Text>
                 </View>
               );

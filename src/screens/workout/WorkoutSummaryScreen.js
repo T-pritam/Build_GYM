@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import { fetchWorkoutDetail, fetchNudges } from '../../services/workoutService';
+import { formatLogged } from '../../utils/measurement';
 
 export default function WorkoutSummaryScreen({ route, navigation }) {
   const insets = useSafeAreaInsets();
@@ -79,7 +80,7 @@ export default function WorkoutSummaryScreen({ route, navigation }) {
           {prs.map((pr, idx) => (
             <View key={idx} style={styles.prRow}>
               <Text style={styles.prExercise}>{pr.exerciseName || 'Exercise'}</Text>
-              <Text style={styles.prValue}>{pr.actualWeight} kg × {pr.actualReps}</Text>
+              <Text style={styles.prValue}>{formatLogged(pr, pr.measurementType)}</Text>
             </View>
           ))}
         </View>

@@ -11,10 +11,10 @@ import {
   fetchKPIs, fetchWeeklySummary, fetchMuscleDistribution,
   fetchPersonalRecords, fetchWorkoutHistory,
 } from '../../services/workoutService';
+import { prMeta } from '../../utils/measurement';
 
 const PERIODS = [['7D', 7], ['30D', 30], ['90D', 90], ['All', 365]];
 const MUSCLE_PALETTE = ['#7C3AED', '#06B6D4', '#22C55E', '#F59E0B', '#EF4444', '#A78BFA', '#00F2FF', '#FFD700', '#FF6B9D', '#4ADE80', '#FB923C'];
-const PR_LABEL = { max_weight: 'Heaviest', max_reps: 'Most reps', max_volume: 'Best volume' };
 
 export default function WorkoutStatsScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -133,13 +133,16 @@ export default function WorkoutStatsScreen({ navigation }) {
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Recent PRs 🏆</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
-            {prs.slice(0, 8).map((pr, i) => (
-              <View key={i} style={styles.prCard}>
-                <Text style={styles.prCardEx} numberOfLines={1}>{pr.exerciseName || 'Exercise'}</Text>
-                <Text style={styles.prCardVal}>{Math.round(pr.value)}{pr.prType === 'max_weight' ? ' kg' : pr.prType === 'max_reps' ? ' reps' : ''}</Text>
-                <Text style={styles.prCardType}>{PR_LABEL[pr.prType] || pr.prType}</Text>
-              </View>
-            ))}
+            {prs.slice(0, 8).map((pr, i) => {
+              const meta = prMeta(pr.prType);
+              return (
+                <View key={i} style={styles.prCard}>
+                  <Text style={styles.prCardEx} numberOfLines={1}>{pr.exerciseName || 'Exercise'}</Text>
+                  <Text style={styles.prCardVal}>{meta.format(Number(pr.value))}</Text>
+                  <Text style={styles.prCardType}>{meta.shortLabel}</Text>
+                </View>
+              );
+            })}
           </ScrollView>
         </View>
       )}

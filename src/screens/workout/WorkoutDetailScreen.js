@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import { fetchWorkoutDetail } from '../../services/workoutService';
+import { formatLogged } from '../../utils/measurement';
 
 export default function WorkoutDetailScreen({ route, navigation }) {
   const insets = useSafeAreaInsets();
@@ -47,7 +48,11 @@ export default function WorkoutDetailScreen({ route, navigation }) {
   const exerciseMap = {};
   (detail.sets || []).forEach((s) => {
     if (!exerciseMap[s.exerciseId]) {
-      exerciseMap[s.exerciseId] = { name: s.exerciseName || 'Exercise', sets: [] };
+      exerciseMap[s.exerciseId] = {
+        name: s.exerciseName || 'Exercise',
+        measurementType: s.measurementType || 'weight_reps',
+        sets: [],
+      };
     }
     exerciseMap[s.exerciseId].sets.push(s);
   });
@@ -74,20 +79,18 @@ export default function WorkoutDetailScreen({ route, navigation }) {
       </View>
 
       {/* Exercises & Sets */}
-      {Object.entries(exerciseMap).map(([exId, { name, sets }]) => (
+      {Object.entries(exerciseMap).map(([exId, { name, sets, measurementType }]) => (
         <View key={exId} style={styles.exerciseBlock}>
           <Text style={styles.exerciseName}>{name}</Text>
           <View style={styles.setsHeader}>
             <Text style={styles.setsCol}>Set</Text>
-            <Text style={styles.setsCol}>Weight</Text>
-            <Text style={styles.setsCol}>Reps</Text>
+            <Text style={[styles.setsCol, { flex: 2 }]}>Result</Text>
             <Text style={styles.setsCol}>Type</Text>
           </View>
           {sets.map((s) => (
             <View key={s.id || s.setNumber} style={styles.setRow}>
               <Text style={styles.setCol}>{s.setNumber}</Text>
-              <Text style={styles.setCol}>{s.actualWeight} kg</Text>
-              <Text style={styles.setCol}>{s.actualReps}</Text>
+              <Text style={[styles.setCol, { flex: 2 }]}>{formatLogged(s, measurementType)}</Text>
               <View style={styles.setColWrap}>
                 <Text style={styles.setCol}>{s.setType}</Text>
                 {s.isPr && <Text style={styles.prBadge}>🏆</Text>}

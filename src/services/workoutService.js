@@ -41,7 +41,10 @@ export const startWorkout = async (body) => {
 };
 
 export const logSet = async (workoutId, body) => {
-  // body: { exerciseId, setNumber, actualWeight, actualReps, setType }
+  // body: { exerciseId, setNumber, setType, idempotencyKey, clientTs, remark, and
+  //   the actuals for the exercise's measurement type — actualWeight/actualReps
+  //   (weight_reps), actualReps (reps), actualTimeSeconds (time), actualDistance
+  //   in meters (distance) }
   const { data } = await api.post(`/member/workouts/${workoutId}/sets`, body);
   return data;
 };

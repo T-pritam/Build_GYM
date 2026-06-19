@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 import { fetchExercises } from '../../services/workoutService';
+import { MEASUREMENT_LABELS } from '../../utils/measurement';
 
 export default function ExercisePickerScreen({ route, navigation }) {
   const insets = useSafeAreaInsets();
@@ -64,9 +65,10 @@ export default function ExercisePickerScreen({ route, navigation }) {
       >
         <View style={styles.exerciseInfo}>
           <Text style={styles.exerciseName}>{item.name}</Text>
-          {item.equipment && (
-            <Text style={styles.exerciseEquipment}>{item.equipment}</Text>
-          )}
+          <Text style={styles.exerciseEquipment}>
+            {item.equipment ? `${item.equipment} · ` : ''}
+            {MEASUREMENT_LABELS[item.measurementType] || 'Weight + Reps'}
+          </Text>
         </View>
         <Ionicons
           name={active ? 'checkmark-circle' : 'add-circle-outline'}
