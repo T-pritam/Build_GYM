@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, Alert, StatusBar, Animated, Easing, TextInput,
+  ActivityIndicator, Alert, StatusBar, Animated, Easing, TextInput, RefreshControl,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
+import { useAuthStore } from '../../store/authStore';
+import { getSocket } from '../../services/socketService';
 import {
   fetchActiveWorkout, startWorkout, logSet, getWorkoutSets, completeWorkout,
   skipInstanceExercise, setInstanceRemark, startInstance,
@@ -24,6 +26,7 @@ const SKIP_REASONS = [
 
 export default function WorkoutSessionScreen({ route, navigation }) {
   const insets = useSafeAreaInsets();
+  const user = useAuthStore((s) => s.user);
   const { planId, plan, selfLogExercises, muscleGroups, workoutId } = route.params || {};
   const isInstance = !!workoutId && !planId;
   const isCaseA = !!planId || isInstance; // instances behave like assigned workouts (targets, rest timers)
@@ -40,6 +43,7 @@ export default function WorkoutSessionScreen({ route, navigation }) {
   const [showSkipFor, setShowSkipFor] = useState(null);
   const [prCelebrate, setPrCelebrate] = useState(null);
   const [workoutRemark, setWorkoutRemark] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
   const timerRef = useRef(null);
   const startTimeRef = useRef(Date.now());
   const prAnim = useRef(new Animated.Value(0)).current;
@@ -81,6 +85,7 @@ export default function WorkoutSessionScreen({ route, navigation }) {
         actualDistance: s.actualDistance != null ? parseFloat(s.actualDistance) : null,
         setType: s.setType || 'normal',
         isPr: s.isPr || false,
+        markedByRole: s.markedByRole || null,
       });
     }
     for (const key of Object.keys(grouped)) {
@@ -167,6 +172,49 @@ export default function WorkoutSessionScreen({ route, navigation }) {
     })();
     return () => clearInterval(timerRef.current);
   }, []);
+
+  // Re-fetch this session's sets from the server and merge in, preserving any
+  // local optimistic sets that haven't synced yet (so a refresh never drops them).
+  const reloadSets = useCallback(async () => {
+    if (!workoutLog?.id) return;
+    try {
+      const serverSets = await getWorkoutSets(workoutLog.id);
+      const grouped = groupSets(serverSets || []);
+      setSetsByExercise((prev) => {
+        const merged = { ...grouped };
+        for (const exId of Object.keys(prev)) {
+          const localOnly = (prev[exId] || []).filter(
+            (st) => (st.pending || st.unsynced) &&
+              !(merged[exId] || []).some((s) => s.setNumber === st.setNumber));
+          if (localOnly.length) merged[exId] = [...(merged[exId] || []), ...localOnly]
+            .sort((a, b) => a.setNumber - b.setNumber);
+        }
+        return merged;
+      });
+    } catch (e) {
+      console.warn('[WorkoutSession] reloadSets failed:', e?.message);
+    }
+  }, [workoutLog?.id]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await reloadSets();
+    setRefreshing(false);
+  }, [reloadSets]);
+
+  // Live updates: when a trainer logs a set on this member's behalf, refresh.
+  useEffect(() => {
+    if (!user?.id) return;
+    const socket = getSocket();
+    socket.emit('join:workout', user.id);
+    const onSetLogged = (payload) => {
+      if (payload?.markedByRole === 'trainer' && (!workoutLog?.id || payload.workoutLogId === workoutLog.id)) {
+        reloadSets();
+      }
+    };
+    socket.on('workout:set_logged', onSetLogged);
+    return () => socket.off('workout:set_logged', onSetLogged);
+  }, [user?.id, workoutLog?.id, reloadSets]);
 
   const currentExercise = exercises[currentExIdx];
   const currentSets = setsByExercise[currentExercise?.id] || [];
@@ -387,7 +435,11 @@ export default function WorkoutSessionScreen({ route, navigation }) {
 
       {/* Current exercise detail */}
       {currentExercise && (
-        <ScrollView style={styles.body} contentContainerStyle={{ paddingBottom: 120 }}>
+        <ScrollView
+          style={styles.body}
+          contentContainerStyle={{ paddingBottom: 120 }}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.secondary} />}
+        >
           <View style={styles.exHeaderRow}>
             <Text style={[styles.exerciseName, skipped[currentExercise.id] && styles.exNameSkipped]}>{currentExercise.name}</Text>
             {!isCompleted && (
@@ -449,6 +501,11 @@ export default function WorkoutSessionScreen({ route, navigation }) {
                 <View style={[styles.setTypeBadge, { backgroundColor: tc.bg }]}>
                   <Text style={[styles.setType, { color: tc.text }]}>{s.setType}</Text>
                 </View>
+                {s.markedByRole === 'trainer' && (
+                  <View style={styles.byTrainerChip}>
+                    <Text style={styles.byTrainerTxt}>T</Text>
+                  </View>
+                )}
                 {s.isPr && <Text style={styles.prBadge}>🏆 PR</Text>}
               </View>
             );
@@ -721,6 +778,8 @@ const styles = StyleSheet.create({
   setDetail: { color: COLORS.white, fontSize: 14, fontWeight: '600', flex: 1 },
   setTypeBadge: { borderRadius: 5, paddingHorizontal: 7, paddingVertical: 2 },
   setType: { fontSize: 10, fontWeight: '700' },
+  byTrainerChip: { borderRadius: 5, paddingHorizontal: 6, paddingVertical: 2, backgroundColor: COLORS.secondaryGlow ?? 'rgba(233,99,22,0.15)' },
+  byTrainerTxt: { fontSize: 10, fontWeight: '800', color: COLORS.secondary },
   prBadge: { fontSize: 12 },
 
   // Input

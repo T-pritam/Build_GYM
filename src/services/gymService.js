@@ -44,3 +44,12 @@ export const gymCheckOut = async () => {
   const { data } = await api.post('/gym/presence/checkout');
   return data.data;
 };
+
+/**
+ * GET /api/gym/attendance/me
+ * My check-in history. Returns { logs: [{ date, status }], last7Count, monthCount, totalCount }.
+ */
+export const fetchMyAttendance = async (limit = 30) => {
+  const { data } = await api.get('/gym/attendance/me', { params: { limit } });
+  return data.data;
+};

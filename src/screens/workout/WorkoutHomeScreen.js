@@ -202,7 +202,7 @@ export default function WorkoutHomeScreen({ navigation }) {
                 label="Streak"
                 value={streak ? `${streak.currentStreak}d` : '0d'}
                 pct={streak ? Math.min(streak.currentStreak / 7 * 100, 100) : 0}
-                color="#007AFF"
+                color={COLORS.secondary}
               />
             </View>
           </View>

@@ -220,17 +220,24 @@ export default function LeaderboardScreen({ navigation }) {
           <View style={styles.drawer}>
             <View style={styles.drawerHandle} />
             <Text style={styles.drawerName}>{shortName(statSheet?.name)}</Text>
-            <Text style={styles.drawerRank}>Rank #{statSheet?.rank} · {statSheet?.points} pts</Text>
+            <Text style={styles.drawerRank}>Rank #{statSheet?.rank} · {statSheet?.points ?? 0} pts</Text>
+            {/* Activity counts (days) — distinct from the points breakdown below */}
             <View style={styles.drawerStats}>
-              <Stat label="Check-ins" value={statSheet?.checkinDays} />
-              <Stat label="Workouts" value={statSheet?.workoutDays} />
-              <Stat label="Streak" value={`${statSheet?.currentStreak}🔥`} />
-              <Stat label="Longest" value={statSheet?.longestStreak} />
+              <Stat label="Check-in days" value={statSheet?.checkinDays} />
+              <Stat label="Workout days" value={statSheet?.workoutDays} />
+              <Stat label="Day streak" value={`${statSheet?.currentStreak ?? 0}🔥`} />
+              <Stat label="Best streak" value={statSheet?.longestStreak} />
             </View>
             {statSheet?.breakdown && (
-              <Text style={styles.breakdown}>
-                Check-ins {statSheet.breakdown.checkins} · Workouts {statSheet.breakdown.workouts} · Streak {statSheet.breakdown.streak} · Bonuses {statSheet.breakdown.bonuses}
-              </Text>
+              <View style={styles.bdCard}>
+                <Text style={styles.bdTitle}>Points breakdown</Text>
+                <BreakdownRow label="Check-ins" sub={`${statSheet.checkinDays ?? 0} days × 10`} pts={statSheet.breakdown.checkins} />
+                <BreakdownRow label="Workouts" sub={`${statSheet.workoutDays ?? 0} days × 10`} pts={statSheet.breakdown.workouts} />
+                <BreakdownRow label="Streak bonus" sub={`${Math.round((statSheet.breakdown.streak ?? 0) / 5)}-day streak × 5 (capped 30)`} pts={statSheet.breakdown.streak} />
+                <BreakdownRow label="Other bonuses" sub="weekly + milestones" pts={statSheet.breakdown.bonuses} />
+                <View style={styles.bdDivider} />
+                <BreakdownRow label="Total" pts={statSheet?.points} total />
+              </View>
             )}
           </View>
         </TouchableOpacity>
@@ -260,6 +267,22 @@ function Stat({ label, value }) {
     <View style={styles.statBox}>
       <Text style={styles.statVal}>{value ?? 0}</Text>
       <Text style={styles.statLbl}>{label}</Text>
+    </View>
+  );
+}
+
+// One line of the points breakdown: label (+ optional sub) on the left, points on
+// the right. `total` renders the reconciling total row.
+function BreakdownRow({ label, sub, pts, total }) {
+  return (
+    <View style={styles.bdRow}>
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.bdLabel, total && styles.bdLabelTotal]}>{label}</Text>
+        {sub ? <Text style={styles.bdSub}>{sub}</Text> : null}
+      </View>
+      <Text style={[styles.bdPts, total && styles.bdPtsTotal]}>
+        {total ? `${pts ?? 0} pts` : `+${pts ?? 0}`}
+      </Text>
     </View>
   );
 }
@@ -390,5 +413,14 @@ const styles = StyleSheet.create({
   statVal: { color: COLORS.textPrimary, fontSize: 18, fontWeight: '900' },
   statLbl: { color: COLORS.textMuted, fontSize: 10, marginTop: 2 },
   breakdown: { color: COLORS.textSecondary, fontSize: 12, marginTop: 16, textAlign: 'center' },
+  bdCard: { backgroundColor: COLORS.surface2, borderRadius: 14, padding: 14, marginTop: 16, borderWidth: 1, borderColor: COLORS.border },
+  bdTitle: { color: COLORS.textMuted, fontSize: 11, fontWeight: '800', letterSpacing: 0.6, textTransform: 'uppercase', marginBottom: 8 },
+  bdRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 5 },
+  bdLabel: { color: COLORS.textPrimary, fontSize: 14, fontWeight: '600' },
+  bdLabelTotal: { fontWeight: '900' },
+  bdSub: { color: COLORS.textMuted, fontSize: 11, marginTop: 1 },
+  bdPts: { color: COLORS.primaryLight, fontSize: 14, fontWeight: '800' },
+  bdPtsTotal: { color: COLORS.textPrimary, fontSize: 17, fontWeight: '900' },
+  bdDivider: { height: 1, backgroundColor: COLORS.border, marginVertical: 8 },
   explainLine: { color: COLORS.textSecondary, fontSize: 13, marginTop: 8 },
 });

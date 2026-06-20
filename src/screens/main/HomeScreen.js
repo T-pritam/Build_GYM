@@ -9,10 +9,10 @@ import { COLORS, FONTS } from '../../theme';
 import { useAnnouncementStore } from '../../store/announcementStore';
 import { useAuthStore } from '../../store/authStore';
 import { useWalletStore } from '../../store/walletStore';
-import { fetchAnnouncements } from '../../services/announcementService';
 import { getSocket } from '../../services/socketService';
-import { fetchTodaysPlan, fetchStreak } from '../../services/workoutService';
+import { fetchTodaysPlan, fetchStreak, fetchInstances } from '../../services/workoutService';
 import { getMyLeaderboardStats } from '../../services/leaderboardService';
+import { fetchMyAttendance } from '../../services/gymService';
 import { fetchMyTrials } from '../../services/trialService';
 import ActiveOrderBar from '../../components/ActiveOrderBar';
 
@@ -63,11 +63,11 @@ export default function HomeScreen({ navigation }) {
   const user = useAuthStore((s) => s.user);
   const { balance, fetchBalance, setBalance } = useWalletStore();
 
-  const [announcement, setAnnouncement] = useState(null);
-  const [bannerDismissed, setBannerDismissed] = useState(false);
   const [todaysPlan, setTodaysPlan] = useState(null);
+  const [todayInstance, setTodayInstance] = useState(null);
   const [streakData, setStreakData] = useState(null);
   const [leaderboardStats, setLeaderboardStats] = useState(null);
+  const [attendance, setAttendance] = useState(null);
   const [upcomingTrial, setUpcomingTrial] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -84,18 +84,21 @@ export default function HomeScreen({ navigation }) {
 
   const loadContent = useCallback(async () => {
     await Promise.all([
-      fetchAnnouncements({ limit: 1 })
-        .then((res) => setAnnouncement(res.data?.[0] || null))
-        .catch(() => setAnnouncement(null)),
       fetchTodaysPlan()
         .then((data) => setTodaysPlan(data || null))
         .catch(() => setTodaysPlan(null)),
+      fetchInstances()
+        .then((data) => setTodayInstance((data?.today || [])[0] || null))
+        .catch(() => setTodayInstance(null)),
       fetchStreak()
         .then((data) => setStreakData(data || null))
         .catch(() => setStreakData(null)),
       getMyLeaderboardStats()
         .then((data) => setLeaderboardStats(data || null))
         .catch(() => setLeaderboardStats(null)),
+      fetchMyAttendance()
+        .then((data) => setAttendance(data || null))
+        .catch(() => setAttendance(null)),
       fetchMyTrials('upcoming')
         .then((res) => setUpcomingTrial((res.data?.data || [])[0] || null))
         .catch(() => setUpcomingTrial(null)),
@@ -125,25 +128,42 @@ export default function HomeScreen({ navigation }) {
   const todayDow = (now.getDay() + 6) % 7; // Mon=0 … Sun=6
   const monday = new Date(now);
   monday.setDate(now.getDate() - todayDow);
+  const isoDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  // Real check-in days this week (a day lights up only on a gym check-in).
+  const checkinDates = new Set((attendance?.logs || []).map((l) => String(l.date).slice(0, 10)));
   const weekDays = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(monday);
     d.setDate(monday.getDate() + i);
-    return { date: d.getDate(), isToday: i === todayDow, attended: i < todayDow }; // attended = dummy/visual
+    return { date: d.getDate(), isToday: i === todayDow, attended: checkinDates.has(isoDate(d)) };
   });
 
-  const currentStreak = streakData?.currentStreak ?? 14;
-  const longestStreak = streakData?.longestStreak ?? 21;
-  const clubRank = leaderboardStats?.rank ? `#${leaderboardStats.rank}` : '#42';
+  const currentStreak = streakData?.currentStreak ?? 0;
+  const longestStreak = streakData?.longestStreak ?? 0;
+  const clubRank = leaderboardStats?.rank ? `#${leaderboardStats.rank}` : '—';
+  const pointsValue = leaderboardStats?.points != null ? leaderboardStats.points.toLocaleString() : '—';
+  const monthVisits = attendance?.monthCount != null ? `${attendance.monthCount} Visit${attendance.monthCount === 1 ? '' : 's'}` : '—';
 
-  const planName = todaysPlan?.name || 'Rest Day';
-  const planCoach = todaysPlan?.assignedByName || todaysPlan?.coachName || 'Coach Kaito';
-  const planExercises = (todaysPlan?.exercises || [])
-    .slice(0, 3)
-    .map((e) => e.name || e.exerciseName)
-    .filter(Boolean)
-    .join(' × ') || 'Deadlift × Weighted Pull-ups × Barbell Rows';
-
-  const showBanner = announcement && !bannerDismissed;
+  // Today's workout — real dated instance first, else a weekly-plan match, else rest day.
+  const todayWorkout = todayInstance
+    ? {
+        name: todayInstance.snapshot?.name || 'Workout',
+        coach: todayInstance.trainerName || todayInstance.assignedByName || null,
+        status: todayInstance.status,
+        exCount: Array.isArray(todayInstance.snapshot?.exercises) ? todayInstance.snapshot.exercises.length : 0,
+        instanceId: todayInstance.id,
+        snapshot: todayInstance.snapshot,
+      }
+    : todaysPlan
+    ? {
+        name: todaysPlan.name,
+        coach: todaysPlan.trainerName || todaysPlan.assignedByName || null,
+        status: null,
+        exCount: todaysPlan.exercises?.length || 0,
+        planId: todaysPlan.id,
+        plan: todaysPlan,
+      }
+    : null;
+  const STATUS_LABEL = { assigned: 'Assigned', in_progress: 'In progress', completed: 'Completed', partial: 'Completed', missed: 'Missed', cancelled: 'Cancelled' };
 
   return (
     <View style={styles.container}>
@@ -190,21 +210,6 @@ export default function HomeScreen({ navigation }) {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primaryLight} />
         }
       >
-        {/* ── ANNOUNCEMENT BANNER ─────────────────── */}
-        {showBanner && (
-          <View style={styles.banner}>
-            <View style={styles.bannerLeft}>
-              <Ionicons name="megaphone" size={18} color="#000" />
-              <Text style={styles.bannerText} numberOfLines={2}>
-                {announcement.title || announcement.subtitle || announcement.body}
-              </Text>
-            </View>
-            <TouchableOpacity onPress={() => setBannerDismissed(true)} hitSlop={8}>
-              <Ionicons name="close" size={18} color="#000" />
-            </TouchableOpacity>
-          </View>
-        )}
-
         {/* ── WEEKLY OVERVIEW STRIP ────────────────── */}
         <View style={styles.weekCard}>
           <View style={styles.weekHeader}>
@@ -241,9 +246,9 @@ export default function HomeScreen({ navigation }) {
         {/* ── KPI GRID ─────────────────────────────── */}
         <View style={styles.kpiGrid}>
           <KpiCard label="LONGEST STREAK" value={`${longestStreak} Days`} icon="flame" color={COLORS.primaryLight} />
-          <KpiCard label="THIS MONTH" value="8 Visits" icon="calendar" color={CYAN} />
+          <KpiCard label="THIS MONTH" value={monthVisits} icon="calendar" color={CYAN} />
           <KpiCard label="CLUB RANK" value={clubRank} icon="trophy" color={GOLD} />
-          <KpiCard label="POINTS" value="1,240" icon="diamond" color={SILVER} />
+          <KpiCard label="POINTS" value={pointsValue} icon="diamond" color={SILVER} />
         </View>
 
         {/* ── CALORIES BURNED (dummy) ──────────────── */}
@@ -325,16 +330,23 @@ export default function HomeScreen({ navigation }) {
         >
           <View>
             <Text style={styles.workoutEyebrow}>TODAY'S WORKOUT</Text>
-            <Text style={styles.workoutCoach}>Assigned by {planCoach}</Text>
+            {todayWorkout
+              ? (todayWorkout.coach
+                  ? <Text style={styles.workoutCoach}>Assigned by {todayWorkout.coach}</Text>
+                  : <Text style={styles.workoutCoach}>Self workout</Text>)
+              : <Text style={styles.workoutCoach}>Nothing scheduled</Text>}
           </View>
           <View style={{ marginTop: 8 }}>
-            <Text style={styles.workoutTitle}>{planName}</Text>
-            <Text style={styles.workoutMeta}>55 min / High Intensity</Text>
+            <Text style={styles.workoutTitle}>{todayWorkout ? todayWorkout.name : 'Rest Day'}</Text>
+            <Text style={styles.workoutMeta}>
+              {todayWorkout
+                ? `${todayWorkout.exCount} exercise${todayWorkout.exCount === 1 ? '' : 's'}${todayWorkout.status ? ` · ${STATUS_LABEL[todayWorkout.status] || todayWorkout.status}` : ''}`
+                : 'No workout assigned — recover and come back stronger'}
+            </Text>
           </View>
           <View style={styles.workoutFooter}>
-            <Text style={styles.workoutExercises} numberOfLines={1}>{planExercises}</Text>
             <View style={styles.workoutLink}>
-              <Text style={styles.workoutLinkText}>VIEW WORKOUT</Text>
+              <Text style={styles.workoutLinkText}>{todayWorkout ? 'VIEW WORKOUT' : 'OPEN WORKOUTS'}</Text>
               <Ionicons name="arrow-forward" size={12} color={COLORS.primaryLight} />
             </View>
           </View>

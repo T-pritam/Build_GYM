@@ -14,7 +14,8 @@ import {
 import { prMeta } from '../../utils/measurement';
 
 const PERIODS = [['7D', 7], ['30D', 30], ['90D', 90], ['All', 365]];
-const MUSCLE_PALETTE = ['#7C3AED', '#06B6D4', '#22C55E', '#F59E0B', '#EF4444', '#A78BFA', '#00F2FF', '#FFD700', '#FF6B9D', '#4ADE80', '#FB923C'];
+// Warm, orange-led palette (brand) — distinct slices without the old violet/cyan.
+const MUSCLE_PALETTE = ['#E96316', '#FF7A35', '#FFA000', '#FFC107', '#CB5210', '#FF8A65', '#F4511E', '#FFB74D', '#D84315', '#FF7043', '#FFD54F'];
 
 export default function WorkoutStatsScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -230,7 +231,7 @@ function Heatmap({ history, weeks = 12 }) {
   // chunk into weeks (columns)
   const cols = [];
   for (let i = 0; i < cells.length; i += 7) cols.push(cells.slice(i, i + 7));
-  const SHADES = ['rgba(255,255,255,0.06)', 'rgba(124,58,237,0.4)', 'rgba(124,58,237,0.7)', '#7C3AED'];
+  const SHADES = ['rgba(255,255,255,0.06)', 'rgba(233,99,22,0.35)', 'rgba(233,99,22,0.65)', '#E96316'];
   return (
     <View style={styles.heatRow}>
       {cols.map((col, ci) => (
