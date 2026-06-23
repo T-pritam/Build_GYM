@@ -1,34 +1,29 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, Alert,
-  Image, Modal, Pressable, ActivityIndicator,
+  Image, Modal, Pressable, ActivityIndicator, TextInput, Animated, Easing, Dimensions,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { COLORS, FONTS } from '../../theme';
 import SafeBottomBar from '../../components/SafeBottomBar';
+import GradientIcon from '../../components/GradientIcon';
 import { fetchMyMembership } from '../../services/membershipService';
 import { useAuthStore } from '../../store/authStore';
 import { uploadProfilePhoto, removeProfilePhoto } from '../../services/profileService';
 import { requestAccountDeletion } from '../../services/customerProfileService';
 
-// Static achievements — UI only (no data / no navigation).
-const ACHIEVEMENTS = [
-  { name: 'First Blood',  xp: '+150 XP',  icon: 'trophy',       rare: true },
-  { name: 'Iron Week',    xp: '+300 XP',  icon: 'flame' },
-  { name: 'Century Club', xp: '+1000 XP', icon: 'ribbon' },
-  { name: 'Max Power',    xp: '+500 XP',  icon: 'lock-closed',  locked: true },
-];
-
-// Profile menu — each row's accent tint.
+// Profile menu — Stitch "Elite Refined" order, each row's accent tint + route.
 const MENU = [
-  { id: 'membership', label: 'Membership Details', sub: 'Manage your subscription',    icon: 'card-outline',          nav: 'Membership',   color: '#C8A2FF', bg: 'rgba(127,41,130,0.18)' },
-  { id: 'orders',     label: 'Order History',      sub: 'Past transactions & invoices', icon: 'receipt-outline',       nav: 'OrderHistory', color: '#2DD4BF', bg: 'rgba(45,212,191,0.14)' },
-  { id: 'activity',   label: 'Activity Dashboard', sub: 'Club usage & stats',           icon: 'stats-chart-outline',   nav: 'Activity',     color: '#F5B041', bg: 'rgba(245,176,65,0.14)' },
-  { id: 'settings',   label: 'Settings',           sub: 'Edit details and preferences', icon: 'settings-outline',      nav: 'EditProfile',  color: '#C7C4CC', bg: 'rgba(255,255,255,0.08)' },
-  { id: 'support',    label: 'Support',            sub: '24/7 concierge assistance',    icon: 'headset-outline',       nav: 'Support',      color: '#60A5FA', bg: 'rgba(96,165,250,0.14)' },
-  { id: 'complaint',  label: 'Register Complaint', sub: 'Feedback & issue reporting',   icon: 'alert-circle-outline',  nav: 'MyComplaints', color: '#F87171', bg: 'rgba(248,113,113,0.14)' },
+  { id: 'personal',  label: 'Personal Info',      sub: 'Update your profile details',  icon: 'person',         nav: 'EditProfile',  color: '#A78BFA', bg: 'rgba(127,41,130,0.20)' },
+  { id: 'achieve',   label: 'Achievements',       sub: 'View your badges & XP',        icon: 'emoji-events',   nav: 'Achievements', color: '#F59E0B', bg: 'rgba(245,158,11,0.18)' },
+  { id: 'bookings',  label: 'My Bookings',        sub: 'Manage your sessions',         icon: 'calendar-today', nav: 'MyBookings',   color: '#2DD4BF', bg: 'rgba(13,148,136,0.22)' },
+  { id: 'orders',    label: 'Order History',      sub: 'Past transactions & invoices', icon: 'receipt-long',   nav: 'OrderHistory', color: '#2DD4BF', bg: 'rgba(13,148,136,0.22)' },
+  { id: 'activity',  label: 'Activity Dashboard', sub: 'Club usage & stats',           icon: 'insights',       nav: 'Activity',     color: '#FBBF24', bg: 'rgba(245,158,11,0.16)' },
+  { id: 'settings',  label: 'Settings',           sub: 'App & privacy preferences',    icon: 'settings',       nav: 'Settings',     color: '#C7C4CC', bg: 'rgba(255,255,255,0.08)' },
+  { id: 'support',   label: 'Support',            sub: '24/7 concierge assistance',    icon: 'support-agent',  nav: 'Support',      color: '#60A5FA', bg: 'rgba(96,165,250,0.14)' },
+  { id: 'complaint', label: 'Register Complaint', sub: 'Feedback & issue reporting',   icon: 'report',         nav: 'MyComplaints', color: '#F87171', bg: 'rgba(248,113,113,0.14)' },
 ];
 
 const fmtMMYY = (raw) => {
@@ -64,12 +59,55 @@ export default function ProfileScreen({ navigation }) {
   const expiry = fmtMMYY(m?.membership?.endDate);
   const sinceRaw = m?.membership?.startDate ?? m?.membership?.createdAt;
   const sinceYear = sinceRaw ? new Date(sinceRaw).getFullYear() : null;
+  const daysRemaining = (() => {
+    const end = m?.membership?.endDate;
+    if (!end) return null;
+    const d = Math.ceil((new Date(end).getTime() - Date.now()) / 86400000);
+    return d > 0 ? d : 0;
+  })();
 
   // Use persisted photo URL from auth store; fall back to null (shows initials)
   const profilePhoto = user?.profilePhotoUrl ?? null;
 
   const [photoModalVisible, setPhotoModalVisible] = useState(false);
   const [uploading,         setUploading]         = useState(false);
+
+  // ── Floating search (filters the menu rows by label) ───────────────────────
+  const [searchActive, setSearchActive] = useState(false);
+  const [query, setQuery] = useState('');
+  const searchAnim = useRef(new Animated.Value(0)).current;
+  const openSearch = () => {
+    setSearchActive(true);
+    Animated.timing(searchAnim, { toValue: 1, duration: 220, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+  };
+  const closeSearch = () => {
+    Animated.timing(searchAnim, { toValue: 0, duration: 180, easing: Easing.in(Easing.cubic), useNativeDriver: true }).start(() => {
+      setSearchActive(false);
+      setQuery('');
+    });
+  };
+  const filteredMenu = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return MENU;
+    return MENU.filter((i) => `${i.label} ${i.sub}`.toLowerCase().includes(q));
+  }, [query]);
+
+  // ── Membership card light-sweep shimmer ────────────────────────────────────
+  // Everything is derived from the static screen width — no onLayout/state
+  // coupling — so the loop starts once on mount and never restarts/freezes.
+  const SCREEN_W = Dimensions.get('window').width;
+  const cardHeight = Math.round((SCREEN_W - 40) / 1.6);
+  const sweep = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.timing(sweep, {
+        toValue: 1, duration: 3000, easing: Easing.linear, useNativeDriver: true,
+      }),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [sweep]);
+  const sweepX = sweep.interpolate({ inputRange: [0, 1], outputRange: [-SCREEN_W, SCREEN_W] });
 
   const handlePickedImage = async (uri) => {
     setUploading(true);
@@ -173,16 +211,18 @@ export default function ProfileScreen({ navigation }) {
     <SafeBottomBar style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
 
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={20} color={COLORS.textPrimary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>PROFILE</Text>
-        <View style={{ width: 40 }} />
-      </View>
+      {/* ── Floating header icons (gradient, fixed over content) ── */}
+      <TouchableOpacity style={styles.floatLeft} onPress={() => navigation.goBack()} hitSlop={10} activeOpacity={0.7}>
+        <GradientIcon name="arrow-back" size={24} />
+      </TouchableOpacity>
+      <TouchableOpacity style={styles.floatRight} onPress={openSearch} hitSlop={10} activeOpacity={0.7}>
+        <GradientIcon name="search" size={24} />
+      </TouchableOpacity>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+        {/* Title */}
+        <Text style={styles.headerTitle}>PROFILE</Text>
+
         {/* Avatar + info */}
         <View style={styles.avatarSection}>
           <TouchableOpacity
@@ -197,15 +237,11 @@ export default function ProfileScreen({ navigation }) {
                 <Text style={styles.avatarLetter}>{firstName.charAt(0)}</Text>
               </View>
             )}
-            {uploading ? (
-              <View style={styles.cameraBadge}>
-                <ActivityIndicator size={10} color={COLORS.primaryLight} />
-              </View>
-            ) : (
-              <View style={styles.cameraBadge}>
-                <Ionicons name="camera" size={13} color={COLORS.white} />
-              </View>
-            )}
+            <View style={styles.cameraBadge}>
+              {uploading
+                ? <ActivityIndicator size={10} color="#F59E0B" />
+                : <MaterialIcons name="photo-camera" size={13} color="#F59E0B" />}
+            </View>
           </TouchableOpacity>
           <Text style={styles.name}>{user?.fullName || firstName}</Text>
           <Text style={styles.subline}>
@@ -220,17 +256,34 @@ export default function ProfileScreen({ navigation }) {
           onPress={() => navigation.navigate(active ? 'Membership' : 'MembershipPlans')}
         >
           <LinearGradient
-            colors={['#2A1640', '#0F2A2A']}
+            colors={['#0D0D0F', '#1A1A2E']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
-            style={styles.memCard}
+            style={[styles.memCard, { height: cardHeight }]}
           >
+            {/* Light sweep */}
+            {(
+              <Animated.View
+                pointerEvents="none"
+                style={[styles.sweep, { transform: [{ translateX: sweepX }, { rotate: '30deg' }] }]}
+              >
+                <LinearGradient
+                  colors={['transparent', 'rgba(255,255,255,0.08)', 'transparent']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={StyleSheet.absoluteFill}
+                />
+              </Animated.View>
+            )}
+
             <View style={styles.memTopRow}>
               <View style={styles.memTier}>
-                <Ionicons name="star" size={12} color="#F5B041" />
+                <MaterialIcons name="workspace-premium" size={14} color="#F59E0B" />
                 <Text style={styles.memTierText}>{tier}</Text>
               </View>
-              <Text style={styles.memAccess}>PRIVATE ACCESS</Text>
+              <Text style={styles.memAccess}>
+                {daysRemaining != null ? `${daysRemaining} DAYS REMAINING` : 'PRIVATE ACCESS'}
+              </Text>
             </View>
 
             <View style={styles.memChip} />
@@ -244,55 +297,34 @@ export default function ProfileScreen({ navigation }) {
               </View>
               <View style={{ alignItems: 'flex-end' }}>
                 <Text style={styles.memMetaLabel}>EXPIRY</Text>
-                <Text style={[styles.memMetaValue, { color: '#F5B041' }]}>{expiry}</Text>
+                <Text style={[styles.memMetaValue, { color: '#F59E0B' }]}>{expiry}</Text>
               </View>
             </View>
           </LinearGradient>
         </TouchableOpacity>
 
-        {/* Achievements (UI only) */}
-        <View style={styles.achHeader}>
-          <Text style={styles.achTitle}>ACHIEVEMENTS</Text>
-          <Text style={styles.achXp}>2,480 XP</Text>
-        </View>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.achRow}
-        >
-          {ACHIEVEMENTS.map((a) => (
-            <View key={a.name} style={[styles.achCard, a.locked && styles.achCardLocked]}>
-              {a.rare && (
-                <View style={styles.rareBadge}><Text style={styles.rareText}>RARE</Text></View>
-              )}
-              <View style={[styles.achIcon, a.locked && styles.achIconLocked]}>
-                <Ionicons name={a.icon} size={22} color={a.locked ? COLORS.textMuted : '#F5B041'} />
-              </View>
-              <Text style={[styles.achName, a.locked && { color: COLORS.textMuted }]}>{a.name}</Text>
-              <Text style={styles.achCardXp}>{a.xp}</Text>
-            </View>
-          ))}
-        </ScrollView>
-
         {/* Menu items */}
         <View style={styles.menuList}>
-          {MENU.map((item) => (
+          {filteredMenu.map((item) => (
             <TouchableOpacity
               key={item.id}
               style={styles.menuItem}
               onPress={() => navigation.navigate(item.nav)}
-              activeOpacity={0.75}
+              activeOpacity={0.8}
             >
               <View style={[styles.menuIcon, { backgroundColor: item.bg }]}>
-                <Ionicons name={item.icon} size={20} color={item.color} />
+                <MaterialIcons name={item.icon} size={22} color={item.color} />
               </View>
               <View style={styles.menuInfo}>
                 <Text style={styles.menuLabel}>{item.label}</Text>
                 <Text style={styles.menuSub}>{item.sub}</Text>
               </View>
-              <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
+              <MaterialIcons name="chevron-right" size={22} color={COLORS.textMuted} />
             </TouchableOpacity>
           ))}
+          {filteredMenu.length === 0 && (
+            <Text style={styles.noResults}>Nothing found.</Text>
+          )}
         </View>
 
         {/* Logout */}
@@ -308,6 +340,27 @@ export default function ProfileScreen({ navigation }) {
 
         <View style={{ height: 100 }} />
       </ScrollView>
+
+      {/* ── Search overlay ── */}
+      {searchActive && (
+        <Animated.View style={[styles.searchOverlay, { opacity: searchAnim }]}>
+          <View style={styles.searchBar}>
+            <Ionicons name="search-outline" size={18} color={COLORS.textMuted} />
+            <TextInput
+              style={styles.searchInput}
+              value={query}
+              onChangeText={setQuery}
+              placeholder="Search settings..."
+              placeholderTextColor={COLORS.textMuted}
+              autoFocus
+              returnKeyType="search"
+            />
+          </View>
+          <TouchableOpacity onPress={closeSearch} hitSlop={8}>
+            <Text style={styles.searchCancel}>Cancel</Text>
+          </TouchableOpacity>
+        </Animated.View>
+      )}
 
       {/* ── Profile Photo Modal ── */}
       <Modal
@@ -386,95 +439,89 @@ export default function ProfileScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
 
-  header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingTop: 52, paddingBottom: 12,
-  },
-  backBtn: {
-    width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.06)',
-    borderWidth: 1, borderColor: COLORS.border,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  headerTitle: { fontFamily: FONTS.headline, fontSize: 16, color: COLORS.textPrimary, letterSpacing: 3 },
+  // Floating header
+  floatLeft: { position: 'absolute', top: 52, left: 20, zIndex: 100, padding: 4 },
+  floatRight: { position: 'absolute', top: 52, right: 20, zIndex: 100, padding: 4 },
 
-  scroll: { paddingHorizontal: 16, paddingBottom: 20 },
+  scroll: { paddingHorizontal: 20, paddingTop: 56, paddingBottom: 20 },
+
+  headerTitle: {
+    fontFamily: FONTS.headline, fontSize: 18, color: COLORS.textPrimary,
+    letterSpacing: 5, textAlign: 'center', textTransform: 'uppercase', marginBottom: 24,
+  },
 
   // Avatar
-  avatarSection: { alignItems: 'center', marginTop: 8, marginBottom: 22 },
+  avatarSection: { alignItems: 'center', marginBottom: 24 },
   avatarWrap: { position: 'relative', marginBottom: 14 },
-  avatar: { width: 92, height: 92, borderRadius: 18 },
+  avatar: { width: 88, height: 88, borderRadius: 44, borderWidth: 2, borderColor: 'rgba(255,255,255,0.1)' },
   avatarFallback: {
     backgroundColor: COLORS.primary,
     alignItems: 'center', justifyContent: 'center',
   },
-  avatarLetter: { fontFamily: FONTS.display, fontSize: 38, color: COLORS.white },
+  avatarLetter: { fontFamily: FONTS.display, fontSize: 34, color: COLORS.white },
   cameraBadge: {
-    position: 'absolute', bottom: -4, right: -4, width: 30, height: 30,
-    borderRadius: 15, backgroundColor: COLORS.primary, borderWidth: 2, borderColor: COLORS.background,
+    position: 'absolute', bottom: -2, right: -2, width: 26, height: 26,
+    borderRadius: 13, backgroundColor: '#1A1A2E', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
     alignItems: 'center', justifyContent: 'center',
   },
   name: { fontFamily: FONTS.headline, fontSize: 26, color: COLORS.white, marginBottom: 6 },
-  subline: { fontFamily: FONTS.bodyMedium, fontSize: 12, color: COLORS.textMuted, letterSpacing: 1 },
+  subline: { fontFamily: FONTS.label, fontSize: 11, color: COLORS.textMuted, letterSpacing: 1.5 },
 
   // Membership card
   memCard: {
-    borderRadius: 18, borderWidth: 1, borderColor: 'rgba(245,176,65,0.4)',
-    padding: 20, marginBottom: 28, overflow: 'hidden',
+    width: '100%', borderRadius: 20, borderWidth: 1, borderColor: 'rgba(245,158,11,0.3)',
+    padding: 22, marginBottom: 28, overflow: 'hidden', justifyContent: 'space-between',
   },
+  // Full card-width light band; sweeps left:-100%→100% (translateX -cardW→cardW),
+  // rotated 30° — matches Stitch `lightSweep`.
+  sweep: { position: 'absolute', top: -60, bottom: -60, left: 0, width: '100%' },
   memTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   memTier: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  memTierText: { fontFamily: FONTS.label, fontSize: 11, color: '#F5B041', letterSpacing: 2 },
-  memAccess: { fontFamily: FONTS.label, fontSize: 10, color: COLORS.textMuted, letterSpacing: 2 },
+  memTierText: { fontFamily: FONTS.label, fontSize: 11, color: '#F59E0B', letterSpacing: 2 },
+  memAccess: { fontFamily: FONTS.label, fontSize: 10, color: '#F59E0B', letterSpacing: 1.5 },
   memChip: {
-    width: 38, height: 28, borderRadius: 6, backgroundColor: '#8a6d3b',
-    marginTop: 22, marginBottom: 14, opacity: 0.85,
+    width: 36, height: 26, borderRadius: 6, backgroundColor: 'rgba(245,158,11,0.35)',
+    borderWidth: 1, borderColor: 'rgba(245,158,11,0.2)',
   },
-  memName: { fontFamily: FONTS.headline, fontSize: 22, color: COLORS.white, letterSpacing: 1, marginBottom: 20 },
+  memName: { fontFamily: FONTS.headline, fontSize: 20, color: COLORS.white, letterSpacing: 1.5, textTransform: 'uppercase' },
   memBottomRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
-  memMetaLabel: { fontFamily: FONTS.label, fontSize: 9, color: COLORS.textMuted, letterSpacing: 1.5, marginBottom: 4 },
-  memMetaValue: { fontFamily: FONTS.bodyBold, fontSize: 13, color: COLORS.white, letterSpacing: 0.5 },
-
-  // Achievements
-  achHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 14 },
-  achTitle: { fontFamily: FONTS.headline, fontSize: 15, color: COLORS.textPrimary, letterSpacing: 1.5 },
-  achXp: { fontFamily: FONTS.bodyBold, fontSize: 14, color: COLORS.cyanNeon },
-  achRow: { gap: 12, paddingBottom: 4, paddingRight: 4 },
-  achCard: {
-    width: 116, backgroundColor: COLORS.surface2, borderRadius: 16,
-    borderWidth: 1, borderColor: COLORS.border, padding: 14, alignItems: 'center',
-  },
-  achCardLocked: { opacity: 0.55 },
-  rareBadge: {
-    position: 'absolute', top: 8, right: 8, backgroundColor: 'rgba(245,176,65,0.18)',
-    borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2,
-  },
-  rareText: { fontFamily: FONTS.label, fontSize: 8, color: '#F5B041', letterSpacing: 1 },
-  achIcon: {
-    width: 46, height: 46, borderRadius: 14, backgroundColor: 'rgba(245,176,65,0.12)',
-    alignItems: 'center', justifyContent: 'center', marginBottom: 10, marginTop: 6,
-  },
-  achIconLocked: { backgroundColor: 'rgba(255,255,255,0.05)' },
-  achName: { fontFamily: FONTS.bodyBold, fontSize: 12, color: COLORS.white, marginBottom: 2, textAlign: 'center' },
-  achCardXp: { fontFamily: FONTS.bodyMedium, fontSize: 11, color: COLORS.primaryLight },
+  memMetaLabel: { fontFamily: FONTS.label, fontSize: 8, color: 'rgba(212,193,207,0.4)', letterSpacing: 1.5, marginBottom: 4 },
+  memMetaValue: { fontFamily: FONTS.bodyBold, fontSize: 12, color: COLORS.white, letterSpacing: 0.5 },
 
   // Menu
-  menuList: { gap: 10, marginBottom: 24, marginTop: 8 },
+  menuList: { gap: 12, marginBottom: 16 },
   menuItem: {
     flexDirection: 'row', alignItems: 'center', gap: 14,
-    backgroundColor: COLORS.surface, borderRadius: 14, borderWidth: 1, borderColor: COLORS.border, padding: 14,
+    backgroundColor: '#1A1A2E', borderRadius: 12, padding: 16,
   },
-  menuIcon: { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  menuIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   menuInfo: { flex: 1 },
   menuLabel: { fontFamily: FONTS.bodyBold, fontSize: 14, color: COLORS.white, marginBottom: 2 },
-  menuSub: { fontFamily: FONTS.body, fontSize: 11, color: COLORS.textMuted },
+  menuSub: { fontFamily: FONTS.body, fontSize: 11, color: 'rgba(212,193,207,0.6)' },
+  noResults: { fontFamily: FONTS.body, fontSize: 13, color: COLORS.textMuted, textAlign: 'center', paddingVertical: 24 },
 
   // Logout / delete
-  logoutBtn: { alignItems: 'center', justifyContent: 'center', paddingVertical: 16, marginBottom: 4 },
-  logoutText: { fontFamily: FONTS.label, fontSize: 13, color: COLORS.textSecondary, letterSpacing: 3 },
+  logoutBtn: { alignItems: 'center', justifyContent: 'center', paddingVertical: 16, marginTop: 8, marginBottom: 4 },
+  logoutText: { fontFamily: FONTS.label, fontSize: 13, color: '#EF4444', letterSpacing: 3, opacity: 0.85 },
   deleteBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10,
   },
   deleteText: { fontFamily: FONTS.bodyMedium, fontSize: 12, color: '#F87171', opacity: 0.8 },
+
+  // Search overlay
+  searchOverlay: {
+    position: 'absolute', top: 0, left: 0, right: 0, height: 96,
+    backgroundColor: 'rgba(8,6,8,0.96)', flexDirection: 'row', alignItems: 'flex-end',
+    paddingHorizontal: 20, paddingBottom: 14, gap: 12, zIndex: 200,
+    borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)',
+  },
+  searchBar: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, height: 44,
+    backgroundColor: '#1A1A2E', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(124,58,237,0.4)',
+    paddingHorizontal: 14,
+  },
+  searchInput: { flex: 1, fontFamily: FONTS.body, fontSize: 14, color: COLORS.white, padding: 0 },
+  searchCancel: { fontFamily: FONTS.bodyBold, fontSize: 14, color: COLORS.primaryLight },
 
   // Photo picker modal
   photoOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
@@ -487,7 +534,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.2)', marginBottom: 20,
   },
   photoPreview: {
-    width: 80, height: 80, borderRadius: 20,
+    width: 80, height: 80, borderRadius: 40,
     borderWidth: 3, borderColor: COLORS.primary, backgroundColor: COLORS.primary,
   },
   photoTitle: { fontFamily: FONTS.headline, fontSize: 18, color: COLORS.white, textAlign: 'center', marginBottom: 4 },

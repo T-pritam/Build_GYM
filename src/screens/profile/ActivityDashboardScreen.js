@@ -1,132 +1,166 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { COLORS as THEME, FONTS } from '../../theme';
-
-// Theme-compat: legacy colour keys -> new "Holographic Noir" palette so the
-// whole screen restyles without rewriting the render. Accent (orange) -> purple.
-const COLORS = {
-  primary: THEME.background, primaryLight: THEME.surface, primaryDark: THEME.black,
-  orange: THEME.primaryLight, orangeLight: THEME.primarySoft, orangeBorder: THEME.primaryBorder, orangeGlow: THEME.primaryGlow,
-  secondary: THEME.primaryLight, secondaryLight: THEME.primaryNeon, secondaryDark: THEME.primary, secondaryGlow: THEME.primarySoft, secondaryBorder: THEME.primaryBorder,
-  background: THEME.background, surface: '#1B191E', surface2: THEME.surface2, surface3: THEME.surface3, card: '#1B191E',
-  textPrimary: THEME.textPrimary, textSecondary: THEME.textSecondary, textMuted: THEME.textMuted, textDim: THEME.textDim,
-  success: THEME.success, successLight: THEME.successSoft, error: THEME.error, errorLight: THEME.errorSoft, warning: THEME.warning, warningLight: THEME.warningSoft,
-  border: THEME.border, borderLight: THEME.borderStrong, overlay: THEME.overlay, overlayLight: THEME.overlayLight,
-  white: THEME.white, black: THEME.black, transparent: 'transparent',
-  primarySoft: THEME.primarySoft, primaryBorder: THEME.primaryBorder, primaryNeon: THEME.primaryNeon,
-};
+import { LinearGradient } from 'expo-linear-gradient';
+import { MaterialIcons } from '@expo/vector-icons';
+import { COLORS, FONTS } from '../../theme';
 import SafeBottomBar from '../../components/SafeBottomBar';
+import GradientIcon from '../../components/GradientIcon';
 
-const WEEK_DAYS = [
-  { label: 'M', done: true }, { label: 'T', done: true }, { label: 'W', done: true },
-  { label: 'T', done: true }, { label: 'F', done: false }, { label: 'S', done: false }, { label: 'S', done: false },
+// Static KPI data per period (Stitch "Activity Dashboard").
+const DATA = {
+  week:  { visits: ['3', '+1 vs last week'],   cal: ['1,250', 'avg 416/session'], time: ['2h 15m', 'avg 45 min/session'], sess: ['3', 'Strength most frequent'] },
+  month: { visits: ['8', '+2 vs last month'],  cal: ['4,210', 'avg 526/session'], time: ['7h 12m', 'avg 52 min/session'], sess: ['8', 'Cycling most frequent'] },
+  all:   { visits: ['142', 'Top 15% of members'], cal: ['78,400', 'avg 552/session'], time: ['124h', 'avg 52 min/session'], sess: ['142', 'Strength most frequent'] },
+};
+const PERIODS = [['week', 'This Week'], ['month', 'This Month'], ['all', 'All Time']];
+
+// Static attendance heatmap intensities (0–4) — 5 weeks × 7 days.
+const HEATMAP = [
+  [0, 2, 3, 1, 4, 0, 0],
+  [1, 3, 2, 4, 2, 1, 0],
+  [2, 1, 4, 3, 0, 2, 1],
+  [0, 4, 2, 1, 3, 0, 0],
+  [3, 2, 1, 0, 2, 0, 0],
 ];
+const HEAT = ['rgba(255,255,255,0.05)', 'rgba(124,58,237,0.3)', 'rgba(124,58,237,0.55)', 'rgba(124,58,237,0.8)', '#00BCD4'];
 
-const WEEKLY_BARS = [
-  { label: 'W1', pct: 0.66 }, { label: 'W2', pct: 0.83 }, { label: 'W3', pct: 0.50 }, { label: 'W4', pct: 1.0 },
-];
-
-const RECENT_VISITS = [
-  { date: 'Mon, 24 Feb', check: '06:05 AM', duration: '75 min' },
-  { date: 'Tue, 23 Feb', check: '07:12 AM', duration: '60 min' },
-  { date: 'Wed, 22 Feb', check: '06:50 AM', duration: '80 min' },
-  { date: 'Thu, 21 Feb', check: '06:30 AM', duration: '55 min' },
-  { date: 'Fri, 20 Feb', check: '05:55 AM', duration: '90 min' },
+const WHEN = [['Morning', 3], ['Midday', 1], ['Evening', 4], ['Night', 0]];
+const BREAKDOWN = [
+  { label: 'Cardio', pct: 40, color: '#00BCD4' },
+  { label: 'Strength', pct: 25, color: '#7C3AED' },
+  { label: 'Recovery', pct: 20, color: '#F59E0B' },
+  { label: 'Sport', pct: 15, color: '#22C55E' },
 ];
 
 export default function ActivityDashboardScreen({ navigation }) {
+  const [period, setPeriod] = useState('month');
+  const d = DATA[period];
+
+  const Kpi = ({ icon, label, value, desc, accent }) => (
+    <View style={styles.kpiCard}>
+      <View style={styles.kpiTop}>
+        <Text style={styles.kpiLabel}>{label}</Text>
+        <MaterialIcons name={icon} size={16} color={accent} />
+      </View>
+      <Text style={[styles.kpiValue, { color: accent }]}>{value}</Text>
+      <Text style={styles.kpiDesc}>{desc}</Text>
+    </View>
+  );
+
+  const whenMax = Math.max(...WHEN.map((w) => w[1]), 1);
+
   return (
     <SafeBottomBar style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#000" />
-      <View style={styles.glowTop} />
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
+      <View style={styles.glowTop} pointerEvents="none" />
 
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={20} color="#fff" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Activity Dashboard</Text>
-        <View style={{ width: 40 }} />
-      </View>
+      <TouchableOpacity style={styles.floatLeft} onPress={() => navigation.goBack()} hitSlop={10} activeOpacity={0.7}>
+        <GradientIcon name="arrow-back" size={24} />
+      </TouchableOpacity>
+      <Text style={styles.headerTitle}>Activity Dashboard</Text>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
-        {/* Stats 2x2 grid */}
-        <View style={styles.statsGrid}>
-          <View style={styles.statCard}>
-            <View style={[styles.statIcon, { backgroundColor: COLORS.secondaryGlow }]}>
-              <Ionicons name="calendar-outline" size={20} color={COLORS.secondary} />
-            </View>
-            <Text style={[styles.statNum, { color: COLORS.secondary }]}>18</Text>
-            <Text style={styles.statLabel}>Visits This Month</Text>
+        {/* Period toggle */}
+        <View style={styles.periodRow}>
+          {PERIODS.map(([key, label]) => {
+            const on = period === key;
+            return (
+              <TouchableOpacity key={key} style={styles.periodPill} onPress={() => setPeriod(key)} activeOpacity={0.85}>
+                {on && (
+                  <LinearGradient colors={['#7C3AED', '#00BCD4']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
+                )}
+                <Text style={[styles.periodText, on && styles.periodTextActive]}>{label}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {/* KPI grid */}
+        <View style={styles.kpiGrid}>
+          <Kpi icon="event-available" label="Visits" value={d.visits[0]} desc={d.visits[1]} accent="#00BCD4" />
+          <Kpi icon="local-fire-department" label="Calories" value={`${d.cal[0]} kcal`} desc={d.cal[1]} accent="#F59E0B" />
+          <Kpi icon="schedule" label="Active Time" value={d.time[0]} desc={d.time[1]} accent="#A78BFA" />
+          <Kpi icon="fitness-center" label="Sessions" value={d.sess[0]} desc={d.sess[1]} accent="#22C55E" />
+        </View>
+
+        {/* Attendance heatmap */}
+        <View style={styles.sectionCard}>
+          <View style={styles.sectionHead}>
+            <Text style={styles.sectionTitle}>Attendance</Text>
+            <Text style={styles.sectionSub}>December 2024</Text>
           </View>
-          <View style={styles.statCard}>
-            <View style={[styles.statIcon, { backgroundColor: 'rgba(74,222,128,0.15)' }]}>
-              <Ionicons name="checkmark-circle-outline" size={20} color="#4ADE80" />
-            </View>
-            <Text style={[styles.statNum, { color: '#4ADE80' }]}>18</Text>
-            <Text style={styles.statLabel}>Active Days</Text>
+          <View style={styles.heatGrid}>
+            {HEATMAP.map((week, wi) => (
+              <View key={wi} style={styles.heatRow}>
+                {week.map((lvl, di) => (
+                  <View key={di} style={[styles.heatCell, { backgroundColor: HEAT[lvl] }]} />
+                ))}
+              </View>
+            ))}
           </View>
-          <View style={styles.statCard}>
-            <View style={[styles.statIcon, { backgroundColor: COLORS.secondaryGlow }]}>
-              <Ionicons name="flame-outline" size={20} color={COLORS.secondary} />
-            </View>
-            <Text style={[styles.statNum, { color: COLORS.secondary }]}>5 🔥</Text>
-            <Text style={styles.statLabel}>Current Streak</Text>
-          </View>
-          <View style={styles.statCard}>
-            <View style={[styles.statIcon, { backgroundColor: 'rgba(168,85,247,0.15)' }]}>
-              <Ionicons name="heart-outline" size={20} color="#A855F7" />
-            </View>
-            <Text style={[styles.statNum, { color: '#A855F7', fontSize: 20 }]}>12,400 kcal</Text>
-            <Text style={styles.statLabel}>Est. Calories</Text>
+          <View style={styles.legendRow}>
+            <Text style={styles.legendText}>Less</Text>
+            {HEAT.map((c, i) => <View key={i} style={[styles.legendCell, { backgroundColor: c }]} />)}
+            <Text style={styles.legendText}>More</Text>
           </View>
         </View>
 
-        {/* Weekly Bar Chart */}
-        <Text style={styles.sectionTitle}>Weekly Visits</Text>
-        <View style={styles.barChartCard}>
-          <View style={styles.barChart}>
-            {WEEKLY_BARS.map((b) => (
-              <View key={b.label} style={styles.barCol}>
-                <View style={styles.barWrapper}>
-                  <View style={[styles.bar, { height: `${b.pct * 100}%` }]} />
+        {/* When You Train */}
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>When You Train</Text>
+          <View style={styles.whenRow}>
+            {WHEN.map(([label, val]) => (
+              <View key={label} style={styles.whenCol}>
+                <View style={styles.whenBarTrack}>
+                  <LinearGradient
+                    colors={['#7C3AED', '#00BCD4']}
+                    style={[styles.whenBarFill, { height: `${(val / whenMax) * 100}%` }]}
+                  />
                 </View>
-                <Text style={styles.barLabel}>{b.label}</Text>
+                <Text style={styles.whenVal}>{val}</Text>
+                <Text style={styles.whenLabel}>{label}</Text>
               </View>
             ))}
           </View>
         </View>
 
-        {/* This Week tracker */}
-        <Text style={styles.sectionTitle}>This Week</Text>
-        <View style={styles.weekRow}>
-          {WEEK_DAYS.map((d, i) => (
-            <View key={i} style={styles.dayCol}>
-              <View style={[styles.dayCircle, d.done ? styles.dayCircleDone : styles.dayCirclePending]}>
-                {d.done && <Ionicons name="checkmark" size={16} color="#fff" />}
+        {/* Activity Breakdown */}
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>Activity Breakdown</Text>
+          <View style={styles.stackBar}>
+            {BREAKDOWN.map((b) => (
+              <View key={b.label} style={{ width: `${b.pct}%`, backgroundColor: b.color, height: '100%' }} />
+            ))}
+          </View>
+          <View style={styles.breakLegend}>
+            {BREAKDOWN.map((b) => (
+              <View key={b.label} style={styles.breakItem}>
+                <View style={[styles.breakDot, { backgroundColor: b.color }]} />
+                <Text style={styles.breakText}>{b.label} ({b.pct}%)</Text>
               </View>
-              <Text style={[styles.dayLabel, d.done && styles.dayLabelDone]}>{d.label}</Text>
-            </View>
-          ))}
+            ))}
+          </View>
         </View>
 
-        {/* Recent Visits */}
-        <Text style={styles.sectionTitle}>Recent Visits</Text>
-        {RECENT_VISITS.map((v, i) => (
-          <View key={i} style={styles.visitRow}>
-            <View style={styles.visitIconWrap}>
-              <Ionicons name="enter-outline" size={18} color={COLORS.secondary} />
+        {/* Current Streak */}
+        <View style={styles.sectionCard}>
+          <View style={styles.streakRow}>
+            <View>
+              <Text style={styles.sectionTitle}>Current Streak</Text>
+              <Text style={styles.streakValue}>14 Days</Text>
+              <Text style={styles.sectionSub}>Longest 21 Days</Text>
             </View>
-            <View style={styles.visitInfo}>
-              <Text style={styles.visitDate}>{v.date}</Text>
-              <Text style={styles.visitMeta}>Check-in {v.check} · {v.duration}</Text>
+            <View style={styles.trophyWrap}>
+              <MaterialIcons name="emoji-events" size={26} color="#F59E0B" />
             </View>
-            <View style={styles.visitDot} />
           </View>
-        ))}
+          <View style={styles.bestWeek}>
+            <Text style={styles.bestWeekTitle}>Your most active week</Text>
+            <Text style={styles.bestWeekSub}>6 visits · week of 8 Dec</Text>
+          </View>
+        </View>
 
         <View style={{ height: 100 }} />
       </ScrollView>
@@ -135,68 +169,68 @@ export default function ActivityDashboardScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000' },
+  container: { flex: 1, backgroundColor: COLORS.background },
   glowTop: { position: 'absolute', top: 0, left: 0, right: 0, height: 260, backgroundColor: 'rgba(127,41,130,0.06)' },
 
-  header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingTop: 52, paddingBottom: 16,
-  },
-  backBtn: {
-    width: 40, height: 40, borderRadius: 20, backgroundColor: '#1C1C1E',
-    alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#333',
-  },
-  headerTitle: { fontFamily: FONTS.headline, fontSize: 16, color: COLORS.textPrimary, letterSpacing: 3 },
+  floatLeft: { position: 'absolute', top: 52, left: 20, zIndex: 100, padding: 4 },
+  headerTitle: { fontFamily: FONTS.bodyBold, fontSize: 16, color: COLORS.white, textAlign: 'center', marginTop: 54 },
 
-  scroll: { paddingHorizontal: 16, paddingBottom: 20 },
+  scroll: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 20 },
 
-  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 24 },
-  statCard: {
-    width: '47%', backgroundColor: '#1C1C1E', borderRadius: 14, borderWidth: 1,
-    borderColor: '#333', padding: 16, gap: 8,
+  periodRow: {
+    flexDirection: 'row', backgroundColor: '#1A1A2E', borderRadius: 999, padding: 4, marginBottom: 20,
   },
-  statIcon: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
-  statNum: { fontSize: 28, fontWeight: '900', lineHeight: 32, color: '#fff' },
-  statLabel: { fontSize: 11, color: '#999', lineHeight: 16 },
+  periodPill: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 9, borderRadius: 999, overflow: 'hidden' },
+  periodText: { fontFamily: FONTS.bodyMedium, fontSize: 13, color: COLORS.textMuted },
+  periodTextActive: { color: '#000', fontFamily: FONTS.bodyBold },
 
-  sectionTitle: { fontSize: 16, fontWeight: '800', color: '#fff', marginBottom: 12 },
+  kpiGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 20 },
+  kpiCard: {
+    width: '47%', flexGrow: 1, backgroundColor: '#1A1A2E', borderRadius: 16,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)', padding: 16, gap: 6,
+  },
+  kpiTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  kpiLabel: { fontFamily: FONTS.label, fontSize: 10, color: COLORS.textMuted, letterSpacing: 1 },
+  kpiValue: { fontFamily: FONTS.headline, fontSize: 22 },
+  kpiDesc: { fontFamily: FONTS.body, fontSize: 10, color: COLORS.textMuted },
 
-  barChartCard: {
-    backgroundColor: '#1C1C1E', borderRadius: 14, borderWidth: 1, borderColor: '#333',
-    padding: 20, marginBottom: 24,
+  sectionCard: {
+    backgroundColor: '#1A1A2E', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)',
+    padding: 18, marginBottom: 16,
   },
-  barChart: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', height: 120, gap: 8 },
-  barCol: { flex: 1, alignItems: 'center', gap: 8, height: '100%' },
-  barWrapper: { flex: 1, width: '100%', justifyContent: 'flex-end' },
-  bar: { width: '100%', backgroundColor: COLORS.secondary, borderRadius: 4 },
-  barLabel: { fontSize: 12, color: '#fff' },
+  sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
+  sectionTitle: { fontFamily: FONTS.bodyBold, fontSize: 15, color: COLORS.white },
+  sectionSub: { fontFamily: FONTS.body, fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
 
-  weekRow: {
-    flexDirection: 'row', justifyContent: 'space-between', backgroundColor: '#1C1C1E',
-    borderRadius: 14, borderWidth: 1, borderColor: '#333', padding: 16,
-    marginBottom: 24,
-  },
-  dayCol: { alignItems: 'center', gap: 8 },
-  dayCircle: {
-    width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1,
-  },
-  dayCircleDone: { backgroundColor: COLORS.secondary, borderColor: COLORS.secondary },
-  dayCirclePending: { backgroundColor: 'transparent', borderColor: '#444' },
-  dayLabel: { fontSize: 12, color: '#666', fontWeight: '600' },
-  dayLabelDone: { color: COLORS.secondary },
+  heatGrid: { gap: 6 },
+  heatRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 6 },
+  heatCell: { flex: 1, aspectRatio: 1, borderRadius: 4 },
+  legendRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 12, justifyContent: 'flex-end' },
+  legendText: { fontFamily: FONTS.body, fontSize: 10, color: COLORS.textMuted, marginHorizontal: 4 },
+  legendCell: { width: 12, height: 12, borderRadius: 3 },
 
-  visitRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: '#1C1C1E', borderRadius: 12, borderWidth: 1, borderColor: '#2A2A2A',
-    padding: 14, marginBottom: 8,
-  },
-  visitIconWrap: {
-    width: 38, height: 38, borderRadius: 19, backgroundColor: COLORS.secondaryGlow,
+  whenRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', height: 130, marginTop: 6 },
+  whenCol: { flex: 1, alignItems: 'center', gap: 6, height: '100%', justifyContent: 'flex-end' },
+  whenBarTrack: { width: 28, flex: 1, justifyContent: 'flex-end', borderRadius: 6, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.04)' },
+  whenBarFill: { width: '100%', borderRadius: 6, minHeight: 4 },
+  whenVal: { fontFamily: FONTS.bodyBold, fontSize: 12, color: COLORS.white },
+  whenLabel: { fontFamily: FONTS.label, fontSize: 9, color: COLORS.textMuted, letterSpacing: 0.5 },
+
+  stackBar: { flexDirection: 'row', height: 12, borderRadius: 6, overflow: 'hidden', marginTop: 6, marginBottom: 16 },
+  breakLegend: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  breakItem: { flexDirection: 'row', alignItems: 'center', gap: 6, width: '45%' },
+  breakDot: { width: 10, height: 10, borderRadius: 5 },
+  breakText: { fontFamily: FONTS.body, fontSize: 12, color: COLORS.textSecondary },
+
+  streakRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  streakValue: { fontFamily: FONTS.headline, fontSize: 28, color: '#F59E0B', marginTop: 4 },
+  trophyWrap: {
+    width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(245,158,11,0.14)',
     alignItems: 'center', justifyContent: 'center',
   },
-  visitInfo: { flex: 1 },
-  visitDate: { fontSize: 13, fontWeight: '700', color: '#fff', marginBottom: 2 },
-  visitMeta: { fontSize: 11, color: '#888' },
-  visitDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#22C55E' },
+  bestWeek: {
+    marginTop: 16, paddingTop: 14, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.06)',
+  },
+  bestWeekTitle: { fontFamily: FONTS.bodyBold, fontSize: 13, color: COLORS.white },
+  bestWeekSub: { fontFamily: FONTS.body, fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
 });

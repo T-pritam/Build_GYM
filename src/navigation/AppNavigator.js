@@ -55,6 +55,8 @@ import HealthEmergencyScreen from '../screens/profile/HealthEmergencyScreen';
 import EditProfileScreen from '../screens/profile/EditProfileScreen';
 import ConsentPreferencesScreen from '../screens/profile/ConsentPreferencesScreen';
 import SupportScreen from '../screens/profile/SupportScreen';
+import AchievementsScreen from '../screens/profile/AchievementsScreen';
+import SettingsScreen from '../screens/profile/SettingsScreen';
 
 // Workout screens
 import {
@@ -288,6 +290,8 @@ export default function AppNavigator() {
         <Stack.Screen name="EditProfile" component={EditProfileScreen} />
         <Stack.Screen name="ConsentPreferences" component={ConsentPreferencesScreen} />
         <Stack.Screen name="Support" component={SupportScreen} />
+        <Stack.Screen name="Achievements" component={AchievementsScreen} />
+        <Stack.Screen name="Settings" component={SettingsScreen} />
 
         {/* Detail screens */}
         <Stack.Screen name="TrainerDetail" component={TrainerDetailScreen} />
