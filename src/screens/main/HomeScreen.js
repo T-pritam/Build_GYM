@@ -4,7 +4,7 @@ import {
   StatusBar, Image, RefreshControl,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { COLORS, FONTS } from '../../theme';
 import { useAnnouncementStore } from '../../store/announcementStore';
 import { useAuthStore } from '../../store/authStore';
@@ -38,13 +38,14 @@ function countdownLabel(iso) {
 }
 
 // Quick-access tiles → real routes.
+// Icons mirror the Stitch design's Material Symbols exactly (MaterialIcons set).
 const QUICK = [
-  { label: 'ACTIVITIES', icon: 'barbell-outline',    color: '#00BCD4', route: 'Activities' },
-  { label: 'CAFE',       icon: 'cafe-outline',        color: '#FFA000', route: 'Cafe' },
-  { label: 'RANKING',    icon: 'podium-outline',      color: GOLD,      route: 'Leaderboard' },
-  { label: 'COMMUNITY',  icon: 'chatbubbles-outline', color: '#9C27B0', route: 'Community' },
-  { label: 'TRAINERS',   icon: 'body-outline',        color: '#4CAF50', route: 'Trainers' },
-  { label: 'BLOGS',      icon: 'book-outline',        color: '#4A90D9', route: 'BlogList' },
+  { label: 'ACTIVITIES', icon: 'fitness-center',       color: '#00BCD4', route: 'Activities' },
+  { label: 'CAFE',       icon: 'local-cafe',           color: '#FFA000', route: 'Cafe' },
+  { label: 'RANKING',    icon: 'leaderboard',          color: GOLD,      route: 'Leaderboard' },
+  { label: 'COMMUNITY',  icon: 'forum',                color: '#9C27B0', route: 'Community' },
+  { label: 'TRAINERS',   icon: 'sports-martial-arts',  color: '#4CAF50', route: 'Trainers' },
+  { label: 'BLOGS',      icon: 'menu-book',            color: '#4A90D9', route: 'BlogList' },
 ];
 
 // Dummy 7-day calorie bar heights (no calories service yet).
@@ -184,7 +185,7 @@ export default function HomeScreen({ navigation }) {
         </View>
         <View style={styles.topActions}>
           <TouchableOpacity style={styles.topBtn} onPress={() => navigation.navigate('Notifications')}>
-            <Ionicons name="notifications-outline" size={24} color={COLORS.textSecondary} />
+            <MaterialIcons name="notifications" size={24} color={COLORS.textSecondary} />
             {unreadCount > 0 && (
               <View style={styles.notifBadge}>
                 <Text style={styles.notifBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
@@ -218,7 +219,8 @@ export default function HomeScreen({ navigation }) {
               <Text style={styles.weekMonth}>{monthLabel}</Text>
             </View>
             <View style={styles.streakChip}>
-              <Text style={styles.streakChipText}>🔥 {currentStreak} DAY STREAK</Text>
+              <MaterialIcons name="local-fire-department" size={13} color={COLORS.primaryLight} />
+              <Text style={styles.streakChipText}>{currentStreak} DAY STREAK</Text>
             </View>
           </View>
           <View style={styles.weekRow}>
@@ -226,9 +228,14 @@ export default function HomeScreen({ navigation }) {
               <View key={i} style={styles.weekDay}>
                 <Text style={[styles.weekDow, d.isToday && { color: COLORS.primaryLight }]}>{DOW[i]}</Text>
                 {d.isToday ? (
-                  <View style={styles.weekToday}>
-                    <Ionicons name="flame" size={16} color="#000" />
-                  </View>
+                  <LinearGradient
+                    colors={['#F59E0B', '#FB923C']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.weekToday}
+                  >
+                    <Text style={styles.weekAttendedNum}>{String(d.date).padStart(2, '0')}</Text>
+                  </LinearGradient>
                 ) : d.attended ? (
                   <View style={styles.weekAttended}>
                     <Text style={styles.weekAttendedNum}>{String(d.date).padStart(2, '0')}</Text>
@@ -245,9 +252,9 @@ export default function HomeScreen({ navigation }) {
 
         {/* ── KPI GRID ─────────────────────────────── */}
         <View style={styles.kpiGrid}>
-          <KpiCard label="LONGEST STREAK" value={`${longestStreak} Days`} icon="flame" color={COLORS.primaryLight} />
-          <KpiCard label="THIS MONTH" value={monthVisits} icon="calendar" color={CYAN} />
-          <KpiCard label="CLUB RANK" value={clubRank} icon="trophy" color={GOLD} />
+          <KpiCard label="LONGEST STREAK" value={`${longestStreak} Days`} icon="local-fire-department" color={COLORS.primaryLight} />
+          <KpiCard label="THIS MONTH" value={monthVisits} icon="calendar-today" color={CYAN} />
+          <KpiCard label="CLUB RANK" value={clubRank} icon="emoji-events" color={GOLD} />
           <KpiCard label="POINTS" value={pointsValue} icon="diamond" color={SILVER} />
         </View>
 
@@ -294,7 +301,7 @@ export default function HomeScreen({ navigation }) {
         >
           <View style={styles.coinsLeft}>
             <View style={styles.coinsIcon}>
-              <Ionicons name="ellipse" size={22} color={GOLD} />
+              <MaterialIcons name="toll" size={24} color={GOLD} />
             </View>
             <View>
               <Text style={styles.coinsLabel}>BUILD COINS</Text>
@@ -303,7 +310,7 @@ export default function HomeScreen({ navigation }) {
           </View>
           <View style={styles.coinsRight}>
             <Text style={styles.coinsHint}>Tap to view transactions</Text>
-            <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
+            <MaterialIcons name="chevron-right" size={18} color={COLORS.textMuted} />
           </View>
         </TouchableOpacity>
 
@@ -316,7 +323,12 @@ export default function HomeScreen({ navigation }) {
               activeOpacity={0.85}
               onPress={() => navigation.navigate(q.route)}
             >
-              <Ionicons name={q.icon} size={26} color={q.color} />
+              <MaterialIcons
+                name={q.icon}
+                size={26}
+                color={q.color}
+                style={[styles.quickIcon, { textShadowColor: q.color }]}
+              />
               <Text style={styles.quickLabel}>{q.label}</Text>
             </TouchableOpacity>
           ))}
@@ -347,7 +359,7 @@ export default function HomeScreen({ navigation }) {
           <View style={styles.workoutFooter}>
             <View style={styles.workoutLink}>
               <Text style={styles.workoutLinkText}>{todayWorkout ? 'VIEW WORKOUT' : 'OPEN WORKOUTS'}</Text>
-              <Ionicons name="arrow-forward" size={12} color={COLORS.primaryLight} />
+              <MaterialIcons name="arrow-forward" size={13} color={COLORS.primaryLight} />
             </View>
           </View>
         </TouchableOpacity>
@@ -404,7 +416,7 @@ export default function HomeScreen({ navigation }) {
             end={{ x: 1, y: 1 }}
             style={styles.fab}
           >
-            <Ionicons name="qr-code-outline" size={30} color={COLORS.white} />
+            <MaterialIcons name="qr-code-scanner" size={30} color={COLORS.white} />
           </LinearGradient>
         </TouchableOpacity>
         <Text style={styles.fabLabel}>CHECK IN</Text>
@@ -418,7 +430,7 @@ function KpiCard({ label, value, icon, color }) {
     <View style={[styles.kpiCard, { borderTopColor: color + '4D' }]}>
       <View style={styles.kpiHeader}>
         <Text style={styles.eyebrow}>{label}</Text>
-        <Ionicons name={icon} size={14} color={color} />
+        <MaterialIcons name={icon} size={15} color={color} />
       </View>
       <Text style={[styles.kpiValue, { color }]}>{value}</Text>
     </View>
@@ -434,6 +446,7 @@ const styles = StyleSheet.create({
   topBar: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: 20, paddingTop: 56, paddingBottom: 14,
+    borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)',
   },
   greeting: { fontFamily: FONTS.label, fontSize: 10, color: COLORS.textSecondary, letterSpacing: 2 },
   userName: { fontFamily: FONTS.headline, fontSize: 24, color: COLORS.white, marginTop: 2 },
@@ -468,6 +481,7 @@ const styles = StyleSheet.create({
   weekHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   weekMonth: { fontFamily: FONTS.bodyBold, fontSize: 14, color: COLORS.white, marginTop: 2 },
   streakChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
     backgroundColor: COLORS.primarySoft, borderWidth: 1, borderColor: COLORS.primaryBorder,
     borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5,
   },
@@ -476,8 +490,10 @@ const styles = StyleSheet.create({
   weekDay: { alignItems: 'center', gap: 8 },
   weekDow: { fontFamily: FONTS.label, fontSize: 10, color: COLORS.textMuted },
   weekToday: {
-    width: 32, height: 32, borderRadius: 16, backgroundColor: AMBER,
+    width: 32, height: 32, borderRadius: 16,
     alignItems: 'center', justifyContent: 'center',
+    shadowColor: AMBER, shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5, shadowRadius: 8, elevation: 4,
   },
   weekAttended: {
     width: 32, height: 32, borderRadius: 16, backgroundColor: AMBER,
@@ -532,10 +548,17 @@ const styles = StyleSheet.create({
 
   // Quick access
   quickGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 16 },
+  // Stitch: glass-card · p-4 · rounded-2xl · gap-2 · items/justify-center.
+  // Real vertical padding (no aspectRatio) keeps the label balanced off the
+  // bottom edge on every screen size.
   quickTile: {
-    width: '30%', flexGrow: 1, aspectRatio: 1.15, backgroundColor: 'rgba(0,0,0,0.4)',
-    borderRadius: 18, borderWidth: 1, borderColor: COLORS.border,
-    alignItems: 'center', justifyContent: 'center', gap: 10,
+    width: '30%', flexGrow: 1, backgroundColor: 'rgba(0,0,0,0.4)',
+    borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)',
+    alignItems: 'center', justifyContent: 'center', gap: 8,
+    paddingVertical: 18, paddingHorizontal: 8,
+  },
+  quickIcon: {
+    textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 8,
   },
   quickLabel: { fontFamily: FONTS.label, fontSize: 10, color: COLORS.textSecondary, letterSpacing: 1 },
 

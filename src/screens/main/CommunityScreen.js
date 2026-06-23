@@ -5,7 +5,7 @@ import {
   ActivityIndicator, FlatList, RefreshControl, TextInput, Modal,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { COLORS as THEME, FONTS } from '../../theme';
 import SafeBottomBar from '../../components/SafeBottomBar';
@@ -294,9 +294,9 @@ function CommunityFeedTab({ navigation }) {
               style={[styles.voteChip, post.user_vote === 'up' && styles.voteChipUpActive]}
               hitSlop={6}
             >
-              <Ionicons
-                name="arrow-up"
-                size={16}
+              <MaterialIcons
+                name="north"
+                size={15}
                 color={post.user_vote === 'up' ? COLORS.secondary : COLORS.textMuted}
               />
               <Text style={[styles.voteChipCount, post.user_vote === 'up' && { color: COLORS.secondary }]}>
@@ -308,9 +308,9 @@ function CommunityFeedTab({ navigation }) {
               style={[styles.voteChip, post.user_vote === 'down' && styles.voteChipDownActive]}
               hitSlop={6}
             >
-              <Ionicons
-                name="arrow-down"
-                size={16}
+              <MaterialIcons
+                name="south"
+                size={15}
                 color={post.user_vote === 'down' ? '#FF4444' : COLORS.textMuted}
               />
               <Text style={[styles.voteChipCount, post.user_vote === 'down' && { color: '#FF4444' }]}>
@@ -323,7 +323,7 @@ function CommunityFeedTab({ navigation }) {
             style={styles.communityCommentBtn}
             onPress={() => navigation.navigate('PostDetail', { postId: post.id })}
           >
-            <Ionicons name="chatbubble-outline" size={16} color={COLORS.textMuted} />
+            <MaterialIcons name="chat-bubble-outline" size={15} color={COLORS.textMuted} />
             <Text style={styles.communityCommentCount}>{post.comment_count || 0} COMMENTS</Text>
           </TouchableOpacity>
         </View>
@@ -779,7 +779,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20, paddingTop: 52, paddingBottom: 10,
   },
   headerIconBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', position: 'relative' },
-  headerTitle: { fontSize: 18, color: COLORS.white, fontFamily: FONTS.bodyBold },
+  headerTitle: { flex: 1, textAlign: 'center', fontSize: 20, color: COLORS.white, fontFamily: FONTS.bodyBold },
   notifBadge: {
     position: 'absolute', top: 4, right: 4,
     minWidth: 16, height: 16, borderRadius: 8,

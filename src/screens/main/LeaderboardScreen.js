@@ -150,7 +150,6 @@ export default function LeaderboardScreen({ navigation }) {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.rowName}>{shortName(p.name)}</Text>
-                    <Text style={styles.rowMeta}>🔥 {p.currentStreak} · {p.checkinDays} check-ins</Text>
                   </View>
                   <Text style={styles.rowPts}>{p.points}</Text>
                 </TouchableOpacity>

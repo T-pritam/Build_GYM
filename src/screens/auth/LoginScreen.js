@@ -17,7 +17,7 @@ const EMAIL_RE = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/;
 const PHONE_RE = /^\d{10}$/;
 
 export default function LoginScreen({ navigation }) {
-  const [tab,        setTab]        = useState('password');   // 'otp' | 'password'
+  const [tab,        setTab]        = useState('otp');   // 'otp' | 'password'
   // OTP tab
   const [mobile,     setMobile]     = useState('');
   // Password tab

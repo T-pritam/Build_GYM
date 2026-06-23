@@ -61,3 +61,24 @@ export const postBlogComment = async (blogId, content) => {
   const { data } = await api.post(`/blogs/${blogId}/comments`, { content });
   return data.data;
 };
+
+/**
+ * POST /api/blogs/:id/bookmark
+ * Toggle a blog bookmark (save/unsave) for the current user.
+ * @param {string} blogId
+ * @returns {Promise<{ bookmarked: boolean }>}
+ */
+export const toggleBlogBookmark = async (blogId) => {
+  const { data } = await api.post(`/blogs/${blogId}/bookmark`);
+  return data.data; // { bookmarked }
+};
+
+/**
+ * GET /api/blogs/bookmarks
+ * List the current user's saved blogs (for the "Saved Articles" sheet).
+ * @returns {Promise<Array>} array of saved blog items
+ */
+export const fetchBookmarkedBlogs = async () => {
+  const { data } = await api.get('/blogs/bookmarks');
+  return data.data; // [ ... ]
+};

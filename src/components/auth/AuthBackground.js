@@ -43,7 +43,7 @@ export default function AuthBackground({ children, scroll = true, contentStyle }
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#07060A', height: '200%' },
+  container: { flex: 1, backgroundColor: '#07060A', height: '1100%', width: '100%' },
   flex: { flex: 1 },
   scroll: { flexGrow: 1, paddingHorizontal: 24, paddingBottom: 40 },
   flexContent: { flex: 1, paddingHorizontal: 24 },

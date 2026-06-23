@@ -13,9 +13,9 @@ const TABS = ['All', 'Upcoming', 'Past', 'Cancelled'];
 
 // Display badge from booking status + bucket (upcoming list vs past list).
 function statusMeta(status, bucket) {
-  if (status === 'cancelled') return { label: 'CANCELLED', color: '#F87171', bg: 'rgba(248,113,113,0.12)', border: 'rgba(248,113,113,0.4)' };
-  if (bucket === 'upcoming')  return { label: 'UPCOMING',  color: COLORS.primaryLight, bg: COLORS.primarySoft, border: COLORS.primaryBorder };
-  if (status === 'completed') return { label: 'COMPLETED', color: '#4ADE80', bg: 'rgba(74,222,128,0.12)', border: 'rgba(74,222,128,0.4)' };
+  if (status === 'cancelled') return { label: 'CANCELLED', color: '#F44336', bg: 'rgba(244,67,54,0.12)', border: 'rgba(244,67,54,0.3)' };
+  if (bucket === 'upcoming')  return { label: 'UPCOMING',  color: '#A78BFA', bg: 'rgba(124,58,237,0.2)', border: 'rgba(124,58,237,0.4)' };
+  if (status === 'completed') return { label: 'COMPLETED', color: '#4CAF50', bg: 'rgba(76,175,80,0.15)', border: 'rgba(76,175,80,0.3)' };
   if (status === 'no_show')   return { label: 'NO SHOW',   color: '#F5B041', bg: 'rgba(245,176,65,0.12)', border: 'rgba(245,176,65,0.4)' };
   return { label: String(status).toUpperCase(), color: COLORS.textMuted, bg: 'rgba(255,255,255,0.06)', border: COLORS.border };
 }
@@ -93,8 +93,8 @@ export default function MyBookingsScreen({ navigation }) {
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={20} color={COLORS.textPrimary} />
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} hitSlop={10}>
+          <Ionicons name="arrow-back" size={24} color="#9D7BFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>My Bookings</Text>
         <View style={{ width: 40 }} />
@@ -139,16 +139,18 @@ export default function MyBookingsScreen({ navigation }) {
                   onPress={() => navigation.navigate('TrialDetail', { trialId: row.id })}
                 >
                   <View style={styles.cardTop}>
-                    <Text style={[styles.cardTitle, cancelled && { color: COLORS.textMuted }]} numberOfLines={1}>
-                      Trial · Coach {row.trainerName}
-                    </Text>
+                    <View style={styles.cardLeft}>
+                      <Text style={[styles.cardTitle, cancelled && { color: COLORS.textMuted }]} numberOfLines={1}>
+                        Trial · Coach {row.trainerName}
+                      </Text>
+                      <Text style={[styles.cardDate, cancelled && { color: COLORS.textDim }]}>
+                        {when.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} · {when.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                      </Text>
+                    </View>
                     <View style={[styles.badge, { backgroundColor: meta.bg, borderColor: meta.border }]}>
                       <Text style={[styles.badgeText, { color: meta.color }]}>TRIAL</Text>
                     </View>
                   </View>
-                  <Text style={[styles.cardDate, cancelled && { color: COLORS.textDim }]}>
-                    {when.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} · {when.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
-                  </Text>
                 </TouchableOpacity>
               );
             }
@@ -164,16 +166,18 @@ export default function MyBookingsScreen({ navigation }) {
                 onPress={() => navigation.navigate('BookingDetail', { row })}
               >
                 <View style={styles.cardTop}>
-                  <Text style={[styles.cardTitle, cancelled && { color: COLORS.textMuted }]}>
-                    {row.activityName}
-                  </Text>
+                  <View style={styles.cardLeft}>
+                    <Text style={[styles.cardTitle, cancelled && { color: COLORS.textMuted }]}>
+                      {row.activityName}
+                    </Text>
+                    <Text style={[styles.cardDate, cancelled && { color: COLORS.textDim }]}>
+                      {row.slotDate} · {row.slotStartTime}
+                    </Text>
+                  </View>
                   <View style={[styles.badge, { backgroundColor: meta.bg, borderColor: meta.border }]}>
                     <Text style={[styles.badgeText, { color: meta.color }]}>{meta.label}</Text>
                   </View>
                 </View>
-                <Text style={[styles.cardDate, cancelled && { color: COLORS.textDim }]}>
-                  {row.slotDate} · {row.slotStartTime}
-                </Text>
               </TouchableOpacity>
             );
           })
@@ -191,37 +195,41 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 16, paddingTop: 52, paddingBottom: 12,
+    borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)',
   },
   backBtn: {
-    width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.06)',
-    borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center',
+    width: 40, height: 40, alignItems: 'center', justifyContent: 'center',
   },
-  headerTitle: { fontFamily: FONTS.headline, fontSize: 18, color: COLORS.white },
+  headerTitle: { fontFamily: FONTS.headline, fontSize: 18, color: COLORS.white, letterSpacing: 0.5 },
 
+  // Full-width evenly-distributed tabs with a purple active underline.
   tabsRow: {
-    flexDirection: 'row', paddingHorizontal: 16, gap: 22,
-    borderBottomWidth: 1, borderBottomColor: COLORS.border, marginBottom: 8,
+    flexDirection: 'row', paddingHorizontal: 16,
+    borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)', marginBottom: 12,
   },
-  tab: { paddingVertical: 14, alignItems: 'center' },
-  tabText: { fontFamily: FONTS.bodyMedium, fontSize: 14, color: COLORS.textMuted },
+  tab: { flex: 1, paddingVertical: 14, alignItems: 'center' },
+  tabText: { fontFamily: FONTS.bodyMedium, fontSize: 14, color: 'rgba(212,193,207,0.7)' },
   tabTextActive: { fontFamily: FONTS.bodyBold, color: COLORS.white },
   tabUnderline: {
-    position: 'absolute', bottom: 0, left: 0, right: 0, height: 2,
-    backgroundColor: COLORS.primaryNeon, borderRadius: 2,
+    position: 'absolute', bottom: -1, left: 0, right: 0, height: 2,
+    backgroundColor: '#7C3AED',
   },
 
-  scroll: { padding: 16 },
+  scroll: { paddingHorizontal: 16, paddingTop: 4 },
 
+  // Stitch .glass-card — #1A1A2E @ 0.9, hairline white border, 12px radius.
   card: {
-    backgroundColor: COLORS.surface, borderRadius: 16, borderWidth: 1, borderColor: COLORS.border,
-    padding: 18, marginBottom: 12,
+    backgroundColor: 'rgba(26,26,46,0.9)', borderRadius: 12,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)',
+    padding: 16, marginBottom: 8,
   },
   cardDim: { opacity: 0.6 },
-  cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  cardTitle: { fontFamily: FONTS.headline, fontSize: 18, color: COLORS.white, flex: 1 },
-  badge: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
-  badgeText: { fontFamily: FONTS.label, fontSize: 9, letterSpacing: 1 },
-  cardDate: { fontFamily: FONTS.bodyMedium, fontSize: 13, color: COLORS.textSecondary },
+  cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  cardLeft: { flex: 1, gap: 4, paddingRight: 10 },
+  cardTitle: { fontFamily: FONTS.bodyMedium, fontSize: 16, color: COLORS.white },
+  badge: { borderWidth: 1, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4 },
+  badgeText: { fontFamily: FONTS.bodyBold, fontSize: 10, letterSpacing: 1 },
+  cardDate: { fontFamily: FONTS.body, fontSize: 14, color: COLORS.textSecondary },
 
   emptyState: { alignItems: 'center', paddingVertical: 70, gap: 12 },
   emptyTitle: { fontFamily: FONTS.headline, fontSize: 18, color: COLORS.white, textTransform: 'capitalize' },

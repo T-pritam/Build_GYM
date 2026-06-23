@@ -243,7 +243,7 @@ const styles = StyleSheet.create({
   subtitle: { marginBottom: 32 },
   mobileText: { color: COLORS.textPrimary, fontWeight: '700' },
 
-  card: { marginBottom: 28 },
+  card: { marginBottom: 28, paddingHorizontal: 16 },
 
   attemptsText: {
     ...TYPE.bodySm,

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Modal,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -17,7 +18,11 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS } from '../../theme';
-import { fetchPublishedBlogs } from '../../services/blogService';
+import {
+  fetchPublishedBlogs,
+  toggleBlogBookmark,
+  fetchBookmarkedBlogs,
+} from '../../services/blogService';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -84,6 +89,11 @@ export default function BlogListScreen({ navigation }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchActive, setSearchActive] = useState(false);
 
+  // "Saved Articles" bottom sheet
+  const [savedVisible, setSavedVisible] = useState(false);
+  const [savedItems, setSavedItems] = useState([]);
+  const [savedLoading, setSavedLoading] = useState(false);
+
   const fetchBlogs = useCallback(async (cursor = null, isRefresh = false) => {
     try {
       setError(null);
@@ -137,6 +147,62 @@ export default function BlogListScreen({ navigation }) {
     setSearchActive((v) => !v);
   };
 
+  // Optimistically flip a post's bookmark state, then sync with the API.
+  const applyBookmark = useCallback((blogId, value) => {
+    setPosts((prev) => prev.map((p) => (p.id === blogId ? { ...p, isBookmarked: value } : p)));
+  }, []);
+
+  const handleToggleBookmark = useCallback(async (post) => {
+    const next = !post.isBookmarked;
+    applyBookmark(post.id, next);
+    try {
+      const res = await toggleBlogBookmark(post.id);
+      // Reconcile with the server's authoritative value
+      if (typeof res?.bookmarked === 'boolean' && res.bookmarked !== next) {
+        applyBookmark(post.id, res.bookmarked);
+      }
+    } catch (err) {
+      console.warn('toggleBlogBookmark error:', err);
+      applyBookmark(post.id, post.isBookmarked); // roll back
+    }
+  }, [applyBookmark]);
+
+  const loadSavedArticles = useCallback(async () => {
+    setSavedLoading(true);
+    try {
+      const items = await fetchBookmarkedBlogs();
+      setSavedItems(items || []);
+    } catch (err) {
+      console.warn('fetchBookmarkedBlogs error:', err);
+      setSavedItems([]);
+    } finally {
+      setSavedLoading(false);
+    }
+  }, []);
+
+  const openSaved = useCallback(() => {
+    setSavedVisible(true);
+    loadSavedArticles();
+  }, [loadSavedArticles]);
+
+  const handleRemoveSaved = useCallback(async (item) => {
+    setSavedItems((prev) => prev.filter((s) => s.id !== item.id));
+    applyBookmark(item.id, false);
+    try {
+      await toggleBlogBookmark(item.id);
+    } catch (err) {
+      console.warn('toggleBlogBookmark error:', err);
+      // Re-sync the sheet if the unsave failed
+      applyBookmark(item.id, true);
+      loadSavedArticles();
+    }
+  }, [applyBookmark, loadSavedArticles]);
+
+  const openSavedArticle = useCallback((item) => {
+    setSavedVisible(false);
+    navigation.navigate('BlogFeed', { postId: item.id, slug: item.slug });
+  }, [navigation]);
+
   // Client-side filter on the loaded list (title / tags / author)
   const filteredPosts = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -188,6 +254,28 @@ export default function BlogListScreen({ navigation }) {
             </Text>
             <Text style={styles.authorDate}>{formatDate(post.publishedAt)}</Text>
           </View>
+
+          {/* Divider */}
+          <View style={styles.cardDivider} />
+
+          {/* Footer: comment count + bookmark toggle */}
+          <View style={styles.cardFooter}>
+            <View style={styles.commentMeta}>
+              <Ionicons name="chatbubble-outline" size={18} color={COLORS.textSecondary} />
+              <Text style={styles.commentCount}>{post.commentCount ?? 0}</Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => handleToggleBookmark(post)}
+              hitSlop={10}
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name={post.isBookmarked ? 'bookmark' : 'bookmark-outline'}
+                size={20}
+                color={post.isBookmarked ? COLORS.primaryLight : COLORS.textSecondary}
+              />
+            </TouchableOpacity>
+          </View>
         </View>
       </TouchableOpacity>
     );
@@ -208,17 +296,26 @@ export default function BlogListScreen({ navigation }) {
           <Ionicons name="arrow-back" size={22} color={COLORS.primaryLight} />
         </TouchableOpacity>
         <Text style={styles.title}>Blogs</Text>
-        <TouchableOpacity
-          style={[styles.searchIconBtn, searchActive && styles.searchIconBtnActive]}
-          onPress={toggleSearch}
-          hitSlop={8}
-        >
-          <Ionicons
-            name={searchActive ? 'close' : 'search-outline'}
-            size={20}
-            color={searchActive ? COLORS.primaryLight : COLORS.textSecondary}
-          />
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={[styles.searchIconBtn, searchActive && styles.searchIconBtnActive]}
+            onPress={toggleSearch}
+            hitSlop={8}
+          >
+            <Ionicons
+              name={searchActive ? 'close' : 'search-outline'}
+              size={20}
+              color={searchActive ? COLORS.primaryLight : COLORS.textSecondary}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.searchIconBtn}
+            onPress={openSaved}
+            hitSlop={8}
+          >
+            <Ionicons name="bookmark-outline" size={20} color={COLORS.textSecondary} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Search bar (toggle) */}
@@ -319,6 +416,57 @@ export default function BlogListScreen({ navigation }) {
           }
         />
       )}
+
+      {/* Saved Articles bottom sheet */}
+      <Modal
+        visible={savedVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setSavedVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.sheetBackdrop}
+          activeOpacity={1}
+          onPress={() => setSavedVisible(false)}
+        >
+          <TouchableOpacity style={styles.sheet} activeOpacity={1}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle}>Saved Articles</Text>
+
+            {savedLoading ? (
+              <View style={styles.sheetLoading}>
+                <ActivityIndicator size="small" color={COLORS.primaryLight} />
+              </View>
+            ) : savedItems.length === 0 ? (
+              <Text style={styles.sheetEmpty}>No saved articles yet.</Text>
+            ) : (
+              <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false}>
+                {savedItems.map((item) => (
+                  <View key={item.id} style={styles.savedRow}>
+                    <TouchableOpacity
+                      style={styles.savedRowInfo}
+                      activeOpacity={0.7}
+                      onPress={() => openSavedArticle(item)}
+                    >
+                      <Text style={styles.savedRowTitle} numberOfLines={1}>{item.title}</Text>
+                      <Text style={styles.savedRowMeta} numberOfLines={1}>
+                        By {item.authorName || 'Build Gym'} · {item.estimatedReadTime || 1} min read
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => handleRemoveSaved(item)}
+                      hitSlop={10}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="bookmark" size={20} color={COLORS.primaryLight} />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </ScrollView>
+            )}
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -337,6 +485,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   title: { fontFamily: FONTS.headline, fontSize: 20, color: COLORS.white },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   searchIconBtn: {
     width: 40, height: 40, borderRadius: 20,
     backgroundColor: COLORS.glass, borderWidth: 1, borderColor: COLORS.border,
@@ -410,6 +559,39 @@ const styles = StyleSheet.create({
   authorDim: { color: COLORS.textMuted },
   authorDate: { fontFamily: FONTS.body, fontSize: 11, color: COLORS.textMuted },
 
+  cardDivider: { height: 1, backgroundColor: 'rgba(255,255,255,0.06)', width: '100%' },
+  cardFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  commentMeta: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  commentCount: { fontFamily: FONTS.label, fontSize: 12, color: COLORS.textSecondary, letterSpacing: 1 },
+
   emptyState: { alignItems: 'center', paddingVertical: 60, gap: 10 },
   emptyText: { fontFamily: FONTS.body, fontSize: 14, color: COLORS.textMuted, textAlign: 'center' },
+
+  // Saved Articles sheet
+  sheetBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+  sheet: {
+    backgroundColor: COLORS.surfaceLow,
+    borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    borderTopWidth: 1, borderColor: COLORS.border,
+    paddingHorizontal: 24, paddingTop: 12, paddingBottom: 36,
+    maxHeight: '70%',
+  },
+  sheetHandle: {
+    width: 48, height: 5, borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.2)', alignSelf: 'center', marginBottom: 20,
+  },
+  sheetTitle: { fontFamily: FONTS.headline, fontSize: 18, color: COLORS.white, marginBottom: 18 },
+  sheetLoading: { paddingVertical: 30, alignItems: 'center' },
+  sheetEmpty: {
+    fontFamily: FONTS.body, fontSize: 14, color: COLORS.textMuted,
+    textAlign: 'center', paddingVertical: 30,
+  },
+  sheetScroll: { flexGrow: 0 },
+  savedRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)',
+  },
+  savedRowInfo: { flex: 1, gap: 4 },
+  savedRowTitle: { fontFamily: FONTS.bodyBold, fontSize: 14, color: COLORS.white },
+  savedRowMeta: { fontFamily: FONTS.body, fontSize: 12, color: COLORS.textMuted },
 });

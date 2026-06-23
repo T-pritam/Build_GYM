@@ -70,21 +70,22 @@ const OtpInput = forwardRef(function OtpInput(
 
 const styles = StyleSheet.create({
   // Cells flex to share the available width so all six always fit — no
-  // overflow on narrow screens.
-  row: { flexDirection: 'row', gap: 8 },
+  // overflow on narrow screens. A tight gap keeps the group reading as one
+  // unit instead of six scattered boxes.
+  row: { flexDirection: 'row', gap: 6 },
   box: {
     flex: 1,
     minWidth: 0,
-    // Height tracks width so cells stay roughly square instead of becoming
-    // tall, narrow rectangles when six of them share a small screen's width.
+    // Height tracks width so cells stay square and grow to fill the row,
+    // capped so they don't become oversized on very wide screens.
     aspectRatio: 1,
-    maxHeight: 56,
+    maxHeight: 72,
     textAlign: 'center',
     borderRadius: RADIUS.lg,
     borderWidth: 1.5,
     backgroundColor: COLORS.backgroundAlt,
     fontFamily: FONTS.headline,
-    fontSize: 22,
+    fontSize: 26,
     color: COLORS.textPrimary,
     paddingHorizontal: 0,
     paddingVertical: 0,
