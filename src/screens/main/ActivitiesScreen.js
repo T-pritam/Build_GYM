@@ -4,9 +4,10 @@ import {
   ActivityIndicator, RefreshControl, Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { COLORS, FONTS } from '../../theme';
 import SafeBottomBar from '../../components/SafeBottomBar';
+import GradientIcon from '../../components/GradientIcon';
 import { fetchActivities } from '../../services/activityService';
 import { useWalletStore } from '../../store/walletStore';
 
@@ -23,12 +24,26 @@ const FALLBACK_STYLE = {
 };
 const DEFAULT_STYLE = { icon: 'barbell-outline', emoji: '🏋️', color: ['#6B7280', '#374151'] };
 
-// Slot availability summary — only present if the list API provides it.
-const slotInfo = (act) => {
-  const count = act.availableSlots ?? act.slotsAvailable ?? act.remainingSlots ?? null;
-  const next  = act.nextSlotTime ?? act.nextSlot ?? null;
-  if (count == null && next == null) return null;
-  return { count, next };
+// Static filter pills (matches the Stitch design). Activities have no category
+// field in the backend yet, so only "ALL" yields results — the rest are a
+// visual shell.
+const CATEGORIES = ['All', 'Cardio', 'Recovery', 'Sport'];
+
+// "14:00" -> "2:00 PM"
+const fmt12 = (t) => {
+  if (!t) return '';
+  const [h, m] = t.split(':').map(Number);
+  const s = h >= 12 ? 'PM' : 'AM';
+  return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${s}`;
+};
+
+// 5-step availability badge colour scale (open spots remaining today).
+const badgeStyle = (n) => {
+  if (n <= 0) return { bg: '#C62828', text: '#FFFFFF' };  // none
+  if (n === 1) return { bg: '#FF6D00', text: '#FFFFFF' };  // critical
+  if (n === 2) return { bg: '#FFA000', text: '#151215' };  // low
+  if (n <= 4) return { bg: '#7C3AED', text: '#FFFFFF' };   // moderate
+  return { bg: '#00BCD4', text: '#151215' };               // plenty
 };
 
 export default function ActivitiesScreen({ navigation }) {
@@ -62,10 +77,8 @@ export default function ActivitiesScreen({ navigation }) {
 
   const getStyle = (name) => FALLBACK_STYLE[name] || DEFAULT_STYLE;
 
-  // Derive category pills from data if present, else just "All".
-  const categories = ['All', ...Array.from(new Set(
-    activities.map((a) => a.category || a.type).filter(Boolean),
-  ))];
+  // "All" shows everything; other pills filter by a category field that does
+  // not exist yet (visual shell), so they fall through to an empty list.
   const visible = activeCat === 'All'
     ? activities
     : activities.filter((a) => (a.category || a.type) === activeCat);
@@ -82,12 +95,22 @@ export default function ActivitiesScreen({ navigation }) {
     <SafeBottomBar style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
 
-      {/* Header — row 1: title + balance */}
+      {/* Header — row 1: back · centered title · coin balance */}
       <View style={styles.headerRow}>
+        <TouchableOpacity
+          style={styles.backBtn}
+          onPress={() => navigation.goBack()}
+          activeOpacity={0.75}
+          hitSlop={10}
+        >
+          <GradientIcon name="arrow-back" set="ionicons" size={24} />
+        </TouchableOpacity>
+
         <Text style={styles.headerTitle}>ACTIVITIES</Text>
-        <View style={styles.balanceChip}>
-          <Text style={styles.balanceCoin}>₿</Text>
+
+        <View style={styles.balanceWrap}>
           <Text style={styles.balanceText}>{Number(balance).toLocaleString('en-IN')}</Text>
+          <MaterialIcons name="monetization-on" size={16} color="#F59E0B" />
         </View>
       </View>
 
@@ -102,41 +125,41 @@ export default function ActivitiesScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
-      {/* Category pills (only meaningful if data has categories) */}
-      {categories.length > 1 && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.pillsRow}
-        >
-          {categories.map((c) => {
-            const active = activeCat === c;
-            return (
-              <TouchableOpacity
-                key={c}
-                style={[styles.pill, active && styles.pillActive]}
-                onPress={() => setActiveCat(c)}
-                activeOpacity={0.8}
-              >
-                {active && (
-                  <LinearGradient
-                    colors={['#7C3AED', '#00BCD4']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={StyleSheet.absoluteFill}
-                  />
-                )}
-                <Text style={[styles.pillText, active && styles.pillTextActive]}>
-                  {String(c).toUpperCase()}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-      )}
+      {/* Filter pills */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.pillsScroll}
+        contentContainerStyle={styles.pillsRow}
+      >
+        {CATEGORIES.map((c) => {
+          const active = activeCat === c;
+          return (
+            <TouchableOpacity
+              key={c}
+              style={[styles.pill, active && styles.pillActive]}
+              onPress={() => setActiveCat(c)}
+              activeOpacity={0.8}
+            >
+              {active && (
+                <LinearGradient
+                  colors={['#7C3AED', '#00BCD4']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={[StyleSheet.absoluteFill, { borderRadius: 999 }]}
+                />
+              )}
+              <Text style={[styles.pillText, active && styles.pillTextActive]}>
+                {String(c).toUpperCase()}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
+        style={styles.cardsScroll}
         contentContainerStyle={styles.scroll}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primaryLight} />}
       >
@@ -148,8 +171,12 @@ export default function ActivitiesScreen({ navigation }) {
         ) : (
           visible.map((act) => {
             const style = getStyle(act.name);
-            const info = slotInfo(act);
-            const full = info?.count === 0;
+            const available = act.availableSlots ?? 0;
+            const full = available <= 0;
+            const badge = badgeStyle(available);
+            const badgeLabel = full ? 'NO SLOTS' : `${available} SLOT${available === 1 ? '' : 'S'}`;
+            const current = act.currentSlot;
+            const next = act.nextSlot;
             return (
               <TouchableOpacity
                 key={act.id}
@@ -171,38 +198,38 @@ export default function ActivitiesScreen({ navigation }) {
                     style={StyleSheet.absoluteFill}
                   />
 
-                  {/* Slot badge — only when data provides it */}
-                  {info && info.count != null && (
-                    <View style={[
-                      styles.slotBadge,
-                      full ? styles.slotBadgeFull : info.count <= 2 ? styles.slotBadgeLow : styles.slotBadgeOk,
-                    ]}>
-                      <Text style={[
-                        styles.slotBadgeText,
-                        full ? styles.slotBadgeTextLight : info.count <= 2 ? styles.slotBadgeTextDark : styles.slotBadgeTextDark,
-                      ]}>
-                        {full ? 'NO SLOTS' : `${info.count} SLOT${info.count === 1 ? '' : 'S'}`}
-                      </Text>
-                    </View>
-                  )}
+                  {/* Availability badge */}
+                  <View style={[styles.slotBadge, { backgroundColor: badge.bg }]}>
+                    <Text style={[styles.slotBadgeText, { color: badge.text }]}>{badgeLabel}</Text>
+                  </View>
 
                   {/* Name + next slot overlaid on cover bottom */}
                   <View style={styles.coverBottom}>
                     <Text style={styles.coverName} numberOfLines={1}>{act.name}</Text>
-                    {info?.next && <Text style={styles.coverNext}>Next: {info.next}</Text>}
+                    {next?.startTime ? (
+                      <Text style={styles.coverNext}>Next: {fmt12(next.startTime)}</Text>
+                    ) : null}
                   </View>
                 </View>
 
                 {/* Body */}
                 <View style={styles.cardBody}>
+                  {/* Today's slot timing */}
+                  {current?.startTime ? (
+                    <Text style={[styles.slotLine, current.isPast && styles.slotLinePast]}>
+                      <Text style={styles.slotToday}>Today  </Text>
+                      <Text style={styles.slotTime}>{fmt12(current.startTime)} — {fmt12(current.endTime)}</Text>
+                    </Text>
+                  ) : null}
+
                   <View style={styles.metaRow}>
                     <View style={styles.metaChip}>
-                      <Ionicons name="time-outline" size={14} color={COLORS.primaryLight} />
+                      <MaterialIcons name="schedule" size={15} color="#FFA9FA" />
                       <Text style={styles.metaItem}>{act.durationMinutes}m</Text>
                     </View>
                     <View style={styles.metaDot} />
                     <View style={styles.metaChip}>
-                      <Text style={styles.metaCoin}>₿</Text>
+                      <MaterialIcons name="monetization-on" size={15} color="#FFD700" />
                       <Text style={styles.metaCost}>{act.coinPrice}</Text>
                     </View>
                   </View>
@@ -223,6 +250,15 @@ export default function ActivitiesScreen({ navigation }) {
                     </LinearGradient>
                   )}
                 </View>
+
+                {/* Bottom purple glow line (Stitch .glass-card::after) */}
+                <LinearGradient
+                  colors={['transparent', 'rgba(127,41,130,0.5)', 'transparent']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.cardGlowLine}
+                  pointerEvents="none"
+                />
               </TouchableOpacity>
             );
           })
@@ -237,18 +273,24 @@ export default function ActivitiesScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
 
+  // ── Header row 1 — back (left) · centered title · coin (right) ──
   headerRow: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 20, paddingTop: 52, paddingBottom: 4,
+    justifyContent: 'center', alignItems: 'center',
+    paddingTop: 54, paddingBottom: 6, paddingHorizontal: 20,
   },
-  headerTitle: { fontFamily: FONTS.headline, fontSize: 20, color: COLORS.white, letterSpacing: 2 },
-  balanceChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: COLORS.primarySoft, borderWidth: 1, borderColor: COLORS.primaryBorder,
-    borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6,
+  headerTitle: {
+    fontFamily: FONTS.headline, fontSize: 18, color: COLORS.white,
+    letterSpacing: 2, textTransform: 'uppercase',
   },
-  balanceCoin: { fontFamily: FONTS.bodyBold, fontSize: 13, color: COLORS.primaryLight },
-  balanceText: { fontFamily: FONTS.bodyBold, fontSize: 13, color: COLORS.primaryLight },
+  backBtn: {
+    position: 'absolute', left: 20, top: 52,
+    width: 32, height: 32, alignItems: 'center', justifyContent: 'center',
+  },
+  balanceWrap: {
+    position: 'absolute', right: 20, top: 54,
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+  },
+  balanceText: { fontFamily: FONTS.bodyMedium, fontSize: 14, color: COLORS.white },
 
   headerRow2: {
     flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center',
@@ -260,67 +302,77 @@ const styles = StyleSheet.create({
   },
   bookingsBtnText: { fontFamily: FONTS.label, fontSize: 10, color: COLORS.white, letterSpacing: 1.5 },
 
-  pillsRow: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4, gap: 8 },
+  pillsScroll: { flexGrow: 0, flexShrink: 0 },
+  pillsRow: { paddingHorizontal: 16, paddingTop: 6, paddingBottom: 12, gap: 8 },
   pill: {
-    paddingHorizontal: 22, paddingVertical: 8, borderRadius: 999, overflow: 'hidden',
+    height: 34, paddingHorizontal: 20, borderRadius: 999,
+    alignItems: 'center', justifyContent: 'center',
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
   },
   pillActive: { borderColor: 'transparent' },
-  pillText: { fontFamily: FONTS.label, fontSize: 10, color: COLORS.textSecondary, letterSpacing: 1.5 },
+  pillText: {
+    fontFamily: FONTS.label, fontSize: 11, lineHeight: 16, color: '#D4C1CF',
+    letterSpacing: 1.2, textAlignVertical: 'center', includeFontPadding: false,
+  },
   pillTextActive: { color: '#0D0D0F', fontFamily: FONTS.bodyBold },
 
+  cardsScroll: { flex: 1 },
   scroll: { paddingHorizontal: 16, paddingTop: 10 },
 
   // Glass card: subtle light fill + hairline border, image cover on top, solid
   // #0D0D0F body below (matches Stitch .glass-card).
   card: {
-    backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 12,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', overflow: 'hidden', marginBottom: 14,
+    backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 12,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', overflow: 'hidden', marginBottom: 12,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.8,
+    shadowRadius: 30, elevation: 8,
   },
   cardFull: { opacity: 0.8 },
+  cardGlowLine: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 2, opacity: 0.5 },
 
-  cover: { height: 185, position: 'relative' },
-  coverImage: { opacity: 0.85 },
+  cover: { height: 192, position: 'relative' },
+  coverImage: { opacity: 0.80 },
   coverIconWrap: { alignItems: 'center', justifyContent: 'center' },
   coverBottom: {
-    position: 'absolute', left: 16, right: 16, bottom: 12,
+    position: 'absolute', left: 16, right: 16, bottom: 16,
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end',
   },
   coverName: {
-    flex: 1, fontFamily: FONTS.display, fontSize: 26, color: COLORS.white,
+    flex: 1, fontFamily: FONTS.display, fontSize: 30, color: COLORS.white,
     letterSpacing: 0.5, textTransform: 'uppercase',
   },
   coverNext: {
-    fontFamily: FONTS.label, fontSize: 9.5, color: '#d4c1cf',
-    letterSpacing: 1, marginLeft: 8, marginBottom: 3, textTransform: 'uppercase',
+    fontFamily: FONTS.label, fontSize: 10, color: '#D4C1CF',
+    letterSpacing: 1, marginLeft: 8, marginBottom: 4, textTransform: 'uppercase',
   },
 
   slotBadge: {
-    position: 'absolute', top: 12, right: 12,
+    position: 'absolute', top: 16, right: 16,
     borderRadius: 999, paddingHorizontal: 12, paddingVertical: 4,
   },
-  slotBadgeOk: { backgroundColor: '#00BCD4' },
-  slotBadgeLow: { backgroundColor: '#FFA000' },
-  slotBadgeFull: { backgroundColor: '#C62828' },
-  slotBadgeText: { fontFamily: FONTS.label, fontSize: 9.5, letterSpacing: 0.8, textTransform: 'uppercase' },
-  slotBadgeTextDark: { color: '#151215' },
-  slotBadgeTextLight: { color: '#FFFFFF' },
+  slotBadgeText: { fontFamily: FONTS.bodyBold, fontSize: 11, letterSpacing: 0.5, textTransform: 'uppercase' },
 
   cardBody: { backgroundColor: '#0D0D0F', paddingHorizontal: 16, paddingTop: 14, paddingBottom: 16 },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 16 },
+
+  // Today's current/next slot line
+  slotLine: { marginBottom: 12, letterSpacing: 1.5 },
+  slotLinePast: { textDecorationLine: 'line-through', opacity: 0.6 },
+  slotToday: { fontFamily: FONTS.bodyBold, fontSize: 10, color: '#00BCD4', letterSpacing: 1.5, textTransform: 'uppercase' },
+  slotTime: { fontFamily: FONTS.label, fontSize: 10, color: COLORS.white, letterSpacing: 1.5, textTransform: 'uppercase' },
+
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 18 },
   metaChip: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   metaItem: { fontFamily: FONTS.label, fontSize: 11, color: COLORS.white, letterSpacing: 1, textTransform: 'uppercase' },
   metaDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.4)' },
-  metaCoin: { fontFamily: FONTS.bodyBold, fontSize: 13, color: '#FFD700' },
-  metaCost: { fontFamily: FONTS.bodyBold, fontSize: 13, color: '#FFD700', letterSpacing: 0.5 },
+  metaCost: { fontFamily: FONTS.bodyBold, fontSize: 14, color: '#FFD700', letterSpacing: 0.5 },
 
   bookBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    height: 46, borderRadius: 10,
+    height: 48, borderRadius: 10,
   },
   bookBtnText: { fontFamily: FONTS.label, fontSize: 11, color: COLORS.white, letterSpacing: 2, textTransform: 'uppercase' },
   bookBtnFull: {
-    height: 46, borderRadius: 10, backgroundColor: '#1f1f1f',
+    height: 48, borderRadius: 10, backgroundColor: '#1f1f1f',
     alignItems: 'center', justifyContent: 'center',
   },
   bookBtnFullText: { fontFamily: FONTS.label, fontSize: 11, color: '#666666', letterSpacing: 2, textTransform: 'uppercase' },

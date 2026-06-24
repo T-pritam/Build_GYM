@@ -9,15 +9,15 @@ import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { COLORS as THEME, FONTS } from '../../theme';
 import SafeBottomBar from '../../components/SafeBottomBar';
+import GradientIcon from '../../components/GradientIcon';
 import { useAuthStore } from '../../store/authStore';
-import { useAnnouncementStore } from '../../store/announcementStore';
 import { faqs, reviews } from '../../constants/dummyData';
 import { fetchCommunityPosts, votePost, fetchCommunityMembers } from '../../services/communityService';
 
 // Theme-compat: legacy colour keys → new "Holographic Noir" palette.
 const COLORS = {
   background: THEME.background, surface: '#1B191E', surface2: THEME.surface2, card: '#1B191E',
-  secondary: THEME.primaryLight, secondaryGlow: THEME.primarySoft, secondaryBorder: THEME.primaryBorder,
+  secondary: '#FFA9FA', secondaryGlow: THEME.primarySoft, secondaryBorder: THEME.primaryBorder,
   primary: THEME.primary, primaryBright: THEME.primaryBright, cyan: THEME.cyan, cyanNeon: THEME.cyanNeon,
   textPrimary: THEME.textPrimary, textSecondary: THEME.textSecondary, textMuted: THEME.textMuted,
   border: THEME.border, glass: 'rgba(255,255,255,0.03)', glassBorder: 'rgba(255,255,255,0.08)',
@@ -103,7 +103,7 @@ function communityTimeAgo(dateStr) {
   return `${Math.floor(days / 30)}mo ago`;
 }
 
-function CommunityFeedTab({ navigation }) {
+function CommunityFeedTab({ navigation, searchQuery = '' }) {
   const [sort, setSort] = useState('new');
   const [posts, setPosts] = useState([]);
   const [page, setPage] = useState(1);
@@ -112,8 +112,6 @@ function CommunityFeedTab({ navigation }) {
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchActive, setSearchActive] = useState(false);
 
   const filteredPosts = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -124,12 +122,6 @@ function CommunityFeedTab({ navigation }) {
       return tokens.every((t) => hay.includes(t));
     });
   }, [posts, searchQuery]);
-
-  const toggleSearch = () => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    if (searchActive) setSearchQuery('');
-    setSearchActive((v) => !v);
-  };
 
   const loadPosts = useCallback(async (pageNum = 1, isRefresh = false) => {
     try {
@@ -297,9 +289,9 @@ function CommunityFeedTab({ navigation }) {
               <MaterialIcons
                 name="north"
                 size={15}
-                color={post.user_vote === 'up' ? COLORS.secondary : COLORS.textMuted}
+                color={post.user_vote === 'up' ? COLORS.secondary : COLORS.white}
               />
-              <Text style={[styles.voteChipCount, post.user_vote === 'up' && { color: COLORS.secondary }]}>
+              <Text style={[styles.voteChipCount, { color: COLORS.secondary }]}>
                 {post.upvotes || 0}
               </Text>
             </TouchableOpacity>
@@ -370,44 +362,14 @@ function CommunityFeedTab({ navigation }) {
             </TouchableOpacity>
           ))}
         </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <TouchableOpacity
-            style={styles.toolbarIconBtn}
-            onPress={handleOpenMembers}
-            hitSlop={8}
-          >
-            <Ionicons name="people-outline" size={17} color={COLORS.textMuted} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.toolbarIconBtn, searchActive && styles.toolbarIconBtnActive]}
-            onPress={toggleSearch}
-            hitSlop={8}
-          >
-            <Ionicons
-              name={searchActive ? 'close' : 'search-outline'}
-              size={18}
-              color={searchActive ? COLORS.secondary : COLORS.textMuted}
-            />
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          style={styles.toolbarIconBtn}
+          onPress={handleOpenMembers}
+          hitSlop={8}
+        >
+          <Ionicons name="people-outline" size={17} color={COLORS.textMuted} />
+        </TouchableOpacity>
       </View>
-
-      {searchActive && (
-        <View style={{ paddingHorizontal: 20, paddingBottom: 6 }}>
-          <SearchBar
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            onClear={() => setSearchQuery('')}
-            placeholder="Search posts, authors, categories…"
-          />
-          {searchQuery.trim().length > 0 && (
-            <Text style={styles.searchResultCount}>
-              {filteredPosts.length} result{filteredPosts.length !== 1 ? 's' : ''}{' '}
-              for <Text style={{ color: COLORS.secondary }}>"{searchQuery.trim()}"</Text>
-            </Text>
-          )}
-        </View>
-      )}
 
       <FlatList
         data={filteredPosts}
@@ -598,10 +560,24 @@ function FAQItem({ faq }) {
 export default function CommunityScreen({ navigation }) {
   const optCommunity = useAuthStore((s) => s.user?.optCommunity ?? false);
   const refreshUser = useAuthStore((s) => s.refreshUser);
-  const unreadCount = useAnnouncementStore((s) => s.unreadCount);
   const visibleTabs = TABS.filter((t) => t.key !== 'community' || optCommunity);
   const [activeTab, setActiveTab] = useState(optCommunity ? 'community' : 'reviews');
   const userPickedTab = useRef(false);
+
+  const [searchActive, setSearchActive] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const toggleSearch = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    if (searchActive) setSearchQuery('');
+    setSearchActive((v) => !v);
+  };
+
+  const selectTab = (key) => {
+    userPickedTab.current = true;
+    setActiveTab(key);
+    if (key !== 'community') { setSearchActive(false); setSearchQuery(''); }
+  };
 
   // Refresh consent on focus so the Community tab appears promptly after login.
   useFocusEffect(useCallback(() => { refreshUser(); }, [refreshUser]));
@@ -620,18 +596,34 @@ export default function CommunityScreen({ navigation }) {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.headerIconBtn} onPress={() => navigation.goBack()} hitSlop={8}>
-          <Ionicons name="arrow-back" size={24} color={COLORS.cyan} />
+          <GradientIcon name="arrow-back" set="ionicons" size={24} colors={['#7F2982', '#00F2FF']} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Community</Text>
-        <TouchableOpacity style={styles.headerIconBtn} onPress={() => navigation.navigate('Notifications')} hitSlop={8}>
-          <Ionicons name="notifications-outline" size={22} color={COLORS.cyan} />
-          {unreadCount > 0 && (
-            <View style={styles.notifBadge}>
-              <Text style={styles.notifBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
-            </View>
-          )}
-        </TouchableOpacity>
+        {activeTab === 'community' ? (
+          <TouchableOpacity style={styles.headerIconBtn} onPress={toggleSearch} hitSlop={8}>
+            <GradientIcon
+              name={searchActive ? 'close' : 'search'}
+              set="ionicons"
+              size={searchActive ? 22 : 23}
+              colors={['#7F2982', '#00F2FF']}
+            />
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.headerIconBtn} />
+        )}
       </View>
+
+      {/* Search bar (posts tab) */}
+      {activeTab === 'community' && searchActive && (
+        <View style={styles.parentSearchWrap}>
+          <SearchBar
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            onClear={() => setSearchQuery('')}
+            placeholder="Search posts, members..."
+          />
+        </View>
+      )}
 
       {/* Tab bar */}
       <View style={styles.tabBar}>
@@ -639,7 +631,7 @@ export default function CommunityScreen({ navigation }) {
           <TouchableOpacity
             key={tab.key}
             style={[styles.tabItem, activeTab === tab.key && styles.tabItemActive]}
-            onPress={() => { userPickedTab.current = true; setActiveTab(tab.key); }}
+            onPress={() => selectTab(tab.key)}
             activeOpacity={0.7}
           >
             <Text style={[styles.tabLabel, activeTab === tab.key && styles.tabLabelActive]}>
@@ -650,7 +642,9 @@ export default function CommunityScreen({ navigation }) {
       </View>
 
       {/* Tab content */}
-      {activeTab === 'community' && <CommunityFeedTab navigation={navigation} />}
+      {activeTab === 'community' && (
+        <CommunityFeedTab navigation={navigation} searchQuery={searchActive ? searchQuery : ''} />
+      )}
 
       {activeTab === 'reviews' && <ReviewsTab />}
 
@@ -687,23 +681,31 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   toolbarIconBtnActive: { borderColor: COLORS.secondaryBorder, backgroundColor: COLORS.secondaryGlow },
+  parentSearchWrap: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 2 },
   searchBar: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: COLORS.surface, borderRadius: 12,
-    borderWidth: 1, borderColor: COLORS.secondaryBorder,
-    paddingHorizontal: 12, paddingVertical: 10,
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: '#1A1A2E', borderRadius: 20,
+    borderWidth: 1, borderColor: 'rgba(124,58,237,0.40)',
+    paddingHorizontal: 16, paddingVertical: 10,
   },
   searchInput: { flex: 1, fontSize: 14, color: COLORS.white, padding: 0, fontFamily: FONTS.body },
   searchResultCount: { fontSize: 11, color: COLORS.textMuted, marginTop: 6, marginLeft: 2, fontFamily: FONTS.body },
 
   // Filter pills
   filterPill: {
-    paddingHorizontal: 18, paddingVertical: 6, borderRadius: 999,
-    borderWidth: 1, borderColor: COLORS.glassBorder,
+    paddingHorizontal: 20, paddingVertical: 7, borderRadius: 999,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)',
   },
-  filterPillActive: { borderColor: COLORS.primary, backgroundColor: 'rgba(255,169,250,0.06)' },
-  filterPillText: { fontSize: 10, color: COLORS.textMuted, fontFamily: FONTS.label, letterSpacing: 1.5 },
-  filterPillTextActive: { color: COLORS.primary },
+  filterPillActive: {
+    borderColor: '#FFA9FA',
+    shadowColor: '#FFA9FA', shadowOpacity: 0.3, shadowRadius: 10,
+    shadowOffset: { width: 0, height: 0 }, elevation: 4,
+  },
+  filterPillText: {
+    fontSize: 10, color: COLORS.textSecondary, fontFamily: FONTS.label,
+    letterSpacing: 1.5, lineHeight: 14, includeFontPadding: false,
+  },
+  filterPillTextActive: { color: '#FFA9FA' },
 
   communityListContent: { paddingHorizontal: 20, paddingBottom: 100 },
 
@@ -720,19 +722,19 @@ const styles = StyleSheet.create({
   },
   communityCreateFieldText: { flex: 1, color: COLORS.textMuted, fontSize: 13, fontFamily: FONTS.body },
   composerSendChip: {
-    width: 32, height: 32, borderRadius: 16, backgroundColor: COLORS.primaryBright,
+    width: 32, height: 32, borderRadius: 16, backgroundColor: COLORS.primary,
     alignItems: 'center', justifyContent: 'center',
   },
 
   // Post card (glass)
   communityPostCard: {
-    backgroundColor: COLORS.glass, borderRadius: 14,
+    backgroundColor: COLORS.glass, borderRadius: 12,
     borderWidth: 1, borderColor: COLORS.glassBorder,
-    padding: 16, marginBottom: 14,
+    padding: 20, marginBottom: 16,
   },
   communityPostHeader: { marginBottom: 12 },
   communityAuthorRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  communityAvatar: { width: 38, height: 38, borderRadius: 19 },
+  communityAvatar: { width: 40, height: 40, borderRadius: 20 },
   communityAvatarPlaceholder: {
     backgroundColor: COLORS.surface2, justifyContent: 'center', alignItems: 'center',
   },
@@ -799,7 +801,7 @@ const styles = StyleSheet.create({
     flex: 1, paddingBottom: 12, paddingTop: 4,
     borderBottomWidth: 2, borderBottomColor: 'transparent', alignItems: 'center',
   },
-  tabItemActive: { borderBottomColor: COLORS.primary },
+  tabItemActive: { borderBottomColor: '#FFA9FA' },
   tabLabel: { fontSize: 12, color: COLORS.textMuted, fontFamily: FONTS.label, letterSpacing: 1.5 },
   tabLabelActive: { color: COLORS.white },
 

@@ -8,7 +8,11 @@ import {
   StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../constants/colors';
+import { COLORS } from '../theme';
+
+// Café accent — purple (matches the cafe ADD / stepper pills)
+const ACCENT = '#7C3AED';
+const ACCENT_GLOW = 'rgba(124,58,237,0.15)';
 
 const fmtPrice = (v) => { const n = Number(v) || 0; return n % 1 === 0 ? String(n) : n.toFixed(2); };
 
@@ -89,7 +93,7 @@ export default function AddonPickerModal({
                 <Ionicons
                   name={isOn ? 'checkbox' : 'square-outline'}
                   size={22}
-                  color={isOn ? COLORS.secondary : COLORS.textMuted}
+                  color={isOn ? ACCENT : COLORS.textMuted}
                 />
                 <Text style={styles.addonName}>{addon.name}</Text>
                 <Text style={styles.addonPrice}>+₹{fmtPrice(addon.price)}</Text>
@@ -143,7 +147,7 @@ const styles = StyleSheet.create({
   customiseLabel: {
     fontSize: 10,
     fontWeight: '900',
-    color: COLORS.secondary,
+    color: ACCENT,
     letterSpacing: 2,
     marginBottom: 4,
   },
@@ -178,8 +182,8 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   rowSelected: {
-    borderColor: COLORS.secondary,
-    backgroundColor: COLORS.secondaryGlow,
+    borderColor: ACCENT,
+    backgroundColor: ACCENT_GLOW,
   },
   addonName: {
     flex: 1,
@@ -190,7 +194,7 @@ const styles = StyleSheet.create({
   addonPrice: {
     fontSize: 13,
     fontWeight: '700',
-    color: COLORS.secondary,
+    color: ACCENT,
   },
   actions: {
     flexDirection: 'row',
@@ -214,7 +218,7 @@ const styles = StyleSheet.create({
     flex: 2,
     height: 50,
     borderRadius: 30,
-    backgroundColor: COLORS.secondary,
+    backgroundColor: ACCENT,
     alignItems: 'center',
     justifyContent: 'center',
   },

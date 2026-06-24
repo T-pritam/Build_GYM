@@ -76,6 +76,7 @@ export default function AchievementsScreen({ navigation }) {
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
+        style={styles.chipsScroll}
         contentContainerStyle={styles.chipsRow}
       >
         {FILTERS.map((f) => {
@@ -93,7 +94,7 @@ export default function AchievementsScreen({ navigation }) {
                   colors={['#7C3AED', '#00BCD4']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
-                  style={StyleSheet.absoluteFill}
+                  style={[StyleSheet.absoluteFill, { borderRadius: 20 }]}
                 />
               )}
               <Text style={[styles.chipText, activeChip && styles.chipTextActive]}>{label}</Text>
@@ -102,7 +103,7 @@ export default function AchievementsScreen({ navigation }) {
         })}
       </ScrollView>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.list}>
+      <ScrollView showsVerticalScrollIndicator={false} style={styles.listScroll} contentContainerStyle={styles.list}>
         {list.map((a, i) => {
           const tile = a.locked ? 'rgba(255,255,255,0.06)' : CAT[a.cat].tile;
           const pct = a.progress ? Math.round((a.progress[0] / a.progress[1]) * 100) : 0;
@@ -157,15 +158,21 @@ const styles = StyleSheet.create({
   },
   xpLine: { fontFamily: FONTS.body, fontSize: 13, color: COLORS.textMuted, textAlign: 'center', marginTop: 6 },
 
+  chipsScroll: { flexGrow: 0, flexShrink: 0 },
   chipsRow: { gap: 8, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 4 },
   chip: {
-    paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, overflow: 'hidden',
+    height: 32, paddingHorizontal: 14, borderRadius: 20,
+    alignItems: 'center', justifyContent: 'center',
     backgroundColor: '#1A1A2E', borderWidth: 1, borderColor: COLORS.border,
   },
   chipActive: { borderColor: 'transparent' },
-  chipText: { fontFamily: FONTS.bodyMedium, fontSize: 12, color: COLORS.textMuted },
+  chipText: {
+    fontFamily: FONTS.bodyMedium, fontSize: 12, lineHeight: 16, color: COLORS.textMuted,
+    includeFontPadding: false, textAlignVertical: 'center',
+  },
   chipTextActive: { color: '#000', fontFamily: FONTS.bodyBold },
 
+  listScroll: { flex: 1 },
   list: { paddingHorizontal: 16, paddingTop: 12 },
   card: {
     flexDirection: 'row', alignItems: 'center',

@@ -59,7 +59,7 @@ export default function EditProfileScreen({ navigation }) {
         <TouchableOpacity style={s.backBtn} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={20} color="#fff" />
         </TouchableOpacity>
-        <Text style={s.headerTitle}>SETTINGS</Text>
+        <Text style={s.headerTitle}>Personal Info</Text>
         <View style={{ width: 40 }} />
       </View>
 
