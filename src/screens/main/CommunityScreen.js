@@ -10,6 +10,9 @@ import { useFocusEffect } from '@react-navigation/native';
 import { COLORS as THEME, FONTS } from '../../theme';
 import SafeBottomBar from '../../components/SafeBottomBar';
 import GradientIcon from '../../components/GradientIcon';
+import CreatePostSheet from '../../components/community/CreatePostSheet';
+import CommentsSheet from '../../components/community/CommentsSheet';
+import FeedPoll from '../../components/community/FeedPoll';
 import { useAuthStore } from '../../store/authStore';
 import { faqs, reviews } from '../../constants/dummyData';
 import { fetchCommunityPosts, votePost, fetchCommunityMembers } from '../../services/communityService';
@@ -112,6 +115,16 @@ function CommunityFeedTab({ navigation, searchQuery = '' }) {
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState(null);
+
+  // Bottom-sheet modals (Stitch flow)
+  const [createVisible, setCreateVisible] = useState(false);
+  const [commentsPostId, setCommentsPostId] = useState(null);
+
+  const handleCommentCountChange = useCallback((postId, delta) => {
+    setPosts((prev) => prev.map((p) => (
+      p.id === postId ? { ...p, comment_count: Math.max((p.comment_count || 0) + delta, 0) } : p
+    )));
+  }, []);
 
   const filteredPosts = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -272,12 +285,7 @@ function CommunityFeedTab({ navigation, searchQuery = '' }) {
           <Image source={{ uri: post.image_url }} style={styles.communityPostImage} contentFit="cover" />
         ) : null}
 
-        {post.is_poll && (
-          <View style={styles.communityPollBadge}>
-            <Ionicons name="bar-chart-outline" size={14} color={COLORS.cyan} />
-            <Text style={styles.communityPollBadgeText}>Poll — Tap to vote</Text>
-          </View>
-        )}
+        {post.is_poll && <FeedPoll postId={post.id} />}
 
         <View style={styles.communityPostFooter}>
           <View style={styles.communityVoteRow}>
@@ -313,7 +321,7 @@ function CommunityFeedTab({ navigation, searchQuery = '' }) {
 
           <TouchableOpacity
             style={styles.communityCommentBtn}
-            onPress={() => navigation.navigate('PostDetail', { postId: post.id })}
+            onPress={(e) => { e.stopPropagation(); setCommentsPostId(post.id); }}
           >
             <MaterialIcons name="chat-bubble-outline" size={15} color={COLORS.textMuted} />
             <Text style={styles.communityCommentCount}>{post.comment_count || 0} COMMENTS</Text>
@@ -391,7 +399,7 @@ function CommunityFeedTab({ navigation, searchQuery = '' }) {
           <TouchableOpacity
             style={styles.communityCreateField}
             activeOpacity={0.85}
-            onPress={() => navigation.navigate('CreatePost')}
+            onPress={() => setCreateVisible(true)}
           >
             <View style={styles.composerAvatar}>
               <Ionicons name="person" size={16} color={COLORS.textMuted} />
@@ -466,6 +474,21 @@ function CommunityFeedTab({ navigation, searchQuery = '' }) {
           </View>
         </TouchableOpacity>
       </Modal>
+
+      {/* Create Post bottom sheet */}
+      <CreatePostSheet
+        visible={createVisible}
+        onClose={() => setCreateVisible(false)}
+        onPosted={() => loadPosts(1, true)}
+      />
+
+      {/* Comments bottom sheet */}
+      <CommentsSheet
+        visible={!!commentsPostId}
+        postId={commentsPostId}
+        onClose={() => setCommentsPostId(null)}
+        onCountChange={(delta) => handleCommentCountChange(commentsPostId, delta)}
+      />
     </View>
   );
 }

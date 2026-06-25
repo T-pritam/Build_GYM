@@ -79,7 +79,6 @@ import ArticleReaderScreen from '../screens/community/ArticleReaderScreen';
 import BlogListScreen from '../screens/community/BlogListScreen';
 import BlogFeedScreen from '../screens/community/BlogFeedScreen';
 import CommunityFeedScreen from '../screens/community/CommunityFeedScreen';
-import CreatePostScreen from '../screens/community/CreatePostScreen';
 import PostDetailScreen from '../screens/community/PostDetailScreen';
 import AnnouncementDetailScreen from '../screens/main/AnnouncementDetailScreen';
 
@@ -378,11 +377,6 @@ export default function AppNavigator() {
           name="CommunityFeed"
           component={CommunityFeedScreen}
           options={{ animation: 'slide_from_right' }}
-        />
-        <Stack.Screen
-          name="CreatePost"
-          component={CreatePostScreen}
-          options={{ animation: 'slide_from_bottom' }}
         />
         <Stack.Screen
           name="PostDetail"
