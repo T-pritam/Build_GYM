@@ -4,30 +4,28 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  Pressable,
   StatusBar,
   Animated,
   Easing,
-  Image,
   ScrollView,
-  RefreshControl,
   ActivityIndicator,
 } from 'react-native';
 import { fetchGymPresence, gymCheckIn, gymCheckOut } from '../../services/gymService';
 import { fetchMyMembership } from '../../services/membershipService';
 import { getSocket } from '../../services/socketService';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS as THEME, FONTS } from '../../theme';
 import { useAuthStore } from '../../store/authStore';
 import { logEvent } from '../../services/analyticsService';
-import AccessDial from '../../components/AccessDial';
+import HoldUnlock from '../../components/HoldUnlock';
 
 // Theme-compat: legacy colour keys → new "Holographic Noir" palette.
 const COLORS = {
   background: '#050405', surface: '#1B191E', surface2: THEME.surface2,
   secondary: THEME.primaryLight, secondaryDark: THEME.primary, secondaryGlow: THEME.primarySoft, secondaryBorder: THEME.primaryBorder,
-  primary: THEME.primary, cyan: '#00F2FF',
-  success: THEME.success, successLight: THEME.successSoft, error: '#F44336', errorLight: 'rgba(244,67,54,0.12)',
+  primary: THEME.primary, cyan: '#00BCD4',
+  success: THEME.success, error: '#F44336',
   textPrimary: THEME.textPrimary, textSecondary: THEME.textSecondary, textMuted: THEME.textMuted,
   border: THEME.border, glass: 'rgba(255,255,255,0.05)', glassBorder: 'rgba(255,255,255,0.08)',
   white: THEME.white,
@@ -35,6 +33,7 @@ const COLORS = {
 
 const GREEN = '#00FF64';
 const COOLDOWN_MS = 2 * 60 * 1000; // 2 minutes
+const LOCKERS = ['101', '102', '103', '104'];
 
 export default function PresenceScreen({ navigation }) {
   const user = useAuthStore((s) => s.user);
@@ -47,12 +46,23 @@ export default function PresenceScreen({ navigation }) {
 
   const [membership, setMembership] = useState(null);
   const [membershipLoading, setMembershipLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
 
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-  const pulseOpacity = useRef(new Animated.Value(0)).current;
+  // Sheet UI state
+  const [tab, setTab] = useState('gym'); // 'gym' | 'locker'
+  const [selectedLocker, setSelectedLocker] = useState(null);
+  const [lockerDone, setLockerDone] = useState(false);
+
   const cooldownTimer = useRef(null);
   const pollTimer = useRef(null);
+
+  // Sheet slide-up on mount
+  const slide = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    Animated.timing(slide, { toValue: 0, duration: 300, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+  }, [slide]);
+  const sheetTranslate = slide.interpolate({ inputRange: [0, 1], outputRange: [0, 760] });
+
+  const close = () => navigation.goBack();
 
   // ── Data loading ──────────────────────────────────────────────────────────
 
@@ -115,48 +125,14 @@ export default function PresenceScreen({ navigation }) {
     return () => clearInterval(cooldownTimer.current);
   }, [cooldownUntil]);
 
-  // ── Pull-to-refresh ───────────────────────────────────────────────────────
-
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await loadData();
-    setRefreshing(false);
-  };
-
-  // ── Pulse animation ───────────────────────────────────────────────────────
-
-  const startPulse = () => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.parallel([
-          Animated.timing(pulseAnim, { toValue: 1.4, duration: 700, easing: Easing.out(Easing.ease), useNativeDriver: true }),
-          Animated.timing(pulseOpacity, { toValue: 0.3, duration: 350, useNativeDriver: true }),
-        ]),
-        Animated.parallel([
-          Animated.timing(pulseAnim, { toValue: 1, duration: 700, easing: Easing.in(Easing.ease), useNativeDriver: true }),
-          Animated.timing(pulseOpacity, { toValue: 0, duration: 350, useNativeDriver: true }),
-        ]),
-      ])
-    ).start();
-  };
-
-  const stopPulse = () => {
-    pulseAnim.stopAnimation();
-    pulseOpacity.stopAnimation();
-    Animated.timing(pulseAnim, { toValue: 1, duration: 200, useNativeDriver: true }).start();
-    Animated.timing(pulseOpacity, { toValue: 0, duration: 200, useNativeDriver: true }).start();
-  };
-
-  // ── Tap handler ───────────────────────────────────────────────────────────
+  // ── Hold-to-unlock completion → real check-in / check-out ─────────────────
 
   const handleTap = async () => {
     if (actionStatus !== 'idle' || cooldownUntil) return;
     setActionStatus('loading');
-    startPulse();
     try {
       const isCheckIn = myStatus === 'out';
       const result = isCheckIn ? await gymCheckIn() : await gymCheckOut();
-      stopPulse();
       if (isCheckIn && result.myStatus === 'in') {
         const now = new Date();
         const hour = now.getHours();
@@ -173,7 +149,6 @@ export default function PresenceScreen({ navigation }) {
       setCooldownUntil(Date.now() + COOLDOWN_MS);
       setTimeout(() => setActionStatus('idle'), 2000);
     } catch (err) {
-      stopPulse();
       const status = err?.response?.status;
       if (status === 409) {
         // Already in the desired state — treat as success, re-fetch actual state
@@ -193,245 +168,250 @@ export default function PresenceScreen({ navigation }) {
   // ── Derived display values ────────────────────────────────────────────────
 
   const isCheckingIn = myStatus === 'out';
+  const isButtonDisabled = actionStatus !== 'idle' || !!cooldownUntil;
 
   const getStatusMsg = () => {
     if (cooldownUntil && actionStatus === 'idle') return `Wait ${cooldownSecs}s before next tap`;
-    if (actionStatus === 'loading') return isCheckingIn ? 'Checking in...' : 'Checking out...';
-    if (actionStatus === 'success') return isCheckingIn ? 'Checked out ✓' : 'Checked in ✓';
+    if (actionStatus === 'loading') return isCheckingIn ? 'Checking in…' : 'Checking out…';
+    if (actionStatus === 'success') return isCheckingIn ? 'Checked out ✓' : 'Entry granted ✓';
     if (actionStatus === 'error') return 'Something went wrong';
-    if (!isCheckingIn) return 'Tap to Check Out';
-    return 'Tap to Check In';
+    return 'Hold the dial to unlock';
   };
 
   const getStatusColor = () => {
     if (actionStatus === 'success') return COLORS.success;
     if (actionStatus === 'error') return COLORS.error;
     if (actionStatus === 'loading') return COLORS.secondary;
-    if (!isCheckingIn) return COLORS.success;
     return COLORS.textSecondary;
   };
 
-  const isButtonDisabled = actionStatus !== 'idle' || !!cooldownUntil;
-
   const displayName = user?.fullName || `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim() || 'Member';
-  const photoUrl = user?.profilePhotoUrl || null;
   const shortId = user?.id ? user.id.split('-')[0].toUpperCase() : '------';
-
   const memStatus = membership?.membership?.status ?? 'inactive';
   const memActive = memStatus === 'active';
 
-  // Action-available colour: check-in = lavender, check-out = green.
-  const coreAccent = isCheckingIn ? COLORS.secondary : COLORS.success;
-
+  const coreAccent = isCheckingIn ? COLORS.cyan : COLORS.success;
   const coreIcon = actionStatus === 'loading'
     ? <ActivityIndicator size="small" color={coreAccent} />
     : actionStatus === 'success'
-      ? <Ionicons name="checkmark-circle" size={34} color={COLORS.success} />
+      ? <Ionicons name="checkmark-circle" size={36} color={COLORS.success} />
       : actionStatus === 'error'
-        ? <Ionicons name="close-circle" size={34} color={COLORS.error} />
+        ? <Ionicons name="close-circle" size={36} color={COLORS.error} />
         : myStatus === 'in'
-          ? <Ionicons name="exit-outline" size={34} color={coreAccent} />
-          : <Ionicons name="enter-outline" size={34} color={coreAccent} />;
-
-  const coreLabel = actionStatus === 'loading'
-    ? (isCheckingIn ? 'Checking In…' : 'Checking Out…')
-    : (isCheckingIn ? 'Tap to Check In' : 'Tap to Check Out');
+          ? <Ionicons name="exit-outline" size={36} color={coreAccent} />
+          : <Ionicons name="enter-outline" size={36} color={coreAccent} />;
 
   return (
-    <View style={styles.container}>
+    <Pressable style={styles.backdrop} onPress={close}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
-      {/* Purple radial glow from the bottom */}
-      <LinearGradient
-        colors={['transparent', 'rgba(127,41,130,0.35)']}
-        style={StyleSheet.absoluteFill}
-        start={{ x: 0.5, y: 0.4 }}
-        end={{ x: 0.5, y: 1 }}
-        pointerEvents="none"
-      />
-      <View style={styles.circle1} />
-      <View style={styles.circle2} />
 
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Gym Presence</Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          {/* TEMP: entry point to the real Access Control screen (remove once wired into the flow) */}
-          <TouchableOpacity style={styles.liveChip} onPress={() => navigation?.navigate('AccessControl')} hitSlop={6}>
-            <Ionicons name="flash-outline" size={12} color={COLORS.cyan} />
-            <Text style={styles.liveChipText}>LIVE</Text>
-          </TouchableOpacity>
-          <View style={[styles.countPill, myStatus === 'in' && styles.countPillIn]}>
-            <View style={[styles.countDot, { backgroundColor: myStatus === 'in' ? GREEN : COLORS.textMuted }]} />
-            <Text style={[styles.countPillText, { color: myStatus === 'in' ? GREEN : COLORS.textMuted }]}>
-              {count} IN GYM
-            </Text>
+      <Animated.View style={[styles.sheet, { transform: [{ translateY: sheetTranslate }] }]}>
+        {/* swallow taps so touching the sheet doesn't dismiss it */}
+        <Pressable style={{ flex: 1 }} onPress={() => {}}>
+          {/* Drag handle */}
+          <View style={styles.handle} />
+
+          {/* Status bar */}
+          <View style={styles.statusRow}>
+            <View style={styles.bleRow}>
+              <View style={styles.bleDot} />
+              <Text style={styles.bleText}>BLE CONNECTED · ROSSLARE</Text>
+            </View>
+            <TouchableOpacity style={styles.closeBtn} onPress={close} hitSlop={8}>
+              <Ionicons name="close" size={18} color={COLORS.white} />
+            </TouchableOpacity>
           </View>
-        </View>
-      </View>
 
-      {/* Member card */}
-      <View style={styles.memberCard}>
-        <View style={styles.photoWrap}>
-          {photoUrl ? (
-            <Image source={{ uri: photoUrl }} style={styles.memberPhoto} />
-          ) : (
-            <LinearGradient colors={['rgba(127,41,130,0.4)', COLORS.surface2]} style={styles.memberPhotoPlaceholder}>
-              <Ionicons name="person-circle-outline" size={36} color={COLORS.secondary} />
-            </LinearGradient>
-          )}
-        </View>
-        <View style={styles.memberCardInfo}>
-          <View style={styles.memberCardTopRow}>
-            <Text style={styles.memberCardName}>{displayName}</Text>
-            {!membershipLoading && (
-              <View style={[styles.statusChip, memActive ? styles.statusChipActive : styles.statusChipInactive]}>
-                <Text style={[styles.statusChipText, { color: memActive ? GREEN : COLORS.error }]}>
-                  {memActive ? 'ACTIVE' : 'INACTIVE'}
+          {/* Tabs */}
+          <View style={styles.tabs}>
+            {[['gym', 'GYM ENTRANCE'], ['locker', 'LOCKER']].map(([key, label]) => (
+              <TouchableOpacity key={key} style={styles.tab} onPress={() => setTab(key)} activeOpacity={0.8}>
+                <Text style={[styles.tabText, tab === key && styles.tabTextActive]}>{label}</Text>
+                {tab === key && <View style={styles.tabUnderline} />}
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+            {tab === 'gym' ? (
+              <>
+                {/* Identity */}
+                <View style={styles.identity}>
+                  <Text style={styles.name}>{displayName}</Text>
+                  <View style={styles.idRow}>
+                    <Text style={styles.idText}>ID: {shortId}</Text>
+                    {!membershipLoading && (
+                      <View style={[styles.statusChip, memActive ? styles.statusChipActive : styles.statusChipInactive]}>
+                        <Text style={[styles.statusChipText, { color: memActive ? GREEN : COLORS.error }]}>
+                          {memActive ? 'ACTIVE' : 'INACTIVE'}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+
+                {/* Hold-to-unlock → real check-in / check-out */}
+                <View style={styles.holdArea}>
+                  <HoldUnlock
+                    key={`gym-${myStatus}`}
+                    size={160}
+                    color={coreAccent}
+                    icon={coreIcon}
+                    label={isCheckingIn ? 'HOLD TO ENTER' : 'HOLD TO EXIT'}
+                    holdingLabel={isCheckingIn ? 'CHECKING IN…' : 'CHECKING OUT…'}
+                    disabled={isButtonDisabled}
+                    onComplete={handleTap}
+                  />
+                  <Text style={[styles.statusMsg, { color: getStatusColor() }]}>{getStatusMsg()}</Text>
+                </View>
+
+                {/* Keep: live "IN THE GYM NOW" count — do not remove */}
+                {/* <View style={styles.liveCard}>
+                  <View style={styles.liveCardLeft}>
+                    <View style={styles.liveIconWrap}>
+                      <Ionicons name="people" size={22} color={COLORS.secondary} />
+                    </View>
+                    <View>
+                      <View style={styles.liveLabelRow}>
+                        <View style={styles.liveDot} />
+                        <Text style={styles.liveLabel}>IN THE GYM NOW</Text>
+                      </View>
+                      <View style={styles.liveValueRow}>
+                        <Text style={styles.liveValue}>{count}</Text>
+                        <Text style={styles.liveUnit}>members</Text>
+                      </View>
+                    </View>
+                  </View>
+                  <View style={[styles.myStatusBadge, myStatus === 'in' ? styles.myStatusIn : styles.myStatusOut]}>
+                    <Ionicons
+                      name={myStatus === 'in' ? 'checkmark-circle' : 'ellipse-outline'}
+                      size={14}
+                      color={myStatus === 'in' ? GREEN : COLORS.textMuted}
+                    />
+                    <Text style={[styles.myStatusText, { color: myStatus === 'in' ? GREEN : COLORS.textMuted }]}>
+                      {myStatus === 'in' ? "YOU'RE IN" : "YOU'RE OUT"}
+                    </Text>
+                  </View>
+                </View> */}
+
+                <Text style={styles.accessLabel}>GYM ACCESS</Text>
+              </>
+            ) : (
+              <>
+                {/* Locker grid (visual shell — no locker backend) */}
+                <View style={styles.lockerGrid}>
+                  {LOCKERS.map((n) => {
+                    const on = selectedLocker === n;
+                    return (
+                      <TouchableOpacity
+                        key={n}
+                        style={[styles.lockerPill, on && styles.lockerPillActive]}
+                        onPress={() => { setSelectedLocker(n); setLockerDone(false); }}
+                        activeOpacity={0.85}
+                      >
+                        <Text style={[styles.lockerPillText, on && styles.lockerPillTextActive]}>{n}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+                <Text style={styles.lockerHint}>
+                  {lockerDone
+                    ? `Locker ${selectedLocker} unlocked`
+                    : selectedLocker
+                      ? `Locker ${selectedLocker} selected`
+                      : 'Select a locker'}
                 </Text>
-              </View>
+
+                <View style={styles.holdArea}>
+                  <HoldUnlock
+                    key={`locker-${selectedLocker}-${lockerDone}`}
+                    size={160}
+                    color="#F59E0B"
+                    icon={(
+                      <Ionicons
+                        name={lockerDone ? 'checkmark-circle' : 'lock-closed'}
+                        size={32}
+                        color={lockerDone ? GREEN : '#F59E0B'}
+                      />
+                    )}
+                    label={lockerDone ? 'UNLOCKED' : 'HOLD TO UNLOCK'}
+                    holdingLabel="UNLOCKING…"
+                    disabled={!selectedLocker || lockerDone}
+                    onComplete={() => setLockerDone(true)}
+                  />
+                </View>
+
+                <Text style={styles.accessLabel}>LOCKER ACCESS</Text>
+              </>
             )}
-          </View>
-          <Text style={styles.memberCardId}>ID: {shortId}</Text>
-        </View>
-      </View>
-
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scroll}
-        keyboardShouldPersistTaps="handled"
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={COLORS.secondary} colors={[COLORS.secondary]} />
-        }
-      >
-        {/* Precision dial — arc is a CHECK IN / CHECK OUT status indicator */}
-        <View style={styles.dialArea}>
-          <AccessDial
-            leftLabel="CHECK IN"
-            rightLabel="CHECK OUT"
-            leftColor={COLORS.secondary}
-            rightColor={COLORS.success}
-            activeSide={isCheckingIn ? 'left' : 'right'}
-            onCorePress={handleTap}
-            coreDisabled={isButtonDisabled}
-            coreIcon={coreIcon}
-            coreLabel={coreLabel}
-            coreAccent={coreAccent}
-            scanning={actionStatus === 'loading'}
-            pulseScale={pulseAnim}
-            pulseOpacity={pulseOpacity}
-          />
-        </View>
-
-        {/* Status text */}
-        <Text style={[styles.statusMsg, { color: getStatusColor() }]}>{getStatusMsg()}</Text>
-
-        {/* Live count card */}
-        <View style={styles.liveCard}>
-          <View style={styles.liveCardLeft}>
-            <View style={styles.liveIconWrap}>
-              <Ionicons name="people" size={24} color={COLORS.secondary} />
-            </View>
-            <View>
-              <View style={styles.liveLabelRow}>
-                <View style={styles.liveDot} />
-                <Text style={styles.liveLabel}>IN THE GYM NOW</Text>
-              </View>
-              <View style={styles.liveValueRow}>
-                <Text style={styles.liveValue}>{count}</Text>
-                <Text style={styles.liveUnit}>members</Text>
-              </View>
-            </View>
-          </View>
-          <View style={[styles.myStatusBadge, myStatus === 'in' ? styles.myStatusIn : styles.myStatusOut]}>
-            <Ionicons
-              name={myStatus === 'in' ? 'checkmark-circle' : 'ellipse-outline'}
-              size={14}
-              color={myStatus === 'in' ? GREEN : COLORS.textMuted}
-            />
-            <Text style={[styles.myStatusText, { color: myStatus === 'in' ? GREEN : COLORS.textMuted }]}>
-              {myStatus === 'in' ? 'YOU\'RE IN' : 'YOU\'RE OUT'}
-            </Text>
-          </View>
-        </View>
-
-        {/* Membership footer */}
-        {!membershipLoading && (
-          <View style={styles.footer}>
-            <View style={styles.footerRow}>
-              <Ionicons name="shield-checkmark-outline" size={15} color={memActive ? GREEN : COLORS.error} />
-              <Text style={[styles.footerText, { color: memActive ? GREEN : COLORS.error }]}>
-                Membership: {memStatus.toUpperCase()}
-              </Text>
-            </View>
-          </View>
-        )}
-      </ScrollView>
-    </View>
+          </ScrollView>
+        </Pressable>
+      </Animated.View>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
-  circle1: {
-    position: 'absolute', width: 400, height: 400, borderRadius: 200,
-    backgroundColor: 'rgba(127,41,130,0.05)', top: -100, right: -100,
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+
+  sheet: {
+    height: '86%',
+    backgroundColor: '#0D0D0F',
+    borderTopLeftRadius: 28, borderTopRightRadius: 28,
+    borderTopWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
+    overflow: 'hidden',
   },
-  circle2: {
-    position: 'absolute', width: 300, height: 300, borderRadius: 150,
-    backgroundColor: 'rgba(0,242,255,0.03)', bottom: 50, left: -80,
+  handle: {
+    width: 48, height: 5, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.2)',
+    alignSelf: 'center', marginTop: 12, marginBottom: 8,
   },
 
-  header: {
+  statusRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingTop: 56, paddingHorizontal: 24, paddingBottom: 8,
+    paddingHorizontal: 24, paddingVertical: 10,
+    borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)',
   },
-  headerTitle: { fontFamily: FONTS.headline, fontSize: 20, color: COLORS.textPrimary },
+  bleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  bleDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: GREEN },
+  bleText: { fontFamily: FONTS.label, fontSize: 10, color: COLORS.textMuted, letterSpacing: 1.5 },
+  closeBtn: {
+    width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.05)',
+    alignItems: 'center', justifyContent: 'center',
+  },
 
-  liveChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    paddingVertical: 5, paddingHorizontal: 10, borderRadius: 20,
-    backgroundColor: 'rgba(0,242,255,0.08)', borderWidth: 1, borderColor: 'rgba(0,242,255,0.25)',
+  tabs: {
+    flexDirection: 'row', paddingHorizontal: 24, marginTop: 16,
+    borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.1)',
   },
-  liveChipText: { fontFamily: FONTS.label, fontSize: 9, color: COLORS.cyan, letterSpacing: 1 },
+  tab: { flex: 1, alignItems: 'center', paddingBottom: 12 },
+  tabText: { fontFamily: FONTS.label, fontSize: 12, color: 'rgba(255,255,255,0.4)', letterSpacing: 1.5 },
+  tabTextActive: { color: COLORS.white },
+  tabUnderline: {
+    position: 'absolute', bottom: -1, left: 0, right: 0, height: 2,
+    backgroundColor: '#7C3AED', borderRadius: 2,
+  },
 
-  countPill: {
-    flexDirection: 'row', alignItems: 'center', paddingVertical: 5, paddingHorizontal: 12,
-    backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 20,
-    borderWidth: 1, borderColor: COLORS.glassBorder, gap: 6,
-  },
-  countPillIn: { backgroundColor: 'rgba(0,255,100,0.10)', borderColor: 'rgba(0,255,100,0.30)' },
-  countDot: { width: 6, height: 6, borderRadius: 3 },
-  countPillText: { fontFamily: FONTS.label, fontSize: 10, letterSpacing: 0.5 },
+  content: { paddingHorizontal: 24, paddingTop: 24, paddingBottom: 40, alignItems: 'center' },
 
-  memberCard: {
-    flexDirection: 'row', alignItems: 'center', marginHorizontal: 24,
-    marginTop: 16, marginBottom: 4, backgroundColor: COLORS.glass,
-    borderRadius: 16, borderWidth: 1, borderColor: COLORS.glassBorder, padding: 14, gap: 14,
-  },
-  photoWrap: {},
-  memberPhoto: { width: 56, height: 56, borderRadius: 28 },
-  memberPhotoPlaceholder: {
-    width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1, borderColor: COLORS.glassBorder,
-  },
-  memberCardInfo: { flex: 1 },
-  memberCardTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  memberCardName: { fontFamily: FONTS.headline, fontSize: 17, color: COLORS.textPrimary },
-  memberCardId: { fontFamily: FONTS.body, fontSize: 12, color: COLORS.textSecondary, letterSpacing: 1, marginTop: 2 },
+  identity: { alignItems: 'center', marginBottom: 8 },
+  name: { fontFamily: FONTS.headline, fontSize: 24, color: COLORS.white, marginBottom: 6 },
+  idRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  idText: { fontFamily: FONTS.label, fontSize: 11, color: 'rgba(255,255,255,0.6)', letterSpacing: 1 },
   statusChip: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, borderWidth: 1 },
   statusChipActive: { backgroundColor: 'rgba(0,255,100,0.15)', borderColor: 'rgba(0,255,100,0.30)' },
   statusChipInactive: { backgroundColor: 'rgba(244,67,54,0.12)', borderColor: 'rgba(244,67,54,0.30)' },
   statusChipText: { fontFamily: FONTS.label, fontSize: 9, letterSpacing: 1 },
 
-  scroll: { paddingBottom: 40, paddingTop: 24 },
-  dialArea: { alignItems: 'center', marginBottom: 12 },
-  statusMsg: { textAlign: 'center', fontFamily: FONTS.bodyBold, fontSize: 14, marginBottom: 24 },
+  holdArea: { alignItems: 'center', gap: 16, marginTop: 28, marginBottom: 28 },
+  statusMsg: { textAlign: 'center', fontFamily: FONTS.bodyBold, fontSize: 13, letterSpacing: 1 },
 
+  // Live "IN THE GYM NOW" count
   liveCard: {
-    marginHorizontal: 24, marginBottom: 20,
+    width: '100%',
     backgroundColor: COLORS.glass, borderRadius: 18,
     borderWidth: 1, borderColor: COLORS.glassBorder,
     padding: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    marginBottom: 20,
   },
   liveCardLeft: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   liveIconWrap: {
@@ -445,7 +425,6 @@ const styles = StyleSheet.create({
   liveValueRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6 },
   liveValue: { fontFamily: FONTS.headline, fontSize: 26, color: COLORS.white },
   liveUnit: { fontFamily: FONTS.body, fontSize: 13, color: COLORS.textSecondary },
-
   myStatusBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
     paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12, borderWidth: 1,
@@ -454,7 +433,17 @@ const styles = StyleSheet.create({
   myStatusOut: { backgroundColor: 'rgba(255,255,255,0.05)', borderColor: COLORS.glassBorder },
   myStatusText: { fontFamily: FONTS.label, fontSize: 10, letterSpacing: 0.5 },
 
-  footer: { alignItems: 'center', gap: 6, marginTop: 4 },
-  footerRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  footerText: { fontFamily: FONTS.label, fontSize: 10, letterSpacing: 1.5 },
+  accessLabel: { fontFamily: FONTS.label, fontSize: 10, color: 'rgba(255,255,255,0.4)', letterSpacing: 2, marginTop: 40 },
+
+  // Locker
+  lockerGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'center', marginBottom: 8 },
+  lockerPill: {
+    width: '22%', aspectRatio: 1.6, borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  lockerPillActive: { backgroundColor: 'rgba(127,41,130,0.25)', borderColor: COLORS.secondary },
+  lockerPillText: { fontFamily: FONTS.bodyBold, fontSize: 15, color: 'rgba(255,255,255,0.8)' },
+  lockerPillTextActive: { color: COLORS.secondary },
+  lockerHint: { fontFamily: FONTS.label, fontSize: 11, color: 'rgba(255,255,255,0.6)', letterSpacing: 1, marginTop: 8 },
 });

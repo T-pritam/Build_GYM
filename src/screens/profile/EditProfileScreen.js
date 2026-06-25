@@ -1,7 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, StatusBar, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, StatusBar, ScrollView, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS as THEME, FONTS } from '../../theme';
+import { useAuthStore } from '../../store/authStore';
+import { requestAccountDeletion } from '../../services/customerProfileService';
 
 // Theme-compat: legacy colour keys -> new "Holographic Noir" palette so the
 // whole screen restyles without rewriting the render. Accent (orange) -> purple.
@@ -49,6 +51,43 @@ const SECTIONS = [
 ];
 
 export default function EditProfileScreen({ navigation }) {
+  const logout = useAuthStore((s) => s.logout);
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Delete My Account',
+      'This will permanently delete your account and all associated data. This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Continue',
+          style: 'destructive',
+          onPress: () => {
+            Alert.alert(
+              'Are you absolutely sure?',
+              'Your data will be scheduled for permanent deletion.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Delete My Account',
+                  style: 'destructive',
+                  onPress: async () => {
+                    try {
+                      await requestAccountDeletion();
+                      await logout();
+                    } catch (err) {
+                      Alert.alert('Error', err?.response?.data?.message || 'Could not process your request. Please try again.');
+                    }
+                  },
+                },
+              ],
+            );
+          },
+        },
+      ],
+    );
+  };
+
   return (
     <SafeBottomBar style={s.container}>
       <StatusBar barStyle="light-content" backgroundColor="#000" />
@@ -85,6 +124,12 @@ export default function EditProfileScreen({ navigation }) {
             </TouchableOpacity>
           ))}
         </View>
+
+        {/* Delete Account */}
+        <TouchableOpacity style={s.deleteBtn} onPress={handleDeleteAccount} activeOpacity={0.8}>
+          <Ionicons name="trash-outline" size={15} color="#F87171" />
+          <Text style={s.deleteText}>Delete My Account</Text>
+        </TouchableOpacity>
 
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -123,4 +168,10 @@ const s = StyleSheet.create({
   cardInfo: { flex: 1 },
   cardLabel: { fontSize: 15, fontWeight: '700', color: '#fff', marginBottom: 3 },
   cardSub: { fontSize: 12, color: COLORS.textMuted },
+
+  deleteBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    paddingVertical: 12, marginTop: 28,
+  },
+  deleteText: { fontFamily: FONTS.bodyMedium, fontSize: 12, color: '#F87171', opacity: 0.8 },
 });

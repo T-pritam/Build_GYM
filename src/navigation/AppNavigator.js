@@ -198,7 +198,12 @@ export default function AppNavigator() {
 
         {/* Hub destinations (formerly bottom tabs) */}
         <Stack.Screen name="Cafe" component={CafeScreen} />
-        <Stack.Screen name="Access" component={PresenceScreen} />
+        {/* Check-in opens as a Stitch bottom-sheet modal over Home (Home dims behind). */}
+        <Stack.Screen
+          name="Access"
+          component={PresenceScreen}
+          options={{ presentation: 'transparentModal', animation: 'fade' }}
+        />
         {/* Real door-access screen (BLE + AxTraxPro). Reached via a temp chip on
             PresenceScreen for now; the live route is swapped Presence → Access later. */}
         <Stack.Screen name="AccessControl" component={AccessScreen} />

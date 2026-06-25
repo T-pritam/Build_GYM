@@ -95,24 +95,30 @@ export default function ActivitiesScreen({ navigation }) {
     <SafeBottomBar style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
 
-      {/* Header — row 1: back · centered title · coin balance */}
-      <View style={styles.headerRow}>
-        <TouchableOpacity
-          style={styles.backBtn}
-          onPress={() => navigation.goBack()}
-          activeOpacity={0.75}
-          hitSlop={10}
-        >
-          <GradientIcon name="arrow-back" set="ionicons" size={24} />
-        </TouchableOpacity>
-
-        <Text style={styles.headerTitle}>ACTIVITIES</Text>
-
-        <View style={styles.balanceWrap}>
-          <Text style={styles.balanceText}>{Number(balance).toLocaleString('en-IN')}</Text>
-          <MaterialIcons name="monetization-on" size={16} color="#F59E0B" />
-        </View>
+      {/* Fixed corner controls — stay put while the rest of the page scrolls */}
+      <TouchableOpacity
+        style={styles.backBtn}
+        onPress={() => navigation.goBack()}
+        activeOpacity={0.75}
+        hitSlop={10}
+      >
+        <GradientIcon name="arrow-back" set="ionicons" size={24} />
+      </TouchableOpacity>
+      <View style={styles.balanceWrap}>
+        <Text style={styles.balanceText}>{Number(balance).toLocaleString('en-IN')}</Text>
+        <MaterialIcons name="monetization-on" size={16} color="#F59E0B" />
       </View>
+
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        style={styles.cardsScroll}
+        contentContainerStyle={styles.scroll}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primaryLight} />}
+      >
+        {/* Header — row 1: centered title (scrolls; back + balance stay fixed) */}
+        <View style={styles.headerRow}>
+          <Text style={styles.headerTitle}>ACTIVITIES</Text>
+        </View>
 
       {/* Header — row 2: my bookings (right-aligned) */}
       <View style={styles.headerRow2}>
@@ -155,14 +161,9 @@ export default function ActivitiesScreen({ navigation }) {
             </TouchableOpacity>
           );
         })}
-      </ScrollView>
+        </ScrollView>
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        style={styles.cardsScroll}
-        contentContainerStyle={styles.scroll}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primaryLight} />}
-      >
+        <View style={styles.cardsWrap}>
         {visible.length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons name="fitness-outline" size={48} color={COLORS.textMuted} />
@@ -263,6 +264,7 @@ export default function ActivitiesScreen({ navigation }) {
             );
           })
         )}
+        </View>
 
         <View style={{ height: 100 }} />
       </ScrollView>
@@ -283,11 +285,11 @@ const styles = StyleSheet.create({
     letterSpacing: 2, textTransform: 'uppercase',
   },
   backBtn: {
-    position: 'absolute', left: 20, top: 52,
+    position: 'absolute', left: 20, top: 52, zIndex: 20, elevation: 20,
     width: 32, height: 32, alignItems: 'center', justifyContent: 'center',
   },
   balanceWrap: {
-    position: 'absolute', right: 20, top: 54,
+    position: 'absolute', right: 20, top: 54, zIndex: 20, elevation: 20,
     flexDirection: 'row', alignItems: 'center', gap: 4,
   },
   balanceText: { fontFamily: FONTS.bodyMedium, fontSize: 14, color: COLORS.white },
@@ -317,7 +319,8 @@ const styles = StyleSheet.create({
   pillTextActive: { color: '#0D0D0F', fontFamily: FONTS.bodyBold },
 
   cardsScroll: { flex: 1 },
-  scroll: { paddingHorizontal: 16, paddingTop: 10 },
+  scroll: {},
+  cardsWrap: { paddingHorizontal: 16, paddingTop: 10 },
 
   // Glass card: subtle light fill + hairline border, image cover on top, solid
   // #0D0D0F body below (matches Stitch .glass-card).

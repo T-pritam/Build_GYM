@@ -18,6 +18,7 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS } from '../../theme';
+import GradientIcon from '../../components/GradientIcon';
 import {
   fetchPublishedBlogs,
   toggleBlogBookmark,
@@ -51,31 +52,6 @@ function formatDate(dateStr) {
 function getInitials(name) {
   if (!name) return 'BG';
   return name.split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
-}
-
-// Local search bar (mirrors the Community Blog-tab pattern)
-function SearchBar({ value, onChangeText, onClear }) {
-  return (
-    <View style={styles.searchBar}>
-      <Ionicons name="search-outline" size={16} color={COLORS.textMuted} />
-      <TextInput
-        style={styles.searchInput}
-        value={value}
-        onChangeText={onChangeText}
-        placeholder="Search articles, topics, authors…"
-        placeholderTextColor={COLORS.textMuted}
-        autoCapitalize="none"
-        autoCorrect={false}
-        returnKeyType="search"
-        autoFocus
-      />
-      {value.length > 0 && (
-        <TouchableOpacity onPress={onClear} hitSlop={8}>
-          <Ionicons name="close-circle" size={18} color={COLORS.textMuted} />
-        </TouchableOpacity>
-      )}
-    </View>
-  );
 }
 
 export default function BlogListScreen({ navigation }) {
@@ -290,42 +266,47 @@ export default function BlogListScreen({ navigation }) {
         pointerEvents="none"
       />
 
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={22} color={COLORS.primaryLight} />
-        </TouchableOpacity>
-        <Text style={styles.title}>Blogs</Text>
-        <View style={styles.headerActions}>
-          <TouchableOpacity
-            style={[styles.searchIconBtn, searchActive && styles.searchIconBtnActive]}
-            onPress={toggleSearch}
-            hitSlop={8}
-          >
-            <Ionicons
-              name={searchActive ? 'close' : 'search-outline'}
-              size={20}
-              color={searchActive ? COLORS.primaryLight : COLORS.textSecondary}
-            />
+      {/* Sticky floating buttons (back · search · bookmark). The centered "Blogs"
+          title lives in the scrolling list header, so it scrolls away on scroll. */}
+      {!searchActive && (
+        <>
+          <TouchableOpacity style={styles.floatBack} onPress={() => navigation.goBack()} hitSlop={10} activeOpacity={0.7}>
+            <GradientIcon name="arrow-back" set="ionicons" size={24} />
           </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.searchIconBtn}
-            onPress={openSaved}
-            hitSlop={8}
-          >
-            <Ionicons name="bookmark-outline" size={20} color={COLORS.textSecondary} />
+          <TouchableOpacity style={styles.floatSearch} onPress={toggleSearch} hitSlop={10} activeOpacity={0.7}>
+            <GradientIcon name="search" set="ionicons" size={22} />
           </TouchableOpacity>
-        </View>
-      </View>
+          <TouchableOpacity style={styles.floatBookmark} onPress={openSaved} hitSlop={10} activeOpacity={0.7}>
+            <GradientIcon name="bookmark" set="ionicons" size={22} />
+          </TouchableOpacity>
+        </>
+      )}
 
-      {/* Search bar (toggle) */}
+      {/* Search overlay (fixed top) */}
       {searchActive && (
-        <View style={styles.searchWrap}>
-          <SearchBar
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            onClear={() => setSearchQuery('')}
-          />
+        <View style={styles.searchOverlay}>
+          <View style={styles.searchBar}>
+            <Ionicons name="search-outline" size={16} color={COLORS.textMuted} />
+            <TextInput
+              style={styles.searchInput}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Search articles…"
+              placeholderTextColor={COLORS.textMuted}
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="search"
+              autoFocus
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={8}>
+                <Ionicons name="close-circle" size={18} color={COLORS.textMuted} />
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity onPress={toggleSearch} hitSlop={8}>
+              <Text style={styles.cancelText}>CANCEL</Text>
+            </TouchableOpacity>
+          </View>
           {searchQuery.trim().length > 0 && (
             <Text style={styles.searchResultCount}>
               {filteredPosts.length} result{filteredPosts.length !== 1 ? 's' : ''}{' '}
@@ -334,31 +315,6 @@ export default function BlogListScreen({ navigation }) {
           )}
         </View>
       )}
-
-      {/* Category filter pills */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filterRow}
-        style={styles.filterScroll}
-      >
-        {CATEGORIES.map((cat) => (
-          <TouchableOpacity
-            key={cat}
-            style={[styles.chip, activeCategory === cat ? styles.chipActive : styles.chipInactive]}
-            onPress={() => setActiveCategory(cat)}
-          >
-            <Text
-              style={[
-                styles.chipText,
-                activeCategory === cat ? styles.chipTextActive : styles.chipTextInactive,
-              ]}
-            >
-              {cat}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
 
       {/* List */}
       {loading ? (
@@ -383,6 +339,33 @@ export default function BlogListScreen({ navigation }) {
           style={{ flex: 1 }}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
+          ListHeaderComponent={(
+            <View style={styles.listHeader}>
+              <Text style={styles.title}>Blogs</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.filterRow}
+              >
+                {CATEGORIES.map((cat) => (
+                  <TouchableOpacity
+                    key={cat}
+                    style={[styles.chip, activeCategory === cat ? styles.chipActive : styles.chipInactive]}
+                    onPress={() => setActiveCategory(cat)}
+                  >
+                    <Text
+                      style={[
+                        styles.chipText,
+                        activeCategory === cat ? styles.chipTextActive : styles.chipTextInactive,
+                      ]}
+                    >
+                      {cat}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -475,36 +458,34 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.background },
   glow: { position: 'absolute', top: 0, left: 0, right: 0, height: 300 },
 
-  header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingTop: 56, paddingBottom: 16, paddingHorizontal: 20,
-  },
-  backBtn: {
-    width: 40, height: 40, borderRadius: 20,
-    backgroundColor: COLORS.glass, borderWidth: 1, borderColor: COLORS.border,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  title: { fontFamily: FONTS.headline, fontSize: 20, color: COLORS.white },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  searchIconBtn: {
-    width: 40, height: 40, borderRadius: 20,
-    backgroundColor: COLORS.glass, borderWidth: 1, borderColor: COLORS.border,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  searchIconBtnActive: { borderColor: COLORS.primaryBorder, backgroundColor: COLORS.primarySoft },
+  // Sticky floating gradient buttons (back · search · bookmark)
+  floatBack: { position: 'absolute', top: 52, left: 20, zIndex: 100, padding: 4 },
+  floatSearch: { position: 'absolute', top: 52, right: 60, zIndex: 100, padding: 4 },
+  floatBookmark: { position: 'absolute', top: 52, right: 20, zIndex: 100, padding: 4 },
 
-  searchWrap: { paddingHorizontal: 20, paddingBottom: 12 },
+  // Scrolling header block (centered title + pills)
+  listHeader: {},
+  title: {
+    fontFamily: FONTS.bodyBold, fontSize: 18, color: COLORS.white,
+    textAlign: 'center', marginBottom: 20,
+  },
+
+  // Search overlay (fixed top)
+  searchOverlay: {
+    position: 'absolute', top: 0, left: 0, right: 0, zIndex: 200,
+    backgroundColor: COLORS.background, paddingTop: 48, paddingHorizontal: 20, paddingBottom: 12,
+  },
+  cancelText: { fontFamily: FONTS.label, fontSize: 12, color: COLORS.primaryLight, letterSpacing: 1 },
   searchBar: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: COLORS.surfaceLow, borderRadius: 14,
+    backgroundColor: '#1A1A2E', borderRadius: 16,
     borderWidth: 1, borderColor: COLORS.primaryBorder,
-    paddingHorizontal: 14, paddingVertical: 11,
+    paddingHorizontal: 14, paddingVertical: 10,
   },
   searchInput: { flex: 1, fontFamily: FONTS.body, fontSize: 14, color: COLORS.white, padding: 0 },
   searchResultCount: { fontFamily: FONTS.body, fontSize: 11, color: COLORS.textMuted, marginTop: 8, marginLeft: 2 },
 
-  filterScroll: { flexGrow: 0 },
-  filterRow: { paddingHorizontal: 20, paddingBottom: 18, gap: 10 },
+  filterRow: { paddingBottom: 8, gap: 10 },
   chip: {
     height: 36, borderRadius: 999,
     alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20,
@@ -515,7 +496,7 @@ const styles = StyleSheet.create({
   chipTextActive: { color: COLORS.white, fontFamily: FONTS.bodyBold },
   chipTextInactive: { color: COLORS.textMuted },
 
-  list: { paddingHorizontal: 20, paddingBottom: 100 },
+  list: { paddingHorizontal: 20, paddingTop: 52, paddingBottom: 100 },
 
   loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   footerLoader: { paddingVertical: 20, alignItems: 'center' },

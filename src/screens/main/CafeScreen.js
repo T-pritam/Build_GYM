@@ -410,7 +410,7 @@ const styles = StyleSheet.create({
 
   // Category tabs
   tabsScroll: { flexGrow: 0 },
-  tabsRow: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 14, gap: 12 },
+  tabsRow: { paddingLeft: 20, paddingTop: 4, paddingBottom: 14, gap: 12 },
   tab: {
     height: 34, paddingHorizontal: 22, borderRadius: 999,
     alignItems: 'center', justifyContent: 'center',

@@ -12,7 +12,6 @@ import GradientIcon from '../../components/GradientIcon';
 import { fetchMyMembership } from '../../services/membershipService';
 import { useAuthStore } from '../../store/authStore';
 import { uploadProfilePhoto, removeProfilePhoto } from '../../services/profileService';
-import { requestAccountDeletion } from '../../services/customerProfileService';
 
 // Profile menu — Stitch "Elite Refined" order, each row's accent tint + route.
 const MENU = [
@@ -172,41 +171,6 @@ export default function ProfileScreen({ navigation }) {
       },
     ]);
 
-  const handleDeleteAccount = () => {
-    Alert.alert(
-      'Delete My Account',
-      'This will permanently delete your account and all associated data. This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Continue',
-          style: 'destructive',
-          onPress: () => {
-            Alert.alert(
-              'Are you absolutely sure?',
-              'Your data will be scheduled for permanent deletion.',
-              [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                  text: 'Delete My Account',
-                  style: 'destructive',
-                  onPress: async () => {
-                    try {
-                      await requestAccountDeletion();
-                      await logout();
-                    } catch (err) {
-                      Alert.alert('Error', err?.response?.data?.message || 'Could not process your request. Please try again.');
-                    }
-                  },
-                },
-              ],
-            );
-          },
-        },
-      ],
-    );
-  };
-
   return (
     <SafeBottomBar style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
@@ -330,12 +294,6 @@ export default function ProfileScreen({ navigation }) {
         {/* Logout */}
         <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
           <Text style={styles.logoutText}>LOG OUT</Text>
-        </TouchableOpacity>
-
-        {/* Delete Account */}
-        <TouchableOpacity style={styles.deleteBtn} onPress={handleDeleteAccount}>
-          <Ionicons name="trash-outline" size={15} color="#F87171" />
-          <Text style={styles.deleteText}>Delete My Account</Text>
         </TouchableOpacity>
 
         <View style={{ height: 100 }} />
@@ -500,13 +458,9 @@ const styles = StyleSheet.create({
   menuSub: { fontFamily: FONTS.body, fontSize: 11, color: 'rgba(212,193,207,0.6)' },
   noResults: { fontFamily: FONTS.body, fontSize: 13, color: COLORS.textMuted, textAlign: 'center', paddingVertical: 24 },
 
-  // Logout / delete
+  // Logout
   logoutBtn: { alignItems: 'center', justifyContent: 'center', paddingVertical: 16, marginTop: 8, marginBottom: 4 },
   logoutText: { fontFamily: FONTS.label, fontSize: 13, color: '#EF4444', letterSpacing: 3, opacity: 0.85 },
-  deleteBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10,
-  },
-  deleteText: { fontFamily: FONTS.bodyMedium, fontSize: 12, color: '#F87171', opacity: 0.8 },
 
   // Search overlay
   searchOverlay: {
