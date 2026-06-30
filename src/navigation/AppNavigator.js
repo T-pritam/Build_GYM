@@ -81,6 +81,9 @@ import BlogFeedScreen from '../screens/community/BlogFeedScreen';
 import CommunityFeedScreen from '../screens/community/CommunityFeedScreen';
 import PostDetailScreen from '../screens/community/PostDetailScreen';
 import AnnouncementDetailScreen from '../screens/main/AnnouncementDetailScreen';
+// Chat (Feature 3)
+import MyChatScreen from '../screens/chat/MyChatScreen';
+import ChatThreadScreen from '../screens/chat/ChatThreadScreen';
 
 // Main extra screens
 import CommunityScreen from '../screens/main/CommunityScreen';
@@ -383,6 +386,9 @@ export default function AppNavigator() {
           component={PostDetailScreen}
           options={{ animation: 'slide_from_right' }}
         />
+        {/* Chat (Feature 3) */}
+        <Stack.Screen name="MyChat" component={MyChatScreen} options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="ChatThread" component={ChatThreadScreen} options={{ animation: 'slide_from_right' }} />
       </Stack.Navigator>
     </NavigationContainer>
   );

@@ -45,6 +45,7 @@ const QUICK = [
   { label: 'RANKING',    icon: 'leaderboard',          color: GOLD,      route: 'Leaderboard' },
   { label: 'COMMUNITY',  icon: 'forum',                color: '#9C27B0', route: 'Community' },
   { label: 'TRAINERS',   icon: 'sports-martial-arts',  color: '#4CAF50', route: 'Trainers' },
+  { label: 'MY COACH',   icon: 'chat',                 color: '#A78BFA', route: 'MyChat' },
   { label: 'BLOGS',      icon: 'menu-book',            color: '#4A90D9', route: 'BlogList' },
 ];
 
