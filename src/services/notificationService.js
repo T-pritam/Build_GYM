@@ -120,6 +120,11 @@ export const handleDeepLink = (deepLink) => {
       case 'workouts':
         navigateTo('WorkoutHome');
         break;
+      case 'chat':
+        // buildfitness://chat/<threadId> → open that thread; bare → coach list
+        if (id) navigateTo('ChatThread', { threadId: id });
+        else navigateTo('MyChat');
+        break;
       case 'call-admin':
         callAdmin();
         break;
@@ -167,6 +172,7 @@ const TYPE_FALLBACK_DEEPLINK = {
   WORKOUT_ASSIGNED:            'buildfitness://workouts',
   WORKOUT_REMINDER:           'buildfitness://workouts',
   WORKOUT_CANCELLED:          'buildfitness://workouts',
+  chat_message:               'buildfitness://chat',
   // GATE_ACCESS_REVOKED / TRAINER_REMOVED carry action:'call_admin' (handled before deep links)
 };
 
