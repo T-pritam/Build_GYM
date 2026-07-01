@@ -81,6 +81,11 @@ export const setInstanceRemark = async (id, remark) => {
   return data;
 };
 
+export const fetchMemberAssignmentBatch = async (instanceId) => {
+  const { data } = await api.get(`/member/instances/${instanceId}/batch`);
+  return data.data; // { batchId, templateName, instances: [{ id, workoutDate, status, isFuture }] }
+};
+
 export const fetchWorkoutHistory = async (params = {}) => {
   const { data } = await api.get('/member/workouts', { params });
   return data.data;

@@ -152,12 +152,14 @@ export default function ChatThreadScreen({ route, navigation }) {
     const rep = representativeMessage(item);
     const showDivider = !older || dayKey(representativeMessage(older).createdAt) !== dayKey(rep.createdAt);
     if (item.kind === 'album') {
+      const lastTile = item.images[Math.min(item.images.length, 4) - 1];
       return (
         <View>
           {showDivider ? <DayDivider date={rep.createdAt} /> : null}
           <View style={[styles.bubbleRow, { justifyContent: item.senderId === me ? 'flex-end' : 'flex-start' }]}>
             <MediaAlbumGrid threadId={threadId} images={item.images} getMedia={svc.getMedia}
-              onOpenAt={(idx) => setAlbumViewer({ images: item.images, initialIndex: idx })} />
+              onOpenAt={(idx) => setAlbumViewer({ images: item.images, initialIndex: idx })}
+              lastTileTimeLabel={dayjs(lastTile.createdAt).format('HH:mm')} lastTileTick={tickFor(lastTile)} />
           </View>
         </View>
       );
@@ -270,7 +272,7 @@ function MessageRow({ m, mine, tick, onLongPress, onRetry, onOpenMedia, navigati
   }
   if (m.type === 'workout_card') {
     return (
-      <TouchableOpacity style={styles.card} onPress={() => m.workoutLogId && navigation.navigate('WorkoutSession', { workoutId: m.workoutLogId })}>
+      <TouchableOpacity style={styles.card} onPress={() => m.workoutLogId && navigation.navigate('WorkoutAssignmentOverview', { workoutId: m.workoutLogId })}>
         <Ionicons name="barbell" size={20} color={COLORS.primaryLight} />
         <View style={{ flex: 1, marginLeft: 10 }}>
           <Text style={styles.cardTitle}>{m.body || 'Workout'}</Text>
@@ -285,24 +287,37 @@ function MessageRow({ m, mine, tick, onLongPress, onRetry, onOpenMedia, navigati
       style={[styles.bubbleRow, { justifyContent: mine ? 'flex-end' : 'flex-start' }]}>
       <View style={[styles.bubble, mine ? styles.bubbleMine : styles.bubbleTheirs, isMedia && styles.bubbleMedia]}>
         {m.type === 'image' ? (
-          <ChatImageThumb threadId={threadId} messageId={m.id} getMedia={getMedia} style={styles.singleImageThumb} onPress={onOpenMedia} />
+          <ChatImageThumb threadId={threadId} messageId={m.id} getMedia={getMedia} style={styles.singleImageThumb} onPress={onOpenMedia}
+            timeLabel={dayjs(m.createdAt).format('HH:mm')} tick={tick} />
         ) : m.type === 'pdf' ? (
           <PdfBubble threadId={threadId} message={m} getMedia={getMedia} onPress={onOpenMedia} />
         ) : (
           <Text style={styles.bubbleTxt}>{m.body}</Text>
         )}
-        <View style={[styles.metaRow, isMedia && styles.mediaMetaRow]}>
-          <Text style={styles.metaTime}>{dayjs(m.createdAt).format('HH:mm')}</Text>
-          {tick ? (
-            tick.failed ? (
+        {m.type === 'image' ? (
+          tick?.failed ? (
+            <View style={[styles.metaRow, styles.mediaMetaRow]}>
               <TouchableOpacity onPress={onRetry}><Text style={styles.failed}>Not sent — tap to retry</Text></TouchableOpacity>
-            ) : tick.ended ? (
+            </View>
+          ) : tick?.ended ? (
+            <View style={[styles.metaRow, styles.mediaMetaRow]}>
               <Text style={styles.failed}>Not sent — coaching ended</Text>
-            ) : (
-              <Ionicons name={tick.icon} size={14} color={tick.color} style={{ marginLeft: 4 }} />
-            )
-          ) : null}
-        </View>
+            </View>
+          ) : null
+        ) : (
+          <View style={[styles.metaRow, isMedia && styles.mediaMetaRow]}>
+            <Text style={styles.metaTime}>{dayjs(m.createdAt).format('HH:mm')}</Text>
+            {tick ? (
+              tick.failed ? (
+                <TouchableOpacity onPress={onRetry}><Text style={styles.failed}>Not sent — tap to retry</Text></TouchableOpacity>
+              ) : tick.ended ? (
+                <Text style={styles.failed}>Not sent — coaching ended</Text>
+              ) : (
+                <Ionicons name={tick.icon} size={14} color={tick.color} style={{ marginLeft: 4 }} />
+              )
+            ) : null}
+          </View>
+        )}
       </View>
     </TouchableOpacity>
   );

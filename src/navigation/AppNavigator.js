@@ -62,6 +62,7 @@ import SettingsScreen from '../screens/profile/SettingsScreen';
 import {
   WorkoutHomeScreen,
   WorkoutSessionScreen,
+  WorkoutAssignmentOverviewScreen,
   WorkoutSummaryScreen,
   MuscleGroupPickerScreen,
   ExercisePickerScreen,
@@ -352,6 +353,7 @@ export default function AppNavigator() {
         {/* Workout screens */}
         <Stack.Screen name="WorkoutHome" component={WorkoutHomeScreen} />
         <Stack.Screen name="WorkoutSession" component={WorkoutSessionScreen} options={{ gestureEnabled: false }} />
+        <Stack.Screen name="WorkoutAssignmentOverview" component={WorkoutAssignmentOverviewScreen} />
         <Stack.Screen name="WorkoutSummary" component={WorkoutSummaryScreen} options={{ gestureEnabled: false }} />
         <Stack.Screen name="MuscleGroupPicker" component={MuscleGroupPickerScreen} />
         <Stack.Screen name="ExercisePicker" component={ExercisePickerScreen} />

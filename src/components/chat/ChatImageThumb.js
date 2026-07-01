@@ -6,14 +6,14 @@
  * transcript (adminChatService.getMedia) without forking the component.
  */
 import React, { useEffect, useRef, useState } from 'react';
-import { View, ActivityIndicator, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, ActivityIndicator, TouchableOpacity, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 
 import { COLORS } from '../../theme/colors';
 import { getOrFetch, invalidate } from '../../services/chat/chatMediaUrlCache';
 
-export default function ChatImageThumb({ threadId, messageId, getMedia, style, resizeMode = 'cover', onPress }) {
+export default function ChatImageThumb({ threadId, messageId, getMedia, style, resizeMode = 'cover', onPress, timeLabel, tick }) {
   const [url, setUrl] = useState(null);
   const [failed, setFailed] = useState(false);
   const retriedRef = useRef(false);
@@ -47,6 +47,12 @@ export default function ChatImageThumb({ threadId, messageId, getMedia, style, r
       ) : (
         <View style={styles.center}><ActivityIndicator size="small" color={COLORS.primaryLight} /></View>
       )}
+      {timeLabel ? (
+        <View style={styles.timeBadge} pointerEvents="none">
+          <Text style={styles.timeBadgeTxt}>{timeLabel}</Text>
+          {tick?.icon ? <Ionicons name={tick.icon} size={11} color={tick.color || '#fff'} style={{ marginLeft: 2 }} /> : null}
+        </View>
+      ) : null}
     </TouchableOpacity>
   );
 }
@@ -54,4 +60,9 @@ export default function ChatImageThumb({ threadId, messageId, getMedia, style, r
 const styles = StyleSheet.create({
   wrap: { backgroundColor: COLORS.surface2, overflow: 'hidden' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  timeBadge: {
+    position: 'absolute', bottom: 4, right: 4, flexDirection: 'row', alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2,
+  },
+  timeBadgeTxt: { color: '#fff', fontSize: 10, fontWeight: '600' },
 });

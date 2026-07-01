@@ -14,18 +14,20 @@ const TILE = 104;
 const GAP = 3;
 const SINGLE = 220;
 
-export default function MediaAlbumGrid({ threadId, images, getMedia, onOpenAt }) {
+export default function MediaAlbumGrid({ threadId, images, getMedia, onOpenAt, lastTileTimeLabel, lastTileTick }) {
   if (images.length === 1) {
     return (
       <ChatImageThumb
         threadId={threadId} messageId={images[0].id} getMedia={getMedia}
         style={styles.single} onPress={() => onOpenAt(0)}
+        timeLabel={lastTileTimeLabel} tick={lastTileTick}
       />
     );
   }
 
   const visible = images.slice(0, 4);
   const overflow = images.length - 4;
+  const lastIdx = visible.length - 1;
 
   return (
     <View style={styles.grid}>
@@ -34,6 +36,8 @@ export default function MediaAlbumGrid({ threadId, images, getMedia, onOpenAt })
           <ChatImageThumb
             threadId={threadId} messageId={img.id} getMedia={getMedia}
             style={StyleSheet.absoluteFill} onPress={() => onOpenAt(idx)}
+            timeLabel={idx === lastIdx ? lastTileTimeLabel : undefined}
+            tick={idx === lastIdx ? lastTileTick : undefined}
           />
           {idx === 3 && overflow > 0 ? (
             <View style={styles.overlay} pointerEvents="none">

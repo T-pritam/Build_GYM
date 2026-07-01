@@ -1,5 +1,6 @@
 export { default as WorkoutHomeScreen } from './WorkoutHomeScreen';
 export { default as WorkoutSessionScreen } from './WorkoutSessionScreen';
+export { default as WorkoutAssignmentOverviewScreen } from './WorkoutAssignmentOverviewScreen';
 export { default as WorkoutSummaryScreen } from './WorkoutSummaryScreen';
 export { default as MuscleGroupPickerScreen } from './MuscleGroupPickerScreen';
 export { default as ExercisePickerScreen } from './ExercisePickerScreen';
