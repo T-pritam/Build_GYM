@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -109,6 +111,7 @@ export default function BlogFeedScreen({ navigation, route }) {
     loadBlog();
   }, [loadBlog]);
 
+  const scrollRef = useRef(null);
   const voteTimerRef = useRef(null);
   const prevVoteStateRef = useRef(null);
 
@@ -225,7 +228,7 @@ export default function BlogFeedScreen({ navigation, route }) {
   const readTime = blog.estimatedReadTime || 1;
 
   return (
-    <View style={styles.root}>
+    <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
@@ -238,9 +241,11 @@ export default function BlogFeedScreen({ navigation, route }) {
       </View>
 
       <ScrollView
+        ref={scrollRef}
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingBottom: 60 }}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         {/* Hero block */}
         <View style={[styles.hero, !blog.coverImageUrl && { backgroundColor: catColor }]}>
@@ -338,6 +343,7 @@ export default function BlogFeedScreen({ navigation, route }) {
               onChangeText={setComment}
               returnKeyType="send"
               onSubmitEditing={handleSendComment}
+              onFocus={() => scrollRef.current?.scrollToEnd({ animated: true })}
             />
             <TouchableOpacity style={styles.sendBtn} onPress={handleSendComment} activeOpacity={0.8} disabled={submitting}>
               {submitting ? (
@@ -375,7 +381,7 @@ export default function BlogFeedScreen({ navigation, route }) {
           ))}
         </View>
       </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

@@ -138,12 +138,17 @@ export const useChatStore = create((set, get) => ({
 
   // ── incoming live message ────────────────────────────────────────────────────
   handleIncoming: async (m) => {
+    const me = useAuthStore.getState().user?.id;
+    // Our own message echoed back over the socket — trySend already persists and
+    // renders it. Reprocessing collides with confirmOptimistic's SQLite transaction
+    // and (the echo carries no status) would overwrite the optimistic 'sent'.
+    if (m.senderId && m.senderId === me) return;
     await cacheMessages(m.threadId, [m]);
     get().mergeMessages(m.threadId, [m]);
-    const me = useAuthStore.getState().user?.id;
+    sock.emitDelivered(m.threadId, m.id); // ack delivery → sender's ✓✓
     if (get().openThreadId === m.threadId) {
       get().markReadNewest(m.threadId);
-    } else if (m.senderId && m.senderId !== me) {
+    } else {
       set((st) => ({
         threads: st.threads.map((t) => t.id === m.threadId
           ? { ...t, unread: (t.unread || 0) + 1, lastMessagePreview: previewOf(m), lastMessageAt: m.createdAt }
@@ -191,22 +196,26 @@ export const useChatStore = create((set, get) => ({
   },
 
   trySend: async (threadId, item) => {
+    let msg;
     try {
-      const msg = await svc.sendMessage(threadId, {
+      msg = await svc.sendMessage(threadId, {
         type: item.type, body: item.body, objectKey: item.objectKey, clientMsgUuid: item.clientMsgUuid,
       });
-      await confirmOptimistic(threadId, item.clientMsgUuid, msg);
-      await dequeueOutbox(item.clientMsgUuid);
-      set((st) => {
-        const list = (st.messagesByThread[threadId] || []).filter((m) => m.id !== `tmp:${item.clientMsgUuid}`);
-        return { messagesByThread: { ...st.messagesByThread, [threadId]: sortNewestFirst(dedupe([{ ...msg, status: 'sent' }, ...list])) } };
-      });
     } catch (e) {
+      // Only an HTTP send rejection means "not sent".
       const ended = e?.response?.data?.code === 'THREAD_NOT_ACTIVE';
-      await markFailed(item.clientMsgUuid);
-      await dequeueOutbox(item.clientMsgUuid); // don't retry hard failures
+      await markFailed(item.clientMsgUuid).catch(() => {});
+      await dequeueOutbox(item.clientMsgUuid).catch(() => {}); // don't retry hard failures
       get().setMsgStatus(threadId, `tmp:${item.clientMsgUuid}`, ended ? 'ended' : 'failed');
+      return;
     }
+    // Sent for sure — the local cache write is best-effort and must never flip to failed.
+    try { await confirmOptimistic(threadId, item.clientMsgUuid, msg); } catch (_) {}
+    await dequeueOutbox(item.clientMsgUuid).catch(() => {});
+    set((st) => {
+      const list = (st.messagesByThread[threadId] || []).filter((m) => m.id !== `tmp:${item.clientMsgUuid}`);
+      return { messagesByThread: { ...st.messagesByThread, [threadId]: sortNewestFirst(dedupe([{ ...msg, status: 'sent' }, ...list])) } };
+    });
   },
 
   retry: async (threadId, message) => {

@@ -317,7 +317,7 @@ export default function PostDetailScreen({ navigation, route }) {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior="padding"
     >
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
       <View style={styles.glowTop} pointerEvents="none" />
@@ -641,7 +641,7 @@ const styles = StyleSheet.create({
   },
   headerIconBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontSize: 18, color: COLORS.white, fontFamily: FONTS.bodyBold },
-  content: { padding: 20, paddingBottom: 110 },
+  content: { padding: 20, paddingBottom: 24 },
 
   // Post card (glass)
   postCard: {
@@ -727,7 +727,6 @@ const styles = StyleSheet.create({
 
   // Input bar
   commentInputBar: {
-    position: 'absolute', bottom: 0, left: 0, right: 0,
     paddingHorizontal: 16, paddingTop: 10, paddingBottom: 30,
     backgroundColor: '#1A1A2E', borderTopWidth: 1, borderTopColor: COLORS.glassBorder,
   },

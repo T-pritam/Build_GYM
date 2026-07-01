@@ -1,6 +1,6 @@
 /**
  * ChatThreadScreen — the member's conversation with their coach.
- * Inverted FlashList (newest at bottom), optimistic send + ticks, day dividers,
+ * Inverted FlatList (newest at bottom), optimistic send + ticks, day dividers,
  * one-time disclosure banner, attach (camera/gallery/pdf) with on-device compress
  * + presigned upload, workout cards (live pointer), and long-press Copy/Report.
  * Immutable: long-press offers only Copy + Report (no edit/delete).
@@ -8,11 +8,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView,
-  Platform, ActivityIndicator, Alert, Linking, Modal,
+  Platform, ActivityIndicator, Alert, Linking, Modal, Image, FlatList,
 } from 'react-native';
-import { FlashList } from '@shopify/flash-list';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
+import * as WebBrowser from 'expo-web-browser';
 import dayjs from 'dayjs';
 
 import { COLORS } from '../../theme/colors';
@@ -43,11 +44,14 @@ export default function ChatThreadScreen({ route, navigation }) {
   const coachId = thread?.trainerId || route.params.coachId;
   const state = thread?.state || route.params.state || 'active';
 
+  const insets = useSafeAreaInsets();
   const listRef = useRef(null);
   const [text, setText] = useState('');
   const [showDisclosure, setShowDisclosure] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
+  const [showMute, setShowMute] = useState(false);
+  const [viewerUrl, setViewerUrl] = useState(null);
 
   useEffect(() => {
     openThread(threadId);
@@ -115,12 +119,7 @@ export default function ChatThreadScreen({ route, navigation }) {
       svc.unmuteThread(threadId).then(() => setThreadMuted(threadId, false)).catch(() => {});
       return;
     }
-    Alert.alert('Mute notifications', undefined, [
-      { text: 'For 8 hours', onPress: () => mute('8h') },
-      { text: 'For 1 week', onPress: () => mute('1w') },
-      { text: 'Until I turn it back on', onPress: () => mute('forever') },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
+    setShowMute(true);
   };
   const mute = (d) => svc.muteThread(threadId, d).then(() => setThreadMuted(threadId, true)).catch(() => {});
 
@@ -150,8 +149,8 @@ export default function ChatThreadScreen({ route, navigation }) {
   };
 
   return (
-    <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <Header navigation={navigation} coachId={coachId} muted={thread?.muted} frozen={state === 'frozen'} onMute={onMute} />
+    <KeyboardAvoidingView style={styles.screen} behavior="padding">
+      <Header navigation={navigation} coachId={coachId} muted={thread?.muted} frozen={state === 'frozen'} onMute={onMute} topInset={insets.top} />
       {showDisclosure ? <DisclosureBanner onAck={ackDisclosure} /> : null}
 
       {messages.length === 0 ? (
@@ -159,10 +158,9 @@ export default function ChatThreadScreen({ route, navigation }) {
           <Text style={styles.emptyHi}>Say hi to your coach 👋</Text>
         </View>
       ) : (
-        <FlashList
+        <FlatList
           ref={listRef}
           inverted
-          estimatedItemSize={80}
           data={messages}
           keyExtractor={(m) => m.id}
           renderItem={renderItem}
@@ -174,7 +172,7 @@ export default function ChatThreadScreen({ route, navigation }) {
 
       <InputBar
         state={state} text={text} setText={setText} onSend={onSend}
-        onAttach={onAttach} uploading={uploading}
+        onAttach={onAttach} uploading={uploading} bottomInset={insets.bottom}
       />
       <ChatAttachPicker
         visible={showPicker}
@@ -183,19 +181,26 @@ export default function ChatThreadScreen({ route, navigation }) {
         onGallery={() => doImage(false)}
         onPdf={doPdf}
       />
+      <MuteSheet visible={showMute} onClose={() => setShowMute(false)} onPick={mute} />
+      <ImageViewer url={viewerUrl} onClose={() => setViewerUrl(null)} />
     </KeyboardAvoidingView>
   );
 
   function openMedia(tid, m) {
     if (!m.objectKey) return;
-    svc.getMedia(tid, m.id).then(({ url }) => Linking.openURL(url)).catch(() => Alert.alert('Could not open file'));
+    svc.getMedia(tid, m.id)
+      .then(({ url }) => {
+        if (m.type === 'pdf') return WebBrowser.openBrowserAsync(url);
+        setViewerUrl(url); // image → in-app full-screen viewer
+      })
+      .catch(() => Alert.alert('Could not open file'));
   }
 }
 
 // ─── Subcomponents ────────────────────────────────────────────────────────────
-function Header({ navigation, coachId, muted, frozen, onMute }) {
+function Header({ navigation, coachId, muted, frozen, onMute, topInset = 0 }) {
   return (
-    <View style={styles.header}>
+    <View style={[styles.header, { paddingTop: topInset + 10 }]}>
       <TouchableOpacity onPress={() => navigation.goBack()} style={styles.hBtn}>
         <Ionicons name="chevron-back" size={24} color={COLORS.textPrimary} />
       </TouchableOpacity>
@@ -277,13 +282,13 @@ function MessageRow({ m, mine, tick, onLongPress, onRetry, onOpenMedia, navigati
   );
 }
 
-function InputBar({ state, text, setText, onSend, onAttach, uploading }) {
+function InputBar({ state, text, setText, onSend, onAttach, uploading, bottomInset = 0 }) {
   if (state === 'archived') {
-    return <View style={styles.lockBar}><Text style={styles.lockTxt}>This coaching has ended. Messages are kept for your records.</Text></View>;
+    return <View style={[styles.lockBar, { paddingBottom: bottomInset + 14 }]}><Text style={styles.lockTxt}>This coaching has ended. Messages are kept for your records.</Text></View>;
   }
   if (state === 'frozen') {
     return (
-      <View style={styles.lockBar}>
+      <View style={[styles.lockBar, { paddingBottom: bottomInset + 14 }]}>
         <Text style={styles.lockTxt}>Chat paused by gym management — </Text>
         <TouchableOpacity onPress={() => Linking.openURL(`tel:${RECEPTION_PHONE}`)}><Text style={styles.lockLink}>contact the front desk</Text></TouchableOpacity>
       </View>
@@ -292,7 +297,7 @@ function InputBar({ state, text, setText, onSend, onAttach, uploading }) {
   return (
     <View>
       {text.length >= 1800 ? <Text style={styles.counter}>{text.length}/{MAX_LEN}</Text> : null}
-      <View style={styles.inputBar}>
+      <View style={[styles.inputBar, { paddingBottom: bottomInset + 8 }]}>
         <TouchableOpacity onPress={onAttach} style={styles.attachBtn} disabled={uploading}>
           {uploading ? <ActivityIndicator size="small" color={COLORS.primaryLight} /> : <Ionicons name="add" size={26} color={COLORS.primaryLight} />}
         </TouchableOpacity>
@@ -347,6 +352,68 @@ const pickerStyles = StyleSheet.create({
   option: { alignItems: 'center', gap: 8, marginBottom: 8, minWidth: 70 },
   iconBg: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
   label: { fontSize: 12 },
+});
+
+// ─── Mute notifications bottom sheet ──────────────────────────────────────────
+function MuteSheet({ visible, onClose, onPick }) {
+  const opts = [
+    { d: '8h', icon: 'time-outline', label: 'For 8 hours' },
+    { d: '1w', icon: 'calendar-outline', label: 'For 1 week' },
+    { d: 'forever', icon: 'infinite-outline', label: 'Until I turn it back on' },
+  ];
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <TouchableOpacity style={muteStyles.backdrop} activeOpacity={1} onPress={onClose}>
+        <TouchableOpacity activeOpacity={1} onPress={() => {}} style={muteStyles.sheet}>
+          <View style={muteStyles.handle} />
+          <Text style={muteStyles.title}>Mute notifications</Text>
+          {opts.map((o, i) => (
+            <TouchableOpacity
+              key={o.d}
+              style={[muteStyles.row, i < opts.length - 1 && muteStyles.rowDivider]}
+              onPress={() => { onClose(); onPick(o.d); }}
+            >
+              <Ionicons name={o.icon} size={20} color={COLORS.primaryLight} style={{ marginRight: 14 }} />
+              <Text style={muteStyles.rowTxt}>{o.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </TouchableOpacity>
+      </TouchableOpacity>
+    </Modal>
+  );
+}
+
+const muteStyles = StyleSheet.create({
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
+  sheet: { backgroundColor: COLORS.surface, borderTopLeftRadius: 22, borderTopRightRadius: 22, paddingTop: 10, paddingHorizontal: 20, paddingBottom: 40 },
+  handle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#555', alignSelf: 'center', marginBottom: 14 },
+  title: { color: COLORS.textPrimary, fontSize: 16, fontWeight: '800', marginBottom: 8, marginLeft: 4 },
+  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 16 },
+  rowDivider: { borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  rowTxt: { color: COLORS.textPrimary, fontSize: 15 },
+});
+
+// ─── Full-screen image viewer (in-app) ────────────────────────────────────────
+function ImageViewer({ url, onClose }) {
+  return (
+    <Modal visible={!!url} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={viewerStyles.backdrop}>
+        <TouchableOpacity style={viewerStyles.close} onPress={onClose}>
+          <Ionicons name="close" size={28} color="#fff" />
+        </TouchableOpacity>
+        <TouchableOpacity style={viewerStyles.fill} activeOpacity={1} onPress={onClose}>
+          {url ? <Image source={{ uri: url }} style={viewerStyles.image} resizeMode="contain" /> : null}
+        </TouchableOpacity>
+      </View>
+    </Modal>
+  );
+}
+
+const viewerStyles = StyleSheet.create({
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.95)' },
+  close: { position: 'absolute', top: 44, right: 20, zIndex: 2, padding: 6 },
+  fill: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  image: { width: '100%', height: '100%' },
 });
 
 const styles = StyleSheet.create({

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView,
-  ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Modal,
+  ActivityIndicator, Alert, Keyboard, Modal,
   Animated, Dimensions, Pressable,
 } from 'react-native';
 import { Image } from 'expo-image';
@@ -54,6 +54,7 @@ export default function CommentsSheet({ visible, postId, onClose, onCountChange 
   const [commentText, setCommentText] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  const [kbHeight, setKbHeight] = useState(0);
   const slide = useRef(new Animated.Value(SHEET_H)).current;
   const backdrop = useRef(new Animated.Value(0)).current;
 
@@ -69,6 +70,12 @@ export default function CommentsSheet({ visible, postId, onClose, onCountChange 
       setLoading(false);
     }
   }, [postId]);
+
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', (e) => setKbHeight(e.endCoordinates.height));
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKbHeight(0));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
 
   useEffect(() => {
     if (visible) {
@@ -142,16 +149,13 @@ export default function CommentsSheet({ visible, postId, onClose, onCountChange 
 
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={requestClose}>
-      <View style={styles.root}>
+      <View style={[styles.root, kbHeight > 0 && { paddingBottom: kbHeight }]}>
         <Animated.View style={[styles.backdrop, { opacity: backdrop }]}>
           <Pressable style={StyleSheet.absoluteFill} onPress={requestClose} />
         </Animated.View>
 
         <Animated.View style={[styles.sheet, { transform: [{ translateY: slide }] }]}>
-          <KeyboardAvoidingView
-            style={{ flex: 1 }}
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          >
+          <View style={{ flex: 1 }}>
             {/* Drag handle */}
             <View style={styles.handleWrap}>
               <View style={styles.handle} />
@@ -258,7 +262,7 @@ export default function CommentsSheet({ visible, postId, onClose, onCountChange 
                 </TouchableOpacity>
               </View>
             </View>
-          </KeyboardAvoidingView>
+          </View>
         </Animated.View>
       </View>
     </Modal>

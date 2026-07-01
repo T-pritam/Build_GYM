@@ -16,7 +16,7 @@ const MAX_BYTES = 10 * 1024 * 1024;
 
 /** Pick from gallery (or camera) and compress. Returns { uri, mime, size } or null. */
 export async function pickAndCompressImage(fromCamera = false) {
-  const opts = { mediaTypes: ['images'], quality: 1, allowsEditing: false };
+  const opts = { mediaTypes: ['images'], quality: 1, allowsEditing: true };
   const res = fromCamera
     ? await ImagePicker.launchCameraAsync(opts)
     : await ImagePicker.launchImageLibraryAsync(opts);
