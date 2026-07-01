@@ -1,9 +1,12 @@
 /**
  * chatMedia.js — pick + on-device compress + presigned direct-to-R2 upload.
  *
- * Image: compressed to ≤2048px JPEG q0.7 (HEIC→JPEG handled by the manipulator)
- * BEFORE upload, so the VPS never sees the bytes. PDF: size-checked, no compress.
- * The server re-validates the real size/type via HeadObject at confirm (sendMessage).
+ * Image: compressed to ≤400KB via a discrete step-list retry (each attempt
+ * re-manipulates from the ORIGINAL asset, never the previous output, to avoid
+ * compounding quality loss) BEFORE upload, so the VPS never sees the bytes.
+ * Gallery supports picking several images at once (camera stays single-shot).
+ * PDF: size-checked (5MB cap), no compression — the server re-validates the
+ * real size/type via HeadObject at confirm (sendMessage).
  */
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -12,24 +15,45 @@ import { getInfoAsync, uploadAsync, FileSystemUploadType } from 'expo-file-syste
 
 import { attachIntent } from './chatService';
 
-const MAX_BYTES = 10 * 1024 * 1024;
+const MAX_IMAGE_BYTES = 400 * 1024;
+const MAX_PDF_BYTES = 5 * 1024 * 1024;
 
-/** Pick from gallery (or camera) and compress. Returns { uri, mime, size } or null. */
+const COMPRESS_STEPS = [
+  { width: 2048, quality: 0.7 },
+  { width: 1600, quality: 0.6 },
+  { width: 1280, quality: 0.5 },
+  { width: 1024, quality: 0.4 },
+  { width: 800, quality: 0.35 },
+];
+
+async function compressOne(asset) {
+  let best = null;
+  for (const step of COMPRESS_STEPS) {
+    const manipulated = await ImageManipulator.manipulateAsync(
+      asset.uri, // always the ORIGINAL — never re-compress an already-compressed output
+      [{ resize: { width: step.width } }],
+      { compress: step.quality, format: ImageManipulator.SaveFormat.JPEG },
+    );
+    const info = await getInfoAsync(manipulated.uri);
+    const size = info.size ?? 0;
+    if (best === null || size < best.size) best = { uri: manipulated.uri, size };
+    if (size <= MAX_IMAGE_BYTES) return { uri: manipulated.uri, mime: 'image/jpeg', size };
+  }
+  // Fell through every step — return the smallest attempt found.
+  return { uri: best.uri, mime: 'image/jpeg', size: best.size };
+}
+
+/**
+ * Pick from gallery (multi-select) or camera (single shot) and compress each.
+ * Returns an array of { uri, mime, size } (empty/null if the user cancelled).
+ */
 export async function pickAndCompressImage(fromCamera = false) {
-  const opts = { mediaTypes: ['images'], quality: 1, allowsEditing: true };
+  const opts = { mediaTypes: ['images'], quality: 1, allowsEditing: fromCamera };
   const res = fromCamera
     ? await ImagePicker.launchCameraAsync(opts)
-    : await ImagePicker.launchImageLibraryAsync(opts);
+    : await ImagePicker.launchImageLibraryAsync({ ...opts, allowsMultipleSelection: true });
   if (res.canceled || !res.assets?.length) return null;
-
-  const asset = res.assets[0];
-  const manipulated = await ImageManipulator.manipulateAsync(
-    asset.uri,
-    [{ resize: { width: 2048 } }],
-    { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG },
-  );
-  const info = await getInfoAsync(manipulated.uri);
-  return { uri: manipulated.uri, mime: 'image/jpeg', size: info.size ?? 0 };
+  return Promise.all(res.assets.map(compressOne));
 }
 
 /** Pick a PDF. Returns { uri, mime, size, name } or null. */
@@ -42,15 +66,17 @@ export async function pickPdf() {
 
 /**
  * Upload a picked/compressed file to R2 via presigned PUT.
- * @returns { objectKey, type }  → pass to chatStore.sendMedia
+ * @returns { objectKey, type, fileName }  → pass to chatStore.sendMedia
  */
 export async function uploadToR2(threadId, file) {
-  if (file.size && file.size > MAX_BYTES) {
-    const err = new Error('File exceeds the 10 MB limit');
+  const isPdf = file.mime === 'application/pdf';
+  const cap = isPdf ? MAX_PDF_BYTES : MAX_IMAGE_BYTES;
+  if (file.size && file.size > cap) {
+    const err = new Error(`File exceeds the ${isPdf ? '5 MB' : '400 KB'} limit`);
     err.code = 'FILE_TOO_LARGE';
     throw err;
   }
-  const kind = file.mime === 'application/pdf' ? 'pdf' : 'image';
+  const kind = isPdf ? 'pdf' : 'image';
   const intent = await attachIntent(threadId, { mime: file.mime, size: file.size, kind });
 
   const result = await uploadAsync(intent.uploadUrl, file.uri, {
@@ -61,5 +87,5 @@ export async function uploadToR2(threadId, file) {
   if (result.status < 200 || result.status >= 300) {
     throw new Error(`Upload failed (${result.status})`);
   }
-  return { objectKey: intent.objectKey, type: intent.type };
+  return { objectKey: intent.objectKey, type: intent.type, fileName: file.name || null };
 }

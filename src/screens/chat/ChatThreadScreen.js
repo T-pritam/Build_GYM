@@ -8,7 +8,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView,
-  Platform, ActivityIndicator, Alert, Linking, Modal, Image, FlatList,
+  Platform, ActivityIndicator, Alert, Linking, Modal, FlatList,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -22,6 +22,12 @@ import { useAuthStore } from '../../store/authStore';
 import * as svc from '../../services/chat/chatService';
 import { setForeground } from '../../services/chat/chatSocket';
 import { pickAndCompressImage, pickPdf, uploadToR2 } from '../../services/chat/chatMedia';
+import { getOrFetch } from '../../services/chat/chatMediaUrlCache';
+import { groupAlbums, representativeMessage } from '../../utils/chatAlbumGrouping';
+import ChatImageThumb from '../../components/chat/ChatImageThumb';
+import MediaAlbumGrid from '../../components/chat/MediaAlbumGrid';
+import MediaAlbumViewer from '../../components/chat/MediaAlbumViewer';
+import PdfBubble from '../../components/chat/PdfBubble';
 import { RECEPTION_PHONE } from '../../services/notificationService';
 
 const MAX_LEN = 2000;
@@ -51,7 +57,7 @@ export default function ChatThreadScreen({ route, navigation }) {
   const [uploading, setUploading] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
   const [showMute, setShowMute] = useState(false);
-  const [viewerUrl, setViewerUrl] = useState(null);
+  const [albumViewer, setAlbumViewer] = useState(null); // { images, initialIndex } | null
 
   useEffect(() => {
     openThread(threadId);
@@ -81,11 +87,15 @@ export default function ChatThreadScreen({ route, navigation }) {
   const onAttach = () => setShowPicker(true);
   const doImage = async (fromCamera) => {
     try {
-      const file = await pickAndCompressImage(fromCamera);
-      if (!file) return;
+      const files = await pickAndCompressImage(fromCamera);
+      if (!files || !files.length) return;
       setUploading(true);
-      const { objectKey, type } = await uploadToR2(threadId, file);
-      await sendMedia(threadId, { type, objectKey });
+      for (const file of files) { // sequential: preserves pick order, kinder to a poor connection
+        try {
+          const { objectKey, type } = await uploadToR2(threadId, file);
+          await sendMedia(threadId, { type, objectKey });
+        } catch (e) { /* this image's optimistic row already shows its own failed/retry state */ }
+      }
     } catch (e) { Alert.alert('Upload failed', e.message || 'Please try again'); }
     finally { setUploading(false); }
   };
@@ -94,8 +104,8 @@ export default function ChatThreadScreen({ route, navigation }) {
       const file = await pickPdf();
       if (!file) return;
       setUploading(true);
-      const { objectKey, type } = await uploadToR2(threadId, file);
-      await sendMedia(threadId, { type, objectKey });
+      const { objectKey, type, fileName } = await uploadToR2(threadId, file);
+      await sendMedia(threadId, { type, objectKey, fileName });
     } catch (e) { Alert.alert('Upload failed', e.message || 'Please try again'); }
     finally { setUploading(false); }
   };
@@ -135,15 +145,30 @@ export default function ChatThreadScreen({ route, navigation }) {
     return { icon: 'checkmark', color: COLORS.textMuted };
   }, [me, reads, coachId]);
 
+  const grouped = useMemo(() => groupAlbums(messages), [messages]);
+
   const renderItem = ({ item, index }) => {
-    const older = messages[index + 1]; // inverted: next index is older
-    const showDivider = !older || dayKey(older.createdAt) !== dayKey(item.createdAt);
+    const older = grouped[index + 1]; // inverted: next index is older
+    const rep = representativeMessage(item);
+    const showDivider = !older || dayKey(representativeMessage(older).createdAt) !== dayKey(rep.createdAt);
+    if (item.kind === 'album') {
+      return (
+        <View>
+          {showDivider ? <DayDivider date={rep.createdAt} /> : null}
+          <View style={[styles.bubbleRow, { justifyContent: item.senderId === me ? 'flex-end' : 'flex-start' }]}>
+            <MediaAlbumGrid threadId={threadId} images={item.images} getMedia={svc.getMedia}
+              onOpenAt={(idx) => setAlbumViewer({ images: item.images, initialIndex: idx })} />
+          </View>
+        </View>
+      );
+    }
+    const m = item.message;
     return (
       <View>
-        {showDivider ? <DayDivider date={item.createdAt} /> : null}
-        <MessageRow m={item} mine={item.senderId === me} tick={tickFor(item)}
-          onLongPress={() => onLongPress(item)} onRetry={() => retry(threadId, item)}
-          onOpenMedia={() => openMedia(threadId, item)} navigation={navigation} />
+        {showDivider ? <DayDivider date={rep.createdAt} /> : null}
+        <MessageRow m={m} mine={m.senderId === me} tick={tickFor(m)} threadId={threadId} getMedia={svc.getMedia}
+          onLongPress={() => onLongPress(m)} onRetry={() => retry(threadId, m)}
+          onOpenMedia={() => openMedia(threadId, m)} navigation={navigation} />
       </View>
     );
   };
@@ -161,8 +186,8 @@ export default function ChatThreadScreen({ route, navigation }) {
         <FlatList
           ref={listRef}
           inverted
-          data={messages}
-          keyExtractor={(m) => m.id}
+          data={grouped}
+          keyExtractor={(g) => (g.kind === 'album' ? g.id : g.message.id)}
           renderItem={renderItem}
           onEndReached={() => loadOlder(threadId)}
           onEndReachedThreshold={0.4}
@@ -182,17 +207,19 @@ export default function ChatThreadScreen({ route, navigation }) {
         onPdf={doPdf}
       />
       <MuteSheet visible={showMute} onClose={() => setShowMute(false)} onPick={mute} />
-      <ImageViewer url={viewerUrl} onClose={() => setViewerUrl(null)} />
+      <MediaAlbumViewer
+        threadId={threadId} getMedia={svc.getMedia}
+        images={albumViewer?.images || null} initialIndex={albumViewer?.initialIndex || 0}
+        onClose={() => setAlbumViewer(null)}
+      />
     </KeyboardAvoidingView>
   );
 
   function openMedia(tid, m) {
     if (!m.objectKey) return;
-    svc.getMedia(tid, m.id)
-      .then(({ url }) => {
-        if (m.type === 'pdf') return WebBrowser.openBrowserAsync(url);
-        setViewerUrl(url); // image → in-app full-screen viewer
-      })
+    if (m.type === 'image') { setAlbumViewer({ images: [m], initialIndex: 0 }); return; }
+    getOrFetch(tid, m.id, svc.getMedia)
+      .then(({ url }) => WebBrowser.openBrowserAsync(url))
       .catch(() => Alert.alert('Could not open file'));
   }
 }
@@ -237,7 +264,7 @@ function DayDivider({ date }) {
   return <View style={styles.divider}><Text style={styles.dividerTxt}>{label}</Text></View>;
 }
 
-function MessageRow({ m, mine, tick, onLongPress, onRetry, onOpenMedia, navigation }) {
+function MessageRow({ m, mine, tick, onLongPress, onRetry, onOpenMedia, navigation, threadId, getMedia }) {
   if (m.type === 'system') {
     return <View style={styles.sysWrap}><Text style={styles.sysTxt}>{m.body}</Text></View>;
   }
@@ -256,16 +283,15 @@ function MessageRow({ m, mine, tick, onLongPress, onRetry, onOpenMedia, navigati
   return (
     <TouchableOpacity activeOpacity={0.8} onLongPress={onLongPress}
       style={[styles.bubbleRow, { justifyContent: mine ? 'flex-end' : 'flex-start' }]}>
-      <View style={[styles.bubble, mine ? styles.bubbleMine : styles.bubbleTheirs]}>
-        {isMedia ? (
-          <TouchableOpacity onPress={onOpenMedia} style={styles.mediaChip}>
-            <Ionicons name={m.type === 'pdf' ? 'document-text' : 'image'} size={18} color={COLORS.textPrimary} />
-            <Text style={styles.mediaTxt}>{m.type === 'pdf' ? 'PDF' : 'Photo'}</Text>
-          </TouchableOpacity>
+      <View style={[styles.bubble, mine ? styles.bubbleMine : styles.bubbleTheirs, isMedia && styles.bubbleMedia]}>
+        {m.type === 'image' ? (
+          <ChatImageThumb threadId={threadId} messageId={m.id} getMedia={getMedia} style={styles.singleImageThumb} onPress={onOpenMedia} />
+        ) : m.type === 'pdf' ? (
+          <PdfBubble threadId={threadId} message={m} getMedia={getMedia} onPress={onOpenMedia} />
         ) : (
           <Text style={styles.bubbleTxt}>{m.body}</Text>
         )}
-        <View style={styles.metaRow}>
+        <View style={[styles.metaRow, isMedia && styles.mediaMetaRow]}>
           <Text style={styles.metaTime}>{dayjs(m.createdAt).format('HH:mm')}</Text>
           {tick ? (
             tick.failed ? (
@@ -393,28 +419,6 @@ const muteStyles = StyleSheet.create({
   rowTxt: { color: COLORS.textPrimary, fontSize: 15 },
 });
 
-// ─── Full-screen image viewer (in-app) ────────────────────────────────────────
-function ImageViewer({ url, onClose }) {
-  return (
-    <Modal visible={!!url} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={viewerStyles.backdrop}>
-        <TouchableOpacity style={viewerStyles.close} onPress={onClose}>
-          <Ionicons name="close" size={28} color="#fff" />
-        </TouchableOpacity>
-        <TouchableOpacity style={viewerStyles.fill} activeOpacity={1} onPress={onClose}>
-          {url ? <Image source={{ uri: url }} style={viewerStyles.image} resizeMode="contain" /> : null}
-        </TouchableOpacity>
-      </View>
-    </Modal>
-  );
-}
-
-const viewerStyles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.95)' },
-  close: { position: 'absolute', top: 44, right: 20, zIndex: 2, padding: 6 },
-  fill: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  image: { width: '100%', height: '100%' },
-});
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: COLORS.background },
@@ -442,9 +446,10 @@ const styles = StyleSheet.create({
   bubbleMine: { backgroundColor: COLORS.primary, borderBottomRightRadius: 4 },
   bubbleTheirs: { backgroundColor: COLORS.surface2, borderBottomLeftRadius: 4 },
   bubbleTxt: { color: COLORS.textPrimary, fontSize: 15 },
-  mediaChip: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4 },
-  mediaTxt: { color: COLORS.textPrimary, fontSize: 14, fontWeight: '600' },
+  bubbleMedia: { padding: 4 },
+  singleImageThumb: { width: 220, height: 220, borderRadius: 12 },
   metaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginTop: 2 },
+  mediaMetaRow: { paddingHorizontal: 4 },
   metaTime: { color: COLORS.textMuted, fontSize: 10 },
   failed: { color: COLORS.errorBright, fontSize: 11, marginLeft: 6 },
   lockBar: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', padding: 14, backgroundColor: COLORS.surface, borderTopWidth: 1, borderTopColor: COLORS.border },

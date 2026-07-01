@@ -25,7 +25,7 @@ export const getMessages = async (threadId, { before, after, limit = 30 } = {}) 
 };
 
 export const sendMessage = async (threadId, payload) => {
-  // payload: { type, body?, objectKey?, clientMsgUuid }
+  // payload: { type, body?, objectKey?, clientMsgUuid, fileName? }
   const { data } = await api.post(`/chat/threads/${threadId}/messages`, payload);
   return data.data; // the message
 };
@@ -37,7 +37,7 @@ export const attachIntent = async (threadId, { mime, size, kind }) => {
 
 export const getMedia = async (threadId, messageId) => {
   const { data } = await api.get(`/chat/threads/${threadId}/media/${messageId}`);
-  return data.data; // { url, mime, size }
+  return data.data; // { url, mime, size, thumbnailUrl, fileName }
 };
 
 export const markRead = async (threadId, upToMessageId) => {

@@ -47,6 +47,13 @@ export async function initChatCache() {
       created_at      TEXT
     );
   `);
+  // SQLite has no ADD COLUMN IF NOT EXISTS — swallow "duplicate column" for existing installs.
+  for (const col of ['thumbnail_key TEXT', 'file_name TEXT']) {
+    try { await db.execAsync(`ALTER TABLE messages ADD COLUMN ${col}`); }
+    catch (e) { if (!/duplicate column/i.test(e.message)) throw e; }
+  }
+  try { await db.execAsync(`ALTER TABLE outbox ADD COLUMN file_name TEXT`); }
+  catch (e) { if (!/duplicate column/i.test(e.message)) throw e; }
 }
 
 /** Upsert a batch of server messages into the cache. */
@@ -57,10 +64,11 @@ export async function cacheMessages(threadId, messages = []) {
     for (const m of messages) {
       await db.runAsync(
         `INSERT OR REPLACE INTO messages
-         (id, thread_id, sender_id, type, body, object_key, media_mime, media_size, workout_log_id, system_event, client_msg_uuid, created_at, status)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+         (id, thread_id, sender_id, type, body, object_key, media_mime, media_size, thumbnail_key, file_name, workout_log_id, system_event, client_msg_uuid, created_at, status)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
         [m.id, threadId, m.senderId ?? null, m.type, m.body ?? null, m.objectKey ?? null,
-         m.mediaMime ?? null, m.mediaSize ?? null, m.workoutLogId ?? null, m.systemEvent ?? null,
+         m.mediaMime ?? null, m.mediaSize ?? null, m.thumbnailKey ?? null, m.fileName ?? null,
+         m.workoutLogId ?? null, m.systemEvent ?? null,
          m.clientMsgUuid ?? null, m.createdAt ?? new Date().toISOString(), m.status ?? 'sent'],
       );
     }
@@ -92,10 +100,10 @@ export async function addOptimistic(threadId, msg) {
   const db = await getDb();
   await db.runAsync(
     `INSERT OR REPLACE INTO messages
-     (id, thread_id, sender_id, type, body, object_key, media_mime, media_size, client_msg_uuid, created_at, status)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+     (id, thread_id, sender_id, type, body, object_key, media_mime, media_size, file_name, client_msg_uuid, created_at, status)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
     [`tmp:${msg.clientMsgUuid}`, threadId, msg.senderId ?? null, msg.type, msg.body ?? null,
-     msg.objectKey ?? null, msg.mediaMime ?? null, msg.mediaSize ?? null,
+     msg.objectKey ?? null, msg.mediaMime ?? null, msg.mediaSize ?? null, msg.fileName ?? null,
      msg.clientMsgUuid, msg.createdAt ?? new Date().toISOString(), 'sending'],
   );
 }
@@ -107,10 +115,11 @@ export async function confirmOptimistic(threadId, clientMsgUuid, serverMsg) {
     await db.runAsync(`DELETE FROM messages WHERE id = ?`, [`tmp:${clientMsgUuid}`]);
     await db.runAsync(
       `INSERT OR REPLACE INTO messages
-       (id, thread_id, sender_id, type, body, object_key, media_mime, media_size, workout_log_id, system_event, client_msg_uuid, created_at, status)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+       (id, thread_id, sender_id, type, body, object_key, media_mime, media_size, thumbnail_key, file_name, workout_log_id, system_event, client_msg_uuid, created_at, status)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [serverMsg.id, threadId, serverMsg.senderId ?? null, serverMsg.type, serverMsg.body ?? null,
        serverMsg.objectKey ?? null, serverMsg.mediaMime ?? null, serverMsg.mediaSize ?? null,
+       serverMsg.thumbnailKey ?? null, serverMsg.fileName ?? null,
        serverMsg.workoutLogId ?? null, serverMsg.systemEvent ?? null, clientMsgUuid,
        serverMsg.createdAt, 'sent'],
     );
@@ -126,10 +135,10 @@ export async function markFailed(clientMsgUuid) {
 export async function enqueueOutbox(item) {
   const db = await getDb();
   await db.runAsync(
-    `INSERT OR REPLACE INTO outbox (client_msg_uuid, thread_id, type, body, object_key, local_uri, created_at)
-     VALUES (?,?,?,?,?,?,?)`,
+    `INSERT OR REPLACE INTO outbox (client_msg_uuid, thread_id, type, body, object_key, local_uri, file_name, created_at)
+     VALUES (?,?,?,?,?,?,?,?)`,
     [item.clientMsgUuid, item.threadId, item.type, item.body ?? null, item.objectKey ?? null,
-     item.localUri ?? null, item.createdAt ?? new Date().toISOString()],
+     item.localUri ?? null, item.fileName ?? null, item.createdAt ?? new Date().toISOString()],
   );
 }
 export async function dequeueOutbox(clientMsgUuid) {
@@ -143,7 +152,8 @@ export async function getOutbox(threadId = null) {
     : await db.getAllAsync(`SELECT * FROM outbox ORDER BY created_at ASC`);
   return rows.map((r) => ({
     clientMsgUuid: r.client_msg_uuid, threadId: r.thread_id, type: r.type,
-    body: r.body, objectKey: r.object_key, localUri: r.local_uri, createdAt: r.created_at,
+    body: r.body, objectKey: r.object_key, localUri: r.local_uri, fileName: r.file_name,
+    createdAt: r.created_at,
   }));
 }
 
@@ -151,6 +161,7 @@ function rowToMessage(r) {
   return {
     id: r.id, threadId: r.thread_id, senderId: r.sender_id, type: r.type, body: r.body,
     objectKey: r.object_key, mediaMime: r.media_mime, mediaSize: r.media_size,
+    thumbnailKey: r.thumbnail_key, fileName: r.file_name,
     workoutLogId: r.workout_log_id, systemEvent: r.system_event, clientMsgUuid: r.client_msg_uuid,
     createdAt: r.created_at, status: r.status,
   };

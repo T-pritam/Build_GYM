@@ -182,24 +182,25 @@ export const useChatStore = create((set, get) => ({
     get().trySend(threadId, { clientMsgUuid, type: 'text', body });
   },
 
-  sendMedia: async (threadId, { type, objectKey }) => {
+  sendMedia: async (threadId, { type, objectKey, fileName }) => {
     const user = useAuthStore.getState().user;
     const clientMsgUuid = genId();
     const optimistic = {
-      id: `tmp:${clientMsgUuid}`, threadId, senderId: user?.id, type, objectKey,
+      id: `tmp:${clientMsgUuid}`, threadId, senderId: user?.id, type, objectKey, fileName,
       clientMsgUuid, createdAt: new Date().toISOString(), status: 'sending',
     };
     get().mergeMessages(threadId, [optimistic]);
     await addOptimistic(threadId, optimistic);
-    await enqueueOutbox({ clientMsgUuid, threadId, type, objectKey });
-    get().trySend(threadId, { clientMsgUuid, type, objectKey });
+    await enqueueOutbox({ clientMsgUuid, threadId, type, objectKey, fileName });
+    get().trySend(threadId, { clientMsgUuid, type, objectKey, fileName });
   },
 
   trySend: async (threadId, item) => {
     let msg;
     try {
       msg = await svc.sendMessage(threadId, {
-        type: item.type, body: item.body, objectKey: item.objectKey, clientMsgUuid: item.clientMsgUuid,
+        type: item.type, body: item.body, objectKey: item.objectKey,
+        clientMsgUuid: item.clientMsgUuid, fileName: item.fileName,
       });
     } catch (e) {
       // Only an HTTP send rejection means "not sent".
@@ -221,7 +222,8 @@ export const useChatStore = create((set, get) => ({
   retry: async (threadId, message) => {
     get().setMsgStatus(threadId, message.id, 'sending');
     get().trySend(threadId, {
-      clientMsgUuid: message.clientMsgUuid, type: message.type, body: message.body, objectKey: message.objectKey,
+      clientMsgUuid: message.clientMsgUuid, type: message.type, body: message.body,
+      objectKey: message.objectKey, fileName: message.fileName,
     });
   },
 
