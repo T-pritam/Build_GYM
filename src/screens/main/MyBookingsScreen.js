@@ -93,7 +93,7 @@ export default function MyBookingsScreen({ navigation }) {
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} hitSlop={10}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('MainTabs')} hitSlop={10}>
           <Ionicons name="arrow-back" size={24} color="#9D7BFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>My Bookings</Text>

@@ -129,7 +129,7 @@ export default function TrainersScreen({ navigation }) {
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('MainTabs')}>
           <Ionicons name="arrow-back" size={22} color={COLORS.cyan} />
         </TouchableOpacity>
         <View style={styles.headerContent}>

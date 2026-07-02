@@ -270,7 +270,7 @@ export default function BlogListScreen({ navigation }) {
           title lives in the scrolling list header, so it scrolls away on scroll. */}
       {!searchActive && (
         <>
-          <TouchableOpacity style={styles.floatBack} onPress={() => navigation.goBack()} hitSlop={10} activeOpacity={0.7}>
+          <TouchableOpacity style={styles.floatBack} onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('MainTabs')} hitSlop={10} activeOpacity={0.7}>
             <GradientIcon name="arrow-back" set="ionicons" size={24} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.floatSearch} onPress={toggleSearch} hitSlop={10} activeOpacity={0.7}>

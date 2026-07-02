@@ -225,7 +225,7 @@ export default function PostDetailScreen({ navigation, route }) {
         onPress: async () => {
           try {
             await deleteCommunityPost(postId);
-            navigation.goBack();
+            navigation.canGoBack() ? navigation.goBack() : navigation.navigate('MainTabs');
           } catch {
             Alert.alert('Error', 'Failed to delete post');
           }
@@ -303,7 +303,7 @@ export default function PostDetailScreen({ navigation, route }) {
       <View style={[styles.container, styles.center]}>
         <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
         <Text style={styles.errorText}>{error || 'Post not found'}</Text>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.retryBtn}>
+        <TouchableOpacity onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('MainTabs')} style={styles.retryBtn}>
           <Text style={styles.retryText}>Go Back</Text>
         </TouchableOpacity>
       </View>
@@ -324,7 +324,7 @@ export default function PostDetailScreen({ navigation, route }) {
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerIconBtn} hitSlop={8}>
+        <TouchableOpacity onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('MainTabs')} style={styles.headerIconBtn} hitSlop={8}>
           <Ionicons name="arrow-back" size={24} color={COLORS.cyan} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Post</Text>

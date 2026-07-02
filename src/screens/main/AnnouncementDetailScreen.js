@@ -91,7 +91,7 @@ export default function AnnouncementDetailScreen({ route, navigation }) {
         <StatusBar barStyle="light-content" />
         <Ionicons name="alert-circle-outline" size={48} color={COLORS.textDim} />
         <Text style={s.errorText}>Announcement not found.</Text>
-        <TouchableOpacity style={s.retryBtn} onPress={() => navigation.goBack()}>
+        <TouchableOpacity style={s.retryBtn} onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('MainTabs')}>
           <Text style={s.retryText}>Go Back</Text>
         </TouchableOpacity>
       </View>
@@ -143,7 +143,7 @@ export default function AnnouncementDetailScreen({ route, navigation }) {
         <Text style={s.body_text}>{item.message}</Text>
 
         {/* Close / back */}
-        <TouchableOpacity style={s.closeBtn} onPress={() => navigation.goBack()} activeOpacity={0.85}>
+        <TouchableOpacity style={s.closeBtn} onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('MainTabs')} activeOpacity={0.85}>
           <Text style={s.closeBtnText}>CLOSE</Text>
         </TouchableOpacity>
       </ScrollView>

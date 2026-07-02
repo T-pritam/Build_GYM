@@ -98,7 +98,7 @@ export default function ActivitiesScreen({ navigation }) {
       {/* Fixed corner controls — stay put while the rest of the page scrolls */}
       <TouchableOpacity
         style={styles.backBtn}
-        onPress={() => navigation.goBack()}
+        onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('MainTabs')}
         activeOpacity={0.75}
         hitSlop={10}
       >

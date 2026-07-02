@@ -63,7 +63,7 @@ export default function TrialDetailScreen({ navigation, route }) {
     <View style={s.root}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
       <View style={s.header}>
-        <TouchableOpacity style={s.backBtn} onPress={() => navigation.goBack()}><Ionicons name="arrow-back" size={22} color={COLORS.white} /></TouchableOpacity>
+        <TouchableOpacity style={s.backBtn} onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('MainTabs')}><Ionicons name="arrow-back" size={22} color={COLORS.white} /></TouchableOpacity>
         <Text style={s.headerTitle}>Trial Session</Text>
         <View style={{ width: 40 }} />
       </View>

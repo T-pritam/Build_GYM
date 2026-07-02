@@ -185,7 +185,7 @@ export default function HomeScreen({ navigation }) {
           <Text style={styles.userName}>{firstName}</Text>
         </View>
         <View style={styles.topActions}>
-          <TouchableOpacity style={styles.topBtn} onPress={() => navigation.navigate('Notifications')}>
+          <TouchableOpacity style={styles.topBtn} onPress={() => navigation.push('Notifications')}>
             <MaterialIcons name="notifications" size={24} color={COLORS.textSecondary} />
             {unreadCount > 0 && (
               <View style={styles.notifBadge}>
@@ -193,7 +193,7 @@ export default function HomeScreen({ navigation }) {
               </View>
             )}
           </TouchableOpacity>
-          <TouchableOpacity style={styles.avatarBtn} onPress={() => navigation.navigate('Profile')}>
+          <TouchableOpacity style={styles.avatarBtn} onPress={() => navigation.push('Profile')}>
             {user?.profilePhotoUrl ? (
               <Image source={{ uri: user.profilePhotoUrl }} style={styles.avatarImg} />
             ) : (
@@ -298,7 +298,7 @@ export default function HomeScreen({ navigation }) {
         <TouchableOpacity
           style={styles.coinsCard}
           activeOpacity={0.9}
-          onPress={() => navigation.navigate('BuildCoinTransactions')}
+          onPress={() => navigation.push('BuildCoinTransactions')}
         >
           <View style={styles.coinsLeft}>
             <View style={styles.coinsIcon}>
@@ -322,7 +322,7 @@ export default function HomeScreen({ navigation }) {
               key={q.label}
               style={styles.quickTile}
               activeOpacity={0.85}
-              onPress={() => navigation.navigate(q.route)}
+              onPress={() => navigation.push(q.route)}
             >
               <MaterialIcons
                 name={q.icon}
@@ -339,7 +339,7 @@ export default function HomeScreen({ navigation }) {
         <TouchableOpacity
           style={styles.workoutCard}
           activeOpacity={0.9}
-          onPress={() => navigation.navigate('WorkoutHome')}
+          onPress={() => navigation.push('WorkoutHome')}
         >
           <View>
             <Text style={styles.workoutEyebrow}>TODAY'S WORKOUT</Text>
@@ -370,7 +370,7 @@ export default function HomeScreen({ navigation }) {
           <TouchableOpacity
             style={styles.trialCard}
             activeOpacity={0.9}
-            onPress={() => navigation.navigate('TrialDetail', { trialId: upcomingTrial.id })}
+            onPress={() => navigation.push('TrialDetail', { trialId: upcomingTrial.id })}
           >
             <View style={styles.trialTopRow}>
               <View style={styles.trialBadge}>

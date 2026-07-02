@@ -72,7 +72,7 @@ export default function MyComplaintDetailScreen({ navigation, route }) {
         <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
         <Ionicons name="cloud-offline-outline" size={48} color={COLORS.textMuted} />
         <Text style={styles.errorText}>{error || 'Complaint not found.'}</Text>
-        <TouchableOpacity style={styles.backBtn2} onPress={() => navigation.goBack()}>
+        <TouchableOpacity style={styles.backBtn2} onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('MainTabs')}>
           <Text style={styles.backBtn2Text}>Go Back</Text>
         </TouchableOpacity>
       </View>
@@ -97,7 +97,7 @@ export default function MyComplaintDetailScreen({ navigation, route }) {
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('MainTabs')}>
           <Ionicons name="arrow-back" size={20} color={COLORS.white} />
         </TouchableOpacity>
         <View style={{ flex: 1, marginLeft: 12 }}>

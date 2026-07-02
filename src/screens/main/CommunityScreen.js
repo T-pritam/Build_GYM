@@ -618,7 +618,7 @@ export default function CommunityScreen({ navigation }) {
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.headerIconBtn} onPress={() => navigation.goBack()} hitSlop={8}>
+        <TouchableOpacity style={styles.headerIconBtn} onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('MainTabs')} hitSlop={8}>
           <GradientIcon name="arrow-back" set="ionicons" size={24} colors={['#7F2982', '#00F2FF']} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Community</Text>

@@ -172,7 +172,7 @@ export default function MyComplaintsScreen({ navigation }) {
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('MainTabs')}>
           <Ionicons name="arrow-back" size={20} color={COLORS.white} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>My Complaints</Text>

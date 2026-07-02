@@ -160,7 +160,7 @@ export default function TrainerDetailScreen({ navigation, route }) {
 
       {/* Sticky top bar */}
       <View style={styles.topBar}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('MainTabs')}>
           <Ionicons name="arrow-back" size={22} color={COLORS.cyan} />
         </TouchableOpacity>
         {list.length > 1 && (

@@ -230,7 +230,7 @@ export default function ChatThreadScreen({ route, navigation }) {
 function Header({ navigation, coachId, muted, frozen, onMute, topInset = 0 }) {
   return (
     <View style={[styles.header, { paddingTop: topInset + 10 }]}>
-      <TouchableOpacity onPress={() => navigation.goBack()} style={styles.hBtn}>
+      <TouchableOpacity onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('MainTabs')} style={styles.hBtn}>
         <Ionicons name="chevron-back" size={24} color={COLORS.textPrimary} />
       </TouchableOpacity>
       <TouchableOpacity style={styles.hTitle} onPress={() => coachId && navigation.navigate('TrainerDetail', { trainerId: coachId })}>

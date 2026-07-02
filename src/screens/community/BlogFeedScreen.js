@@ -202,7 +202,7 @@ export default function BlogFeedScreen({ navigation, route }) {
       <View style={styles.root}>
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+            <TouchableOpacity onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('MainTabs')} style={styles.backBtn}>
               <Ionicons name="arrow-back" size={22} color={COLORS.primaryLight} />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Blog</Text>
@@ -232,7 +232,7 @@ export default function BlogFeedScreen({ navigation, route }) {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+          <TouchableOpacity onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('MainTabs')} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={22} color={COLORS.primaryLight} />
           </TouchableOpacity>
           <Text style={styles.headerTitle} numberOfLines={1}>{blog.title}</Text>

@@ -144,7 +144,7 @@ export default function NotificationsScreen({ navigation }) {
 
       {/* Header */}
       <View style={s.header}>
-        <TouchableOpacity style={s.backBtn} onPress={() => navigation.goBack()}>
+        <TouchableOpacity style={s.backBtn} onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('MainTabs')}>
           <Ionicons name="arrow-back" size={18} color={COLORS.textPrimary} />
         </TouchableOpacity>
 
