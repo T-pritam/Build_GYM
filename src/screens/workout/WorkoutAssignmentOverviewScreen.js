@@ -6,7 +6,7 @@
  * future days are shown but inert (guarded server-side too).
  */
 import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Modal } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,6 +14,7 @@ import dayjs from 'dayjs';
 
 import { COLORS } from '../../constants/colors';
 import { fetchMemberAssignmentBatch } from '../../services/workoutService';
+import { formatTarget } from '../../utils/measurement';
 
 const STATUS_COLORS = {
   completed: '#34C759',
@@ -30,6 +31,7 @@ export default function WorkoutAssignmentOverviewScreen({ navigation, route }) {
   const [templateName, setTemplateName] = useState('Workout');
   const [instances, setInstances] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [previewInstance, setPreviewInstance] = useState(null);
 
   const load = useCallback(async () => {
     try {
@@ -69,6 +71,9 @@ export default function WorkoutAssignmentOverviewScreen({ navigation, route }) {
                   <Text style={s.statusTxt}>{item.status.replace('_', ' ')}</Text>
                 </View>
               </View>
+              <TouchableOpacity style={s.infoBtn} onPress={() => setPreviewInstance(item)}>
+                <Ionicons name="information-circle-outline" size={20} color={COLORS.secondary} />
+              </TouchableOpacity>
               {item.isFuture ? (
                 <Text style={s.upcomingTag}>Upcoming</Text>
               ) : (
@@ -78,6 +83,35 @@ export default function WorkoutAssignmentOverviewScreen({ navigation, route }) {
           )}
         />
       )}
+
+      <Modal visible={!!previewInstance} transparent animationType="slide" onRequestClose={() => setPreviewInstance(null)}>
+        <View style={s.modalOverlay}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setPreviewInstance(null)} />
+          <View style={s.modalSheet}>
+            <View style={s.modalHandle} />
+            <View style={s.modalHeader}>
+              <Text style={s.modalTitle} numberOfLines={1}>
+                {previewInstance ? dayjs(previewInstance.workoutDate).format('ddd, D MMM') : ''}
+              </Text>
+              <TouchableOpacity onPress={() => setPreviewInstance(null)}>
+                <Ionicons name="close" size={22} color={COLORS.textMuted} />
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={previewInstance?.snapshot?.exercises || []}
+              keyExtractor={(ex, i) => ex.exerciseId || String(i)}
+              contentContainerStyle={{ paddingBottom: 24 }}
+              ListEmptyComponent={<Text style={s.empty}>No exercise details available.</Text>}
+              renderItem={({ item: ex }) => (
+                <View style={s.exRow}>
+                  <Text style={s.exName}>{ex.name}</Text>
+                  <Text style={s.exTarget}>{formatTarget(ex)}</Text>
+                </View>
+              )}
+            />
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -95,4 +129,13 @@ const s = StyleSheet.create({
   statusDot: { width: 8, height: 8, borderRadius: 4 },
   statusTxt: { color: COLORS.textSecondary, fontSize: 12, textTransform: 'capitalize' },
   upcomingTag: { color: COLORS.textMuted, fontSize: 11, fontWeight: '700' },
+  infoBtn: { padding: 4 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'flex-end' },
+  modalSheet: { backgroundColor: COLORS.background, borderTopLeftRadius: 20, borderTopRightRadius: 20, borderTopWidth: 1, borderColor: COLORS.border, maxHeight: '75%', paddingBottom: 16 },
+  modalHandle: { width: 48, height: 4, borderRadius: 2, backgroundColor: COLORS.border, alignSelf: 'center', marginTop: 12, marginBottom: 8 },
+  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  modalTitle: { color: COLORS.textPrimary, fontSize: 16, fontWeight: '700', flex: 1 },
+  exRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  exName: { color: COLORS.textPrimary, fontSize: 14, fontWeight: '600', flex: 1, marginRight: 10 },
+  exTarget: { color: COLORS.textSecondary, fontSize: 13 },
 });
