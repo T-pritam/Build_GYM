@@ -51,7 +51,6 @@ yarn-error.*
 # Firebase config (client API keys — provided per developer, not committed)
 google-services.json
 android/app/google-services.json
-ios/BuildGym/GoogleService-Info.plist
 
 # typescript
 *.tsbuildinfo
