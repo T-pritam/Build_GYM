@@ -11,8 +11,7 @@
     "ios-simulator": {
       "distribution": "internal",
       "ios": {
-        "simulator": true,
-        "buildConfiguration": "Debug"
+        "simulator": true
       }
     },
     "preview": {
