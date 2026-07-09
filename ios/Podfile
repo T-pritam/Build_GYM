@@ -4,11 +4,6 @@ require File.join(File.dirname(`node --print "require.resolve('react-native/pack
 require 'json'
 podfile_properties = JSON.parse(File.read(File.join(__dir__, 'Podfile.properties.json'))) rescue {}
 
-# react-native-firebase pods default to static_framework = false, which
-# breaks cross-pod type visibility (e.g. RCTPromiseRejectBlock) when the
-# rest of the app links statically via use_frameworks! :static.
-$RNFirebaseAsStaticFramework = true
-
 def ccache_enabled?(podfile_properties)
   # Environment variable takes precedence
   return ENV['USE_CCACHE'] == '1' if ENV['USE_CCACHE']
@@ -64,13 +59,5 @@ target 'BuildGym' do
       :mac_catalyst_enabled => false,
       :ccache_enabled => ccache_enabled?(podfile_properties),
     )
-
-    # Firebase pods (RNFBApp etc.) include React-Core headers non-modularly,
-    # which Xcode treats as an error under use_frameworks! :static.
-    installer.pods_project.targets.each do |target|
-      target.build_configurations.each do |config|
-        config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
-      end
-    end
   end
 end
