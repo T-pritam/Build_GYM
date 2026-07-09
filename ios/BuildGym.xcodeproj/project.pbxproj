@@ -263,7 +263,7 @@
 					"-ObjC",
 					"-lc++",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "com.anonymous.BuildGym";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.buildgym.app";
 				PRODUCT_NAME = "BuildGym";
 				SWIFT_OBJC_BRIDGING_HEADER = "BuildGym/BuildGym-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
@@ -292,7 +292,7 @@
 					"-ObjC",
 					"-lc++",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "com.anonymous.BuildGym";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.buildgym.app";
 				PRODUCT_NAME = "BuildGym";
 				SWIFT_OBJC_BRIDGING_HEADER = "BuildGym/BuildGym-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
