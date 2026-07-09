@@ -23,6 +23,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Write .env
+        env:
+          ENV_FILE: ${{ secrets.BUILDGYM_ENV_FILE }}
+        run: printf '%s' "$ENV_FILE" > .env
+
       - name: Build iOS simulator (EAS local)
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
