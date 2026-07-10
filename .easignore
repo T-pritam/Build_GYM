@@ -1,0 +1,58 @@
+# Mirrors .gitignore for eas build --local's project copy step, except we
+# deliberately do NOT ignore .env here: react-native-dotenv reads it at Metro
+# bundle time, and eas build --local copies the project using these
+# .easignore/.gitignore rules (see eas-cli vcs/local.js), so a gitignored
+# .env written by CI right before the build step would otherwise get
+# silently dropped before bundling ever sees it.
+
+# dependencies
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native - build artifacts only (android/ and ios/ are committed for prebuild)
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Android build artifacts
+android/app/build/
+android/build/
+android/app/.cxx/
+android/.gradle/
+android/local.properties
+
+# iOS build artifacts
+ios/build/
+ios/Pods/
+ios/*.xcworkspace/xcuserdata
+ios/*.xcodeproj/xcuserdata
+ios/*.xcodeproj/project.xcworkspace/xcuserdata
+
+# Metro
+.metro-health-check*
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+*.pem
+
+# Firebase config (client API keys — provided per developer, not committed)
+google-services.json
+android/app/google-services.json
+
+# typescript
+*.tsbuildinfo
+CLAUDE.md
