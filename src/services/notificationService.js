@@ -212,9 +212,9 @@ export const registerForPushNotificationsAsync = async () => {
       });
     }
 
-    // Device.isDevice is false on Android emulators even when GMS is present,
-    // so fall through to token registration on Android regardless.
-    if (Device.isDevice || Platform.OS === 'android') {
+    // Device.isDevice is false on Android emulators and the iOS Simulator
+    // even though both can still show the OS permission prompt.
+    if (Device.isDevice || Platform.OS === 'android' || Platform.OS === 'ios') {
       const { status: existingStatus } = await Notifications.getPermissionsAsync();
       let finalStatus = existingStatus;
 
