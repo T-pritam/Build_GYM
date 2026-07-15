@@ -19,6 +19,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.buildgym.app",
+      "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "UIBackgroundModes": [
           "remote-notification"
@@ -63,7 +64,14 @@
         "expo-build-properties",
         {
           "ios": {
-            "useFrameworks": "static"
+            "useFrameworks": "static",
+            "forceStaticLinking": [
+              "RNFBApp",
+              "RNFBMessaging",
+              "RNFBCrashlytics",
+              "RNFBPerf",
+              "RNFBAnalytics"
+            ]
           }
         }
       ],

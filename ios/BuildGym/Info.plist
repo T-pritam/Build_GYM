@@ -27,7 +27,7 @@
       <dict>
         <key>CFBundleURLSchemes</key>
         <array>
-          <string>com.anonymous.BuildGym</string>
+          <string>com.buildgym.app</string>
         </array>
       </dict>
     </array>

@@ -1,4 +1,9 @@
-# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+# Mirrors .gitignore for eas build --local's project copy step, except we
+# deliberately do NOT ignore .env here: react-native-dotenv reads it at Metro
+# bundle time, and eas build --local copies the project using these
+# .easignore/.gitignore rules (see eas-cli vcs/local.js), so a gitignored
+# .env written by CI right before the build step would otherwise get
+# silently dropped before bundling ever sees it.
 
 # dependencies
 node_modules/
@@ -43,10 +48,6 @@ yarn-error.*
 # macOS
 .DS_Store
 *.pem
-
-# local env files
-.env*.local
-.env
 
 # Firebase config (client API keys — provided per developer, not committed)
 google-services.json
