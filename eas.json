@@ -19,9 +19,20 @@
     },
     "production": {
       "autoIncrement": true
+    },
+    "legacy": {
+      "extends": "production",
+      "env": {
+        "IS_LEGACY_BUILD": "true"
+      }
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "ascAppId": "6792065211",
+        "appleTeamId": "8H2C7MACXD"
+      }
+    }
   }
 }
