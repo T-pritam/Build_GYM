@@ -2,6 +2,7 @@
   "expo": {
     "name": "Build Gym",
     "slug": "BuildGym",
+    "owner": "pritamrao48",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -23,7 +24,8 @@
       "infoPlist": {
         "UIBackgroundModes": [
           "remote-notification"
-        ]
+        ],
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
