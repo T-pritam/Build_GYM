@@ -25,6 +25,7 @@ import SafeBottomBar from '../../components/SafeBottomBar';
 import { fetchMembershipPlans, createMembershipOrder, verifyMembershipPayment } from '../../services/membershipService';
 import { useAuthStore } from '../../store/authStore';
 import { logEvent } from '../../services/analyticsService';
+import { IS_LEGACY_BUILD } from '../../config/featureFlags';
 
 // ─── Tier display config ──────────────────────────────────────────────────────
 const TIER_CONFIG = {
@@ -247,8 +248,8 @@ export default function MembershipPlansScreen({ navigation }) {
           })}
         </View>
 
-        {/* ── Perks for selected plan ─── */}
-        {selectedPlan && (selectedPlan.perks ?? []).length > 0 && (
+        {/* ── Perks for selected plan (never shown in the legacy build — Section 6 requires no perks/activities) ─── */}
+        {!IS_LEGACY_BUILD && selectedPlan && (selectedPlan.perks ?? []).length > 0 && (
           <>
             <Text style={styles.sectionLabel}>Bonus Perks Included</Text>
             <View style={styles.perksCard}>
@@ -274,7 +275,11 @@ export default function MembershipPlansScreen({ navigation }) {
         )}
 
         {/* ── No perks note ─── */}
-        {selectedPlan && (selectedPlan.perks ?? []).length === 0 && selectedPlan.cafeDiscountPercent === 0 && (
+        {selectedPlan && (
+          IS_LEGACY_BUILD
+            ? true
+            : (selectedPlan.perks ?? []).length === 0 && selectedPlan.cafeDiscountPercent === 0
+        ) && (
           <View style={styles.noPerksNote}>
             <Ionicons name="information-circle-outline" size={16} color="#666" />
             <Text style={styles.noPerksText}>No bonus perks for this plan. Perks unlock at 6-month commitment.</Text>

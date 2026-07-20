@@ -15,6 +15,8 @@ import { getMyLeaderboardStats } from '../../services/leaderboardService';
 import { fetchMyAttendance } from '../../services/gymService';
 import { fetchMyTrials } from '../../services/trialService';
 import ActiveOrderBar from '../../components/ActiveOrderBar';
+import GreyedOut from '../../components/GreyedOut';
+import { IS_LEGACY_BUILD } from '../../config/featureFlags';
 
 // Mockup accent palette (kept as literals — multi-colour KPI / quick-access tiles).
 const AMBER = '#F59E0B';
@@ -40,8 +42,8 @@ function countdownLabel(iso) {
 // Quick-access tiles → real routes.
 // Icons mirror the Stitch design's Material Symbols exactly (MaterialIcons set).
 const QUICK = [
-  { label: 'ACTIVITIES', icon: 'fitness-center',       color: '#00BCD4', route: 'Activities' },
-  { label: 'CAFE',       icon: 'local-cafe',           color: '#FFA000', route: 'Cafe' },
+  { label: 'ACTIVITIES', icon: 'fitness-center',       color: '#00BCD4', route: 'Activities', legacyDisabled: true },
+  { label: 'CAFE',       icon: 'local-cafe',           color: '#FFA000', route: 'Cafe', legacyDisabled: true },
   { label: 'RANKING',    icon: 'leaderboard',          color: GOLD,      route: 'Leaderboard' },
   { label: 'COMMUNITY',  icon: 'forum',                color: '#9C27B0', route: 'Community' },
   { label: 'TRAINERS',   icon: 'sports-martial-arts',  color: '#4CAF50', route: 'Trainers' },
@@ -295,44 +297,54 @@ export default function HomeScreen({ navigation }) {
         </View>
 
         {/* ── BUILD COINS CARD ─────────────────────── */}
-        <TouchableOpacity
-          style={styles.coinsCard}
-          activeOpacity={0.9}
-          onPress={() => navigation.push('BuildCoinTransactions')}
-        >
-          <View style={styles.coinsLeft}>
-            <View style={styles.coinsIcon}>
-              <MaterialIcons name="toll" size={24} color={GOLD} />
-            </View>
-            <View>
-              <Text style={styles.coinsLabel}>BUILD COINS</Text>
-              <Text style={styles.coinsValue}>{(balance ?? 0).toLocaleString()}</Text>
-            </View>
-          </View>
-          <View style={styles.coinsRight}>
-            <Text style={styles.coinsHint}>Tap to view transactions</Text>
-            <MaterialIcons name="chevron-right" size={18} color={COLORS.textMuted} />
-          </View>
-        </TouchableOpacity>
+        {(() => {
+          const coinsCard = (
+            <TouchableOpacity
+              style={styles.coinsCard}
+              activeOpacity={0.9}
+              onPress={() => navigation.push('BuildCoinTransactions')}
+            >
+              <View style={styles.coinsLeft}>
+                <View style={styles.coinsIcon}>
+                  <MaterialIcons name="toll" size={24} color={GOLD} />
+                </View>
+                <View>
+                  <Text style={styles.coinsLabel}>BUILD COINS</Text>
+                  <Text style={styles.coinsValue}>{(balance ?? 0).toLocaleString()}</Text>
+                </View>
+              </View>
+              <View style={styles.coinsRight}>
+                <Text style={styles.coinsHint}>Tap to view transactions</Text>
+                <MaterialIcons name="chevron-right" size={18} color={COLORS.textMuted} />
+              </View>
+            </TouchableOpacity>
+          );
+          return IS_LEGACY_BUILD ? <GreyedOut>{coinsCard}</GreyedOut> : coinsCard;
+        })()}
 
         {/* ── QUICK ACCESS GRID ────────────────────── */}
         <View style={styles.quickGrid}>
-          {QUICK.map((q) => (
-            <TouchableOpacity
-              key={q.label}
-              style={styles.quickTile}
-              activeOpacity={0.85}
-              onPress={() => navigation.push(q.route)}
-            >
-              <MaterialIcons
-                name={q.icon}
-                size={26}
-                color={q.color}
-                style={[styles.quickIcon, { textShadowColor: q.color }]}
-              />
-              <Text style={styles.quickLabel}>{q.label}</Text>
-            </TouchableOpacity>
-          ))}
+          {QUICK.map((q) => {
+            const tile = (
+              <TouchableOpacity
+                key={q.label}
+                style={styles.quickTile}
+                activeOpacity={0.85}
+                onPress={() => navigation.push(q.route)}
+              >
+                <MaterialIcons
+                  name={q.icon}
+                  size={26}
+                  color={q.color}
+                  style={[styles.quickIcon, { textShadowColor: q.color }]}
+                />
+                <Text style={styles.quickLabel}>{q.label}</Text>
+              </TouchableOpacity>
+            );
+            return IS_LEGACY_BUILD && q.legacyDisabled
+              ? <GreyedOut key={q.label}>{tile}</GreyedOut>
+              : tile;
+          })}
         </View>
 
         {/* ── TODAY'S WORKOUT ──────────────────────── */}
@@ -409,19 +421,21 @@ export default function HomeScreen({ navigation }) {
       </View>
 
       {/* ── STICKY CHECK-IN FAB ──────────────────── */}
-      <View style={styles.fabWrap} pointerEvents="box-none">
-        <TouchableOpacity activeOpacity={0.9} onPress={() => navigation.navigate('Access')}>
-          <LinearGradient
-            colors={[COLORS.primary, '#923a93']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.fab}
-          >
-            <MaterialIcons name="qr-code-scanner" size={30} color={COLORS.white} />
-          </LinearGradient>
-        </TouchableOpacity>
-        <Text style={styles.fabLabel}>CHECK IN</Text>
-      </View>
+      {!IS_LEGACY_BUILD && (
+        <View style={styles.fabWrap} pointerEvents="box-none">
+          <TouchableOpacity activeOpacity={0.9} onPress={() => navigation.navigate('Access')}>
+            <LinearGradient
+              colors={[COLORS.primary, '#923a93']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.fab}
+            >
+              <MaterialIcons name="qr-code-scanner" size={30} color={COLORS.white} />
+            </LinearGradient>
+          </TouchableOpacity>
+          <Text style={styles.fabLabel}>CHECK IN</Text>
+        </View>
+      )}
     </View>
   );
 }

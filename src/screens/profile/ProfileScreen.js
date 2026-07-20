@@ -12,13 +12,15 @@ import GradientIcon from '../../components/GradientIcon';
 import { fetchMyMembership } from '../../services/membershipService';
 import { useAuthStore } from '../../store/authStore';
 import { uploadProfilePhoto, removeProfilePhoto } from '../../services/profileService';
+import GreyedOut from '../../components/GreyedOut';
+import { IS_LEGACY_BUILD } from '../../config/featureFlags';
 
 // Profile menu — Stitch "Elite Refined" order, each row's accent tint + route.
 const MENU = [
   { id: 'personal',  label: 'Personal Info',      sub: 'Update your profile details',  icon: 'person',         nav: 'EditProfile',  color: '#A78BFA', bg: 'rgba(127,41,130,0.20)' },
   { id: 'achieve',   label: 'Achievements',       sub: 'View your badges & XP',        icon: 'emoji-events',   nav: 'Achievements', color: '#F59E0B', bg: 'rgba(245,158,11,0.18)' },
-  { id: 'bookings',  label: 'My Bookings',        sub: 'Manage your sessions',         icon: 'calendar-today', nav: 'MyBookings',   color: '#2DD4BF', bg: 'rgba(13,148,136,0.22)' },
-  { id: 'orders',    label: 'Order History',      sub: 'Past transactions & invoices', icon: 'receipt-long',   nav: 'OrderHistory', color: '#2DD4BF', bg: 'rgba(13,148,136,0.22)' },
+  { id: 'bookings',  label: 'My Bookings',        sub: 'Manage your sessions',         icon: 'calendar-today', nav: 'MyBookings',   color: '#2DD4BF', bg: 'rgba(13,148,136,0.22)', legacyDisabled: true },
+  { id: 'orders',    label: 'Order History',      sub: 'Past transactions & invoices', icon: 'receipt-long',   nav: 'OrderHistory', color: '#2DD4BF', bg: 'rgba(13,148,136,0.22)', legacyDisabled: true },
   { id: 'activity',  label: 'Activity Dashboard', sub: 'Club usage & stats',           icon: 'insights',       nav: 'Activity',     color: '#FBBF24', bg: 'rgba(245,158,11,0.16)' },
   { id: 'settings',  label: 'Settings',           sub: 'App & privacy preferences',    icon: 'settings',       nav: 'Settings',     color: '#C7C4CC', bg: 'rgba(255,255,255,0.08)' },
   { id: 'support',   label: 'Support',            sub: '24/7 concierge assistance',    icon: 'support-agent',  nav: 'Support',      color: '#60A5FA', bg: 'rgba(96,165,250,0.14)' },
@@ -215,77 +217,87 @@ export default function ProfileScreen({ navigation }) {
         </View>
 
         {/* Membership card */}
-        <TouchableOpacity
-          activeOpacity={0.9}
-          onPress={() => navigation.navigate(active ? 'Membership' : 'MembershipPlans')}
-        >
-          <LinearGradient
-            colors={['#0D0D0F', '#1A1A2E']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={[styles.memCard, { height: cardHeight }]}
-          >
-            {/* Light sweep */}
-            {(
-              <Animated.View
-                pointerEvents="none"
-                style={[styles.sweep, { transform: [{ translateX: sweepX }, { rotate: '30deg' }] }]}
+        {(() => {
+          const memberCard = (
+            <TouchableOpacity
+              activeOpacity={0.9}
+              onPress={() => navigation.navigate(active ? 'Membership' : 'MembershipPlans')}
+            >
+              <LinearGradient
+                colors={['#0D0D0F', '#1A1A2E']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={[styles.memCard, { height: cardHeight }]}
               >
-                <LinearGradient
-                  colors={['transparent', 'rgba(255,255,255,0.08)', 'transparent']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={StyleSheet.absoluteFill}
-                />
-              </Animated.View>
-            )}
+                {/* Light sweep */}
+                {(
+                  <Animated.View
+                    pointerEvents="none"
+                    style={[styles.sweep, { transform: [{ translateX: sweepX }, { rotate: '30deg' }] }]}
+                  >
+                    <LinearGradient
+                      colors={['transparent', 'rgba(255,255,255,0.08)', 'transparent']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={StyleSheet.absoluteFill}
+                    />
+                  </Animated.View>
+                )}
 
-            <View style={styles.memTopRow}>
-              <View style={styles.memTier}>
-                <MaterialIcons name="workspace-premium" size={14} color="#F59E0B" />
-                <Text style={styles.memTierText}>{tier}</Text>
-              </View>
-              <Text style={styles.memAccess}>
-                {daysRemaining != null ? `${daysRemaining} DAYS REMAINING` : 'PRIVATE ACCESS'}
-              </Text>
-            </View>
+                <View style={styles.memTopRow}>
+                  <View style={styles.memTier}>
+                    <MaterialIcons name="workspace-premium" size={14} color="#F59E0B" />
+                    <Text style={styles.memTierText}>{tier}</Text>
+                  </View>
+                  <Text style={styles.memAccess}>
+                    {daysRemaining != null ? `${daysRemaining} DAYS REMAINING` : 'PRIVATE ACCESS'}
+                  </Text>
+                </View>
 
-            <View style={styles.memChip} />
+                <View style={styles.memChip} />
 
-            <Text style={styles.memName}>{user?.fullName || firstName}</Text>
+                <Text style={styles.memName}>{user?.fullName || firstName}</Text>
 
-            <View style={styles.memBottomRow}>
-              <View>
-                <Text style={styles.memMetaLabel}>MEMBERSHIP STATUS</Text>
-                <Text style={styles.memMetaValue}>{statusLabel}</Text>
-              </View>
-              <View style={{ alignItems: 'flex-end' }}>
-                <Text style={styles.memMetaLabel}>EXPIRY</Text>
-                <Text style={[styles.memMetaValue, { color: '#F59E0B' }]}>{expiry}</Text>
-              </View>
-            </View>
-          </LinearGradient>
-        </TouchableOpacity>
+                <View style={styles.memBottomRow}>
+                  <View>
+                    <Text style={styles.memMetaLabel}>MEMBERSHIP STATUS</Text>
+                    <Text style={styles.memMetaValue}>{statusLabel}</Text>
+                  </View>
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <Text style={styles.memMetaLabel}>EXPIRY</Text>
+                    <Text style={[styles.memMetaValue, { color: '#F59E0B' }]}>{expiry}</Text>
+                  </View>
+                </View>
+              </LinearGradient>
+            </TouchableOpacity>
+          );
+          return IS_LEGACY_BUILD ? <GreyedOut>{memberCard}</GreyedOut> : memberCard;
+        })()}
 
         {/* Menu items */}
         <View style={styles.menuList}>
-          {filteredMenu.map((item) => (
-            <TouchableOpacity
-              key={item.id}
-              style={styles.menuItem}
-              onPress={() => navigation.navigate(item.nav)}
-              activeOpacity={0.8}
-            >
-              <View style={[styles.menuIcon, { backgroundColor: item.bg }]}>
-                <MaterialIcons name={item.icon} size={22} color={item.color} />
-              </View>
-              <View style={styles.menuInfo}>
-                <Text style={styles.menuLabel}>{item.label}</Text>
-                <Text style={styles.menuSub}>{item.sub}</Text>
-              </View>
-              <MaterialIcons name="chevron-right" size={22} color={COLORS.textMuted} />
-            </TouchableOpacity>
-          ))}
+          {filteredMenu.map((item) => {
+            const row = (
+              <TouchableOpacity
+                key={item.id}
+                style={styles.menuItem}
+                onPress={() => navigation.navigate(item.nav)}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.menuIcon, { backgroundColor: item.bg }]}>
+                  <MaterialIcons name={item.icon} size={22} color={item.color} />
+                </View>
+                <View style={styles.menuInfo}>
+                  <Text style={styles.menuLabel}>{item.label}</Text>
+                  <Text style={styles.menuSub}>{item.sub}</Text>
+                </View>
+                <MaterialIcons name="chevron-right" size={22} color={COLORS.textMuted} />
+              </TouchableOpacity>
+            );
+            return IS_LEGACY_BUILD && item.legacyDisabled
+              ? <GreyedOut key={item.id}>{row}</GreyedOut>
+              : row;
+          })}
           {filteredMenu.length === 0 && (
             <Text style={styles.noResults}>Nothing found.</Text>
           )}
