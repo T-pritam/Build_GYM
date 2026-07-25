@@ -163,6 +163,29 @@ export default function ActivitiesScreen({ navigation }) {
         })}
         </ScrollView>
 
+        {/* Gaming Zone entry (GZSM) */}
+        <TouchableOpacity
+          activeOpacity={0.9}
+          onPress={() => navigation.navigate('Gaming')}
+          style={{ marginHorizontal: 16, marginBottom: 16, borderRadius: 16, overflow: 'hidden' }}
+        >
+          <LinearGradient
+            colors={['#1E3A8A', '#7C3AED']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={{ flexDirection: 'row', alignItems: 'center', padding: 18 }}
+          >
+            <Ionicons name="game-controller" size={34} color="#fff" />
+            <View style={{ flex: 1, marginLeft: 14 }}>
+              <Text style={{ color: '#fff', fontSize: 18, fontWeight: '800' }}>Gaming Zone</Text>
+              <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13, marginTop: 2 }}>
+                Scan a free PC · 50 coins / 30 min · play until you stop
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={22} color="#fff" />
+          </LinearGradient>
+        </TouchableOpacity>
+
         <View style={styles.cardsWrap}>
         {visible.length === 0 ? (
           <View style={styles.emptyState}>

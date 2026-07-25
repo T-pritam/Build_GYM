@@ -99,6 +99,12 @@ import BookingConfirmationScreen from '../screens/main/BookingConfirmationScreen
 import BookingQRScreen from '../screens/main/BookingQRScreen';
 import TrainersScreen from '../screens/main/TrainersScreen';
 
+// Gaming Zone (GZSM)
+import GamingScreen from '../screens/main/gaming/GamingScreen';
+import GamingScanScreen from '../screens/main/gaming/ScanScreen';
+import GamingConsentScreen from '../screens/main/gaming/ConsentScreen';
+import GamingActiveSessionScreen from '../screens/main/gaming/ActiveSessionScreen';
+
 const Stack = createNativeStackNavigator();
 
 /**
@@ -349,6 +355,24 @@ export default function AppNavigator() {
           options={{ animation: 'slide_from_bottom' }}
         />
         <Stack.Screen name="Trainers" component={TrainersScreen} />
+
+        {/* Gaming Zone (GZSM) */}
+        <Stack.Screen name="Gaming" component={GamingScreen} />
+        <Stack.Screen
+          name="GamingScan"
+          component={GamingScanScreen}
+          options={{ animation: 'slide_from_bottom' }}
+        />
+        <Stack.Screen
+          name="GamingConsent"
+          component={GamingConsentScreen}
+          options={{ animation: 'slide_from_bottom' }}
+        />
+        <Stack.Screen
+          name="GamingActiveSession"
+          component={GamingActiveSessionScreen}
+          options={{ gestureEnabled: false }}
+        />
 
         {/* Workout screens */}
         <Stack.Screen name="WorkoutHome" component={WorkoutHomeScreen} />
