@@ -25,7 +25,13 @@ export default function GamingActiveSessionScreen({ navigation, route }) {
 
   const applySession = useCallback((s) => {
     if (!s) return;
-    setSession((prev) => ({ ...prev, ...s }));
+    setSession((prev) => {
+      const merged = { ...prev, ...s };
+      // Socket updates for state changes may omit balance/owner — keep the last known values.
+      if (s.balance == null && prev?.balance != null) merged.balance = prev.balance;
+      if (s.ownerName == null && prev?.ownerName != null) merged.ownerName = prev.ownerName;
+      return merged;
+    });
     if (s.paidUntil) {
       paidUntilRef.current = new Date(s.paidUntil).getTime();
       setRemaining(Math.max(0, Math.round((paidUntilRef.current - Date.now()) / 1000)));

@@ -10,6 +10,9 @@ export const fetchGamingPcs = () =>
 export const startGamingSession = ({ pcCode, qrToken }) =>
   api.post('/gaming/sessions/start', { pcCode, qrToken });
 
+export const fetchCurrentGamingSession = () =>
+  api.get('/gaming/sessions/current');
+
 export const fetchGamingSession = (id) =>
   api.get(`/gaming/sessions/${id}`);
 

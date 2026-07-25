@@ -4,7 +4,7 @@ import {
   ActivityIndicator, RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { fetchGamingPcs } from '../../../services/gamingService';
+import { fetchGamingPcs, fetchCurrentGamingSession } from '../../../services/gamingService';
 
 // Local dark palette (kept literal to match the app's inline-color screens).
 const C = {
@@ -25,13 +25,18 @@ const hhmm = (iso) => {
 
 export default function GamingScreen({ navigation }) {
   const [data, setData] = useState({ total: 0, inUse: 0, available: 0, pcs: [] });
+  const [mySession, setMySession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     try {
-      const res = await fetchGamingPcs();
-      if (res.data?.data) setData(res.data.data);
+      const [pcsRes, mineRes] = await Promise.all([
+        fetchGamingPcs(),
+        fetchCurrentGamingSession().catch(() => null),
+      ]);
+      if (pcsRes.data?.data) setData(pcsRes.data.data);
+      setMySession(mineRes?.data?.data ?? null);
     } catch (err) {
       console.warn('Failed to load gaming PCs:', err.message);
     } finally {
@@ -64,6 +69,23 @@ export default function GamingScreen({ navigation }) {
           contentContainerStyle={{ padding: 16 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={C.accent} />}
         >
+          {mySession ? (
+            <TouchableOpacity
+              style={styles.resumeBanner}
+              activeOpacity={0.9}
+              onPress={() => navigation.navigate('GamingActiveSession', { sessionId: mySession.id })}
+            >
+              <Ionicons name="game-controller" size={22} color="#0B1020" />
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text style={styles.resumeTitle}>Resume your session</Text>
+                <Text style={styles.resumeSub}>
+                  {mySession.pcState === 'AWAY' ? 'Paused (away)' : 'Playing'} · spent {mySession.coinsSpent ?? 0} coins
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#0B1020" />
+            </TouchableOpacity>
+          ) : null}
+
           <View style={styles.occ}>
             <Text style={styles.occBig}>{data.inUse} of {data.total} in use</Text>
             <Text style={styles.occSub}>{data.available} free right now</Text>
@@ -97,6 +119,9 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 56, paddingBottom: 12 },
   title: { color: C.text, fontSize: 20, fontWeight: '700' },
+  resumeBanner: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.good, borderRadius: 14, padding: 16, marginBottom: 16 },
+  resumeTitle: { color: '#0B1020', fontSize: 16, fontWeight: '800' },
+  resumeSub: { color: '#0B1020', fontSize: 13, marginTop: 2, opacity: 0.8 },
   occ: { backgroundColor: C.card, borderRadius: 14, padding: 18, marginBottom: 16 },
   occBig: { color: C.text, fontSize: 24, fontWeight: '800' },
   occSub: { color: C.sub, fontSize: 14, marginTop: 4 },
