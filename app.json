@@ -79,7 +79,13 @@
       ],
       "expo-font",
       "expo-sqlite",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Build Gym uses the camera to scan the QR code on a gaming PC to start your session."
+        }
+      ]
     ]
   }
 }
