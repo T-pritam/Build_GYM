@@ -16,12 +16,6 @@ export const fetchCurrentGamingSession = () =>
 export const fetchGamingSession = (id) =>
   api.get(`/gaming/sessions/${id}`);
 
-export const setSessionAway = (id) =>
-  api.post(`/gaming/sessions/${id}/away`);
-
-export const resumeSession = (id) =>
-  api.post(`/gaming/sessions/${id}/resume`);
-
 export const endGamingSession = (id) =>
   api.post(`/gaming/sessions/${id}/end`);
 
