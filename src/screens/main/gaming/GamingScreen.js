@@ -79,7 +79,7 @@ export default function GamingScreen({ navigation }) {
               <View style={{ flex: 1, marginLeft: 12 }}>
                 <Text style={styles.resumeTitle}>Resume your session</Text>
                 <Text style={styles.resumeSub}>
-                  {mySession.pcState === 'AWAY' ? 'Paused (away)' : 'Playing'} · spent {mySession.coinsSpent ?? 0} coins
+                  Playing · spent {mySession.coinsSpent ?? 0} coins
                 </Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color="#0B1020" />
