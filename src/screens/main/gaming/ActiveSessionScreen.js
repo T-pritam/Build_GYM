@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import {
-  fetchGamingSession, setSessionAway, resumeSession, endGamingSession, reportGamingProblem,
+  fetchGamingSession, endGamingSession, reportGamingProblem,
 } from '../../../services/gamingService';
 import { getSocket } from '../../../services/socketService';
 import { useWalletStore } from '../../../store/walletStore';
@@ -81,10 +81,6 @@ export default function GamingActiveSessionScreen({ navigation, route }) {
     return () => clearInterval(t);
   }, []);
 
-  const away = session?.pcState === 'AWAY' || session?.status === 'away';
-
-  const doAway = async () => { try { await setSessionAway(sessionId); } catch (_) {} };
-  const doResume = async () => { try { await resumeSession(sessionId); } catch (_) {} };
   const doEnd = () => Alert.alert(
     'End session?',
     `You still have ${clock(remaining)} paid. Unused time is not refunded.`,
@@ -117,7 +113,7 @@ export default function GamingActiveSessionScreen({ navigation, route }) {
       ) : null}
 
       <View style={styles.body}>
-        <Text style={styles.owner}>{away ? 'Away' : 'Playing'}{session.ownerName ? ` · ${session.ownerName}` : ''}</Text>
+        <Text style={styles.owner}>Playing{session.ownerName ? ` · ${session.ownerName}` : ''}</Text>
         <Text style={styles.clock}>{clock(remaining)}</Text>
         <Text style={styles.sub}>time left this block</Text>
 
@@ -129,17 +125,6 @@ export default function GamingActiveSessionScreen({ navigation, route }) {
       </View>
 
       <View style={styles.actions}>
-        {away ? (
-          <TouchableOpacity style={[styles.btn, styles.primary]} onPress={doResume}>
-            <Ionicons name="play" size={20} color="#0B1020" />
-            <Text style={styles.primaryText}>Resume</Text>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity style={[styles.btn, styles.ghost]} onPress={doAway}>
-            <Ionicons name="walk-outline" size={20} color={C.text} />
-            <Text style={styles.ghostText}>I'm away</Text>
-          </TouchableOpacity>
-        )}
         <TouchableOpacity style={[styles.btn, styles.ghost]} onPress={doReport}>
           <Ionicons name="flag-outline" size={20} color={C.text} />
           <Text style={styles.ghostText}>Report</Text>
