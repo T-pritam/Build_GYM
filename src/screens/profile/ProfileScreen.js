@@ -19,8 +19,9 @@ import { IS_LEGACY_BUILD } from '../../config/featureFlags';
 const MENU = [
   { id: 'personal',  label: 'Personal Info',      sub: 'Update your profile details',  icon: 'person',         nav: 'EditProfile',  color: '#A78BFA', bg: 'rgba(127,41,130,0.20)' },
   { id: 'achieve',   label: 'Achievements',       sub: 'View your badges & XP',        icon: 'emoji-events',   nav: 'Achievements', color: '#F59E0B', bg: 'rgba(245,158,11,0.18)' },
-  { id: 'bookings',  label: 'My Bookings',        sub: 'Manage your sessions',         icon: 'calendar-today', nav: 'MyBookings',   color: '#2DD4BF', bg: 'rgba(13,148,136,0.22)', legacyDisabled: true },
-  { id: 'orders',    label: 'Order History',      sub: 'Past transactions & invoices', icon: 'receipt-long',   nav: 'OrderHistory', color: '#2DD4BF', bg: 'rgba(13,148,136,0.22)', legacyDisabled: true },
+  // PRE-RELEASE: hidden per UI_Removal_Markup (My Bookings, Order History)
+  // { id: 'bookings',  label: 'My Bookings',        sub: 'Manage your sessions',         icon: 'calendar-today', nav: 'MyBookings',   color: '#2DD4BF', bg: 'rgba(13,148,136,0.22)', legacyDisabled: true },
+  // { id: 'orders',    label: 'Order History',      sub: 'Past transactions & invoices', icon: 'receipt-long',   nav: 'OrderHistory', color: '#2DD4BF', bg: 'rgba(13,148,136,0.22)', legacyDisabled: true },
   { id: 'activity',  label: 'Activity Dashboard', sub: 'Club usage & stats',           icon: 'insights',       nav: 'Activity',     color: '#FBBF24', bg: 'rgba(245,158,11,0.16)' },
   { id: 'settings',  label: 'Settings',           sub: 'App & privacy preferences',    icon: 'settings',       nav: 'Settings',     color: '#C7C4CC', bg: 'rgba(255,255,255,0.08)' },
   { id: 'support',   label: 'Support',            sub: '24/7 concierge assistance',    icon: 'support-agent',  nav: 'Support',      color: '#60A5FA', bg: 'rgba(96,165,250,0.14)' },

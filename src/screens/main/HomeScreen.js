@@ -42,8 +42,9 @@ function countdownLabel(iso) {
 // Quick-access tiles → real routes.
 // Icons mirror the Stitch design's Material Symbols exactly (MaterialIcons set).
 const QUICK = [
-  { label: 'ACTIVITIES', icon: 'fitness-center',       color: '#00BCD4', route: 'Activities', legacyDisabled: true },
-  { label: 'CAFE',       icon: 'local-cafe',           color: '#FFA000', route: 'Cafe', legacyDisabled: true },
+  // PRE-RELEASE: hidden per UI_Removal_Markup (Activities, Cafe)
+  // { label: 'ACTIVITIES', icon: 'fitness-center',       color: '#00BCD4', route: 'Activities', legacyDisabled: true },
+  // { label: 'CAFE',       icon: 'local-cafe',           color: '#FFA000', route: 'Cafe', legacyDisabled: true },
   { label: 'RANKING',    icon: 'leaderboard',          color: GOLD,      route: 'Leaderboard' },
   { label: 'COMMUNITY',  icon: 'forum',                color: '#9C27B0', route: 'Community' },
   { label: 'TRAINERS',   icon: 'sports-martial-arts',  color: '#4CAF50', route: 'Trainers' },
@@ -296,8 +297,8 @@ export default function HomeScreen({ navigation }) {
           </View>
         </View>
 
-        {/* ── BUILD COINS CARD ─────────────────────── */}
-        {(() => {
+        {/* PRE-RELEASE: Build Coins card hidden per UI_Removal_Markup */}
+        {/* {(() => {
           const coinsCard = (
             <TouchableOpacity
               style={styles.coinsCard}
@@ -320,7 +321,7 @@ export default function HomeScreen({ navigation }) {
             </TouchableOpacity>
           );
           return IS_LEGACY_BUILD ? <GreyedOut>{coinsCard}</GreyedOut> : coinsCard;
-        })()}
+        })()} */}
 
         {/* ── QUICK ACCESS GRID ────────────────────── */}
         <View style={styles.quickGrid}>
@@ -420,8 +421,8 @@ export default function HomeScreen({ navigation }) {
         <ActiveOrderBar navigation={navigation} />
       </View>
 
-      {/* ── STICKY CHECK-IN FAB ──────────────────── */}
-      {!IS_LEGACY_BUILD && (
+      {/* PRE-RELEASE: Check-in FAB hidden per UI_Removal_Markup */}
+      {/* {!IS_LEGACY_BUILD && (
         <View style={styles.fabWrap} pointerEvents="box-none">
           <TouchableOpacity activeOpacity={0.9} onPress={() => navigation.navigate('Access')}>
             <LinearGradient
@@ -435,7 +436,7 @@ export default function HomeScreen({ navigation }) {
           </TouchableOpacity>
           <Text style={styles.fabLabel}>CHECK IN</Text>
         </View>
-      )}
+      )} */}
     </View>
   );
 }
