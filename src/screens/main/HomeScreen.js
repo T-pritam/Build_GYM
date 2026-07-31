@@ -47,6 +47,7 @@ const QUICK = [
   { label: 'TRAINERS',   icon: 'sports-martial-arts',  color: '#4CAF50', route: 'Trainers' },
   { label: 'MY COACH',   icon: 'chat',                 color: '#A78BFA', route: 'MyChat' },
   { label: 'BLOGS',      icon: 'menu-book',            color: '#4A90D9', route: 'BlogList' },
+  { label: 'GAMING',     icon: 'sports-esports',       color: '#7C3AED', route: 'Gaming' },
 ];
 
 // Dummy 7-day calorie bar heights (no calories service yet).
@@ -317,22 +318,25 @@ export default function HomeScreen({ navigation }) {
 
         {/* ── QUICK ACCESS GRID ────────────────────── */}
         <View style={styles.quickGrid}>
-          {QUICK.map((q) => (
-            <TouchableOpacity
-              key={q.label}
-              style={styles.quickTile}
-              activeOpacity={0.85}
-              onPress={() => navigation.push(q.route)}
-            >
-              <MaterialIcons
-                name={q.icon}
-                size={26}
-                color={q.color}
-                style={[styles.quickIcon, { textShadowColor: q.color }]}
-              />
-              <Text style={styles.quickLabel}>{q.label}</Text>
-            </TouchableOpacity>
-          ))}
+          {QUICK.map((q) => {
+            const tile = (
+              <TouchableOpacity
+                style={styles.quickTile}
+                activeOpacity={0.85}
+                onPress={() => navigation.push(q.route)}
+              >
+                <MaterialIcons
+                  name={q.icon}
+                  size={26}
+                  color={q.color}
+                  style={[styles.quickIcon, { textShadowColor: q.color }]}
+                />
+                <Text style={styles.quickLabel}>{q.label}</Text>
+              </TouchableOpacity>
+            );
+            // Every tile gets an equal grid slot so tiles occupy identical space.
+            return <View key={q.label} style={styles.quickTileSlot}>{tile}</View>;
+          })}
         </View>
 
         {/* ── TODAY'S WORKOUT ──────────────────────── */}
@@ -552,8 +556,11 @@ const styles = StyleSheet.create({
   // Stitch: glass-card · p-4 · rounded-2xl · gap-2 · items/justify-center.
   // Real vertical padding (no aspectRatio) keeps the label balanced off the
   // bottom edge on every screen size.
+  // Grid slot: fixes each tile's footprint so greyed (GreyedOut-wrapped) and
+  // normal tiles occupy identical space — 3 per row, wrapping to new rows.
+  quickTileSlot: { width: '30%', flexGrow: 1 },
   quickTile: {
-    width: '30%', flexGrow: 1, backgroundColor: 'rgba(0,0,0,0.4)',
+    width: '100%', backgroundColor: 'rgba(0,0,0,0.4)',
     borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)',
     alignItems: 'center', justifyContent: 'center', gap: 8,
     paddingVertical: 18, paddingHorizontal: 8,
