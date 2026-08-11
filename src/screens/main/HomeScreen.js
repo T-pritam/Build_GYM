@@ -50,7 +50,7 @@ const QUICK = [
   { label: 'TRAINERS',   icon: 'sports-martial-arts',  color: '#4CAF50', route: 'Trainers' },
   { label: 'MY COACH',   icon: 'chat',                 color: '#A78BFA', route: 'MyChat' },
   { label: 'BLOGS',      icon: 'menu-book',            color: '#4A90D9', route: 'BlogList' },
-  { label: 'GAMING',     icon: 'sports-esports',       color: '#7C3AED', route: 'Gaming' },
+  // { label: 'GAMING',     icon: 'sports-esports',       color: '#7C3AED', route: 'Gaming' },
 ];
 
 // Dummy 7-day calorie bar heights (no calories service yet).
