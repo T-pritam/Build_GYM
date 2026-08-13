@@ -6,8 +6,14 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
-import { fetchWorkoutDetail, fetchNudges } from '../../services/workoutService';
+import { fetchWorkoutDetail, fetchNudges, fetchWellnessToday } from '../../services/workoutService';
 import { formatLogged } from '../../utils/measurement';
+import WellnessSurveyCard from '../../components/WellnessSurveyCard';
+
+const localIsoDate = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
 
 export default function WorkoutSummaryScreen({ route, navigation }) {
   const insets = useSafeAreaInsets();
@@ -15,6 +21,7 @@ export default function WorkoutSummaryScreen({ route, navigation }) {
   const [detail, setDetail] = useState(routeSummary || null);
   const [nudges, setNudges] = useState([]);
   const [loading, setLoading] = useState(!routeSummary);
+  const [wellness, setWellness] = useState(null); // { date } when the survey should show
 
   useEffect(() => {
     (async () => {
@@ -27,6 +34,12 @@ export default function WorkoutSummaryScreen({ route, navigation }) {
           const n = await fetchNudges('post_workout');
           setNudges(n || []);
         }
+        // A.5 — show the wellness survey only on the first completed workout of the local day.
+        try {
+          const date = localIsoDate();
+          const today = await fetchWellnessToday(date);
+          if (!today) setWellness({ date });
+        } catch { /* survey is optional */ }
       } catch (e) {
         console.error(e);
       } finally {
@@ -109,6 +122,11 @@ export default function WorkoutSummaryScreen({ route, navigation }) {
             <Text style={styles.nudgeCtaText}>{nudges[0].cta || 'Try a Free PT Session'}</Text>
           </TouchableOpacity>
         </View>
+      )}
+
+      {/* A.5 — post-session wellness survey (first completed workout of the day) */}
+      {wellness && (
+        <WellnessSurveyCard date={wellness.date} sessionId={workoutLogId} initial={null} />
       )}
 
       {/* Actions */}

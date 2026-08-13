@@ -9,7 +9,7 @@ import Svg, { Circle } from 'react-native-svg';
 import { COLORS } from '../../constants/colors';
 import {
   fetchKPIs, fetchWeeklySummary, fetchMuscleDistribution,
-  fetchPersonalRecords, fetchWorkoutHistory,
+  fetchPersonalRecords, fetchWorkoutHistory, fetchExtendedStats,
 } from '../../services/workoutService';
 import { prMeta } from '../../utils/measurement';
 
@@ -24,21 +24,23 @@ export default function WorkoutStatsScreen({ navigation }) {
   const [muscle, setMuscle] = useState([]);
   const [prs, setPrs] = useState([]);
   const [history, setHistory] = useState([]);
+  const [extended, setExtended] = useState(null);
   const [period, setPeriod] = useState(1); // index into PERIODS (30D)
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
-      const [k, w, m, p, h] = await Promise.allSettled([
+      const [k, w, m, p, h, ex] = await Promise.allSettled([
         fetchKPIs(), fetchWeeklySummary(), fetchMuscleDistribution(),
-        fetchPersonalRecords(), fetchWorkoutHistory({ limit: 120 }),
+        fetchPersonalRecords(), fetchWorkoutHistory({ limit: 120 }), fetchExtendedStats(),
       ]);
       setKpis(k.status === 'fulfilled' ? k.value : null);
       setWeekly(w.status === 'fulfilled' ? w.value : null);
       setMuscle(m.status === 'fulfilled' ? (m.value || []) : []);
       setPrs(p.status === 'fulfilled' ? (p.value || []) : []);
       setHistory(h.status === 'fulfilled' ? (Array.isArray(h.value) ? h.value : (h.value?.items || h.value || [])) : []);
+      setExtended(ex.status === 'fulfilled' ? ex.value : null);
     } catch (e) {
       console.error(e);
     } finally {
@@ -88,7 +90,49 @@ export default function WorkoutStatsScreen({ navigation }) {
             <KpiBox label="Minutes" value={weekly.totalMinutes} />
             <KpiBox label="Avg Duration" value={`${weekly.avgDurationMinutes || 0} min`} />
           </View>
+          {extended && (
+            <View style={[styles.statsGrid, { marginTop: 10 }]}>
+              <KpiBox label="Reps this week" value={extended.weeklyReps} />
+              <KpiBox label="Weight this week" value={`${extended.weeklyWeight} kg`} />
+            </View>
+          )}
         </View>
+      )}
+
+      {/* A.11 Lifetime + calories */}
+      {extended && (
+        <>
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Lifetime Totals</Text>
+            <View style={styles.statsGrid}>
+              <KpiBox label="Total Reps" value={extended.lifetimeReps.toLocaleString()} />
+              <KpiBox label="Total Weight" value={`${extended.lifetimeWeight.toLocaleString()} kg`} />
+            </View>
+          </View>
+
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Active Calories</Text>
+            <Text style={styles.bigValue}>{extended.calories.total.toLocaleString()} kcal</Text>
+            <Text style={styles.kpiDesc}>Estimated across all workouts</Text>
+            {extended.calories.recent?.length > 0 && (
+              <View style={{ marginTop: 10 }}>
+                {extended.calories.recent.slice(0, 5).map((r, i) => (
+                  <View key={i} style={styles.calRow}>
+                    <Text style={styles.calName} numberOfLines={1}>{r.name} · {r.date}</Text>
+                    <Text style={styles.calVal}>{r.calories} kcal</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+
+          {extended.volumeTrend?.length > 1 && (
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>Volume Trend (12 wk)</Text>
+              <VolumeTrend data={extended.volumeTrend} />
+            </View>
+          )}
+        </>
       )}
 
       {/* KPIs */}
@@ -172,6 +216,23 @@ function KpiBox({ label, value }) {
     <View style={styles.kpiBox}>
       <Text style={styles.kpiValue}>{value}</Text>
       <Text style={styles.kpiLabel}>{label}</Text>
+    </View>
+  );
+}
+
+// ── Weekly volume trend — lightweight bars (A.11.7) ─────────────────────────
+function VolumeTrend({ data }) {
+  const max = Math.max(...data.map((d) => d.volume), 1);
+  return (
+    <View style={styles.trendRow}>
+      {data.map((d, i) => (
+        <View key={i} style={styles.trendCol}>
+          <View style={styles.trendBarTrack}>
+            <View style={[styles.trendBarFill, { height: `${Math.max(3, (d.volume / max) * 100)}%` }]} />
+          </View>
+          <Text style={styles.trendLabel} numberOfLines={1}>{d.week?.slice(5)}</Text>
+        </View>
+      ))}
     </View>
   );
 }
@@ -268,6 +329,14 @@ const styles = StyleSheet.create({
   kpiBox: { width: '47%', alignItems: 'center', paddingVertical: 10 },
   kpiValue: { fontSize: 22, fontWeight: '700', color: COLORS.white },
   kpiLabel: { fontSize: 12, color: COLORS.textSecondary, marginTop: 2 },
+  calRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  calName: { color: COLORS.textSecondary, fontSize: 13, flex: 1, marginRight: 8 },
+  calVal: { color: COLORS.white, fontSize: 13, fontWeight: '700' },
+  trendRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 4, height: 100, marginTop: 8 },
+  trendCol: { flex: 1, alignItems: 'center' },
+  trendBarTrack: { width: '70%', height: 80, backgroundColor: COLORS.background, borderRadius: 4, justifyContent: 'flex-end', overflow: 'hidden' },
+  trendBarFill: { width: '100%', backgroundColor: COLORS.secondary || '#7C3AED', borderRadius: 4 },
+  trendLabel: { color: COLORS.textMuted, fontSize: 8, marginTop: 4 },
 
   bigValue: { fontSize: 32, fontWeight: '700', color: COLORS.white },
   positive: { color: '#34C759' },

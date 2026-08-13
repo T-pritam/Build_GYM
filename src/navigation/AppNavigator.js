@@ -72,6 +72,9 @@ import {
   PersonalRecordsScreen,
   MuscleDistributionScreen,
   StreakDetailScreen,
+  FreestyleTemplatesScreen,
+  NutritionScreen,
+  ExerciseTrendScreen,
 } from '../screens/workout';
 
 // Detail screens
@@ -383,6 +386,9 @@ export default function AppNavigator() {
         <Stack.Screen name="ExercisePicker" component={ExercisePickerScreen} />
         <Stack.Screen name="WorkoutStats" component={WorkoutStatsScreen} />
         <Stack.Screen name="WorkoutHistory" component={WorkoutHistoryScreen} />
+        <Stack.Screen name="FreestyleTemplates" component={FreestyleTemplatesScreen} />
+        <Stack.Screen name="Nutrition" component={NutritionScreen} />
+        <Stack.Screen name="ExerciseTrend" component={ExerciseTrendScreen} />
         <Stack.Screen name="WorkoutDetail" component={WorkoutDetailScreen} />
         <Stack.Screen name="PersonalRecords" component={PersonalRecordsScreen} />
         <Stack.Screen name="MuscleDistribution" component={MuscleDistributionScreen} />
