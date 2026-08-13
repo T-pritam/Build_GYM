@@ -9,9 +9,12 @@ import { COLORS } from '../../constants/colors';
 import { useAuthStore } from '../../store/authStore';
 import {
   fetchTodaysPlan, fetchActivityRings, fetchStreak,
-  fetchWeeklySummary, fetchNudges, fetchInstances,
+  fetchWeeklySummary, fetchNudges, fetchInstances, fetchMuscleRecovery,
 } from '../../services/workoutService';
 import { fetchMyTrainer } from '../../services/trainerService';
+import { fetchNutritionPlan } from '../../services/nutritionService';
+import { IS_LEGACY_BUILD } from '../../config/featureFlags';
+import MuscleRecoveryCard from '../../components/MuscleRecoveryCard';
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -25,12 +28,14 @@ export default function WorkoutHomeScreen({ navigation }) {
   const [weeklySummary, setWeeklySummary] = useState(null);
   const [nudges, setNudges] = useState([]);
   const [instances, setInstances] = useState({ today: [], upcoming: [] });
+  const [recovery, setRecovery] = useState([]);
+  const [hasNutrition, setHasNutrition] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
-      const [plan, trainerData, ringData, streakData, summary, nudgeData, inst] = await Promise.allSettled([
+      const [plan, trainerData, ringData, streakData, summary, nudgeData, inst, rec, nutrition] = await Promise.allSettled([
         fetchTodaysPlan(),
         fetchMyTrainer(),
         fetchActivityRings(),
@@ -38,7 +43,10 @@ export default function WorkoutHomeScreen({ navigation }) {
         fetchWeeklySummary(),
         fetchNudges('home'),
         fetchInstances(),
+        fetchMuscleRecovery(),
+        IS_LEGACY_BUILD ? Promise.resolve(null) : fetchNutritionPlan(),
       ]);
+      setHasNutrition(nutrition.status === 'fulfilled' && !!nutrition.value);
       setTodaysPlan(plan.status === 'fulfilled' ? plan.value : null);
       setMyTrainer(trainerData.status === 'fulfilled' ? trainerData.value : null);
       setRings(ringData.status === 'fulfilled' ? ringData.value : null);
@@ -46,6 +54,7 @@ export default function WorkoutHomeScreen({ navigation }) {
       setWeeklySummary(summary.status === 'fulfilled' ? summary.value : null);
       setNudges(nudgeData.status === 'fulfilled' ? nudgeData.value : []);
       setInstances(inst.status === 'fulfilled' ? (inst.value || { today: [], upcoming: [] }) : { today: [], upcoming: [] });
+      setRecovery(rec.status === 'fulfilled' ? (rec.value || []) : []);
     } catch (e) {
       console.error(e);
     } finally {
@@ -118,15 +127,27 @@ export default function WorkoutHomeScreen({ navigation }) {
 
     // Case B — no trainer
     return (
-      <TouchableOpacity
-        style={styles.selfLogCard}
-        onPress={() => navigation.navigate('MuscleGroupPicker')}
-        activeOpacity={0.8}
-      >
-        <Ionicons name="add-circle-outline" size={32} color={COLORS.secondary} />
-        <Text style={styles.selfLogTitle}>Start Workout</Text>
-        <Text style={styles.selfLogSubtitle}>No plan assigned today — log your own workout</Text>
-      </TouchableOpacity>
+      <>
+        <TouchableOpacity
+          style={styles.selfLogCard}
+          onPress={() => navigation.navigate('MuscleGroupPicker')}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="add-circle-outline" size={32} color={COLORS.secondary} />
+          <Text style={styles.selfLogTitle}>Start Workout</Text>
+          <Text style={styles.selfLogSubtitle}>No plan assigned today — log your own workout</Text>
+        </TouchableOpacity>
+        {/* A.4 — freestyle template browser */}
+        <TouchableOpacity
+          style={styles.browseRow}
+          onPress={() => navigation.navigate('FreestyleTemplates')}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="albums-outline" size={20} color={COLORS.secondary} />
+          <Text style={styles.browseTxt}>Browse gym workout templates</Text>
+          <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
+        </TouchableOpacity>
+      </>
     );
   };
 
@@ -210,6 +231,22 @@ export default function WorkoutHomeScreen({ navigation }) {
 
         {/* Workout Card: Case A / Rest Day / Case B */}
         {renderWorkoutCard()}
+
+        {/* A.7 Muscle recovery (advisory) */}
+        <MuscleRecoveryCard data={recovery} />
+
+        {/* A.8 Nutrition (PT members with an active plan; hidden in Legacy build) */}
+        {!IS_LEGACY_BUILD && hasNutrition && (
+          <TouchableOpacity
+            style={styles.browseRow}
+            onPress={() => navigation.navigate('Nutrition')}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="nutrition-outline" size={20} color={COLORS.secondary} />
+            <Text style={styles.browseTxt}>Nutrition plan & adherence</Text>
+            <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
+          </TouchableOpacity>
+        )}
 
         {/* Weekly Summary */}
         {weeklySummary && (
@@ -352,6 +389,8 @@ const styles = StyleSheet.create({
 
   // Self-log card (Case B)
   selfLogCard: { backgroundColor: COLORS.surface, borderRadius: 16, padding: 24, marginBottom: 16, alignItems: 'center', borderWidth: 1, borderColor: COLORS.border, borderStyle: 'dashed' },
+  browseRow: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: COLORS.surface, borderRadius: 12, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: COLORS.border },
+  browseTxt: { flex: 1, color: COLORS.white, fontSize: 14, fontWeight: '600' },
   selfLogTitle: { fontSize: 18, fontWeight: '600', color: COLORS.white, marginTop: 8 },
   selfLogSubtitle: { fontSize: 13, color: COLORS.textMuted, marginTop: 4, textAlign: 'center' },
 

@@ -113,6 +113,12 @@ export const fetchMuscleDistribution = async () => {
   return data.data;
 };
 
+// A.11 — lifetime reps/weight, volume trend, weekly totals, calorie summary
+export const fetchExtendedStats = async () => {
+  const { data } = await api.get('/member/stats/extended');
+  return data.data;
+};
+
 export const fetchActivityRings = async () => {
   const { data } = await api.get('/member/stats/activity-rings');
   return data.data;
@@ -130,6 +136,72 @@ export const fetchExercisePRs = async (exerciseId) => {
 
 export const fetchStreak = async () => {
   const { data } = await api.get('/member/streak');
+  return data.data;
+};
+
+// ── Working Max (A.1) — read-only member view ────────────────────────────────
+export const fetchWorkingMax = async (exerciseId) => {
+  const params = exerciseId ? { exercise_id: exerciseId } : {};
+  const { data } = await api.get('/member/working-max', { params });
+  return data.data; // [{ exerciseId, exerciseName, estimated1rmKg, ... }]
+};
+
+// ── Plate settings (A.6) — member default bar weight ─────────────────────────
+export const fetchPlateSettings = async () => {
+  const { data } = await api.get('/member/plate-settings');
+  return data.data; // { defaultBarWeightKg }
+};
+
+export const updatePlateSettings = async (defaultBarWeightKg) => {
+  const { data } = await api.put('/member/plate-settings', { defaultBarWeightKg });
+  return data.data;
+};
+
+// ── 1RM trend (A.11.2) ───────────────────────────────────────────────────────
+export const fetch1rmTrend = async (exerciseId) => {
+  const { data } = await api.get('/member/stats/1rm-trend', { params: { exercise_id: exerciseId } });
+  return data.data; // [{ date, est1rm }]
+};
+
+// ── Freestyle template browser (A.4) — members with no trainer ───────────────
+export const fetchTemplateTagOptions = async () => {
+  const { data } = await api.get('/template-tag-options', { params: { activeOnly: '1' } });
+  return data.data; // { category:[], activity_target:[], frequency_fit:[] }
+};
+
+export const browseTemplates = async (filters = {}) => {
+  const { data } = await api.get('/workout/templates/browse', { params: filters });
+  return data.data; // enriched templates
+};
+
+export const selfAssignTemplate = async (templateId, date, replace = false) => {
+  const { data } = await api.post(`/workout/templates/${templateId}/self-assign`, { date, replace });
+  return data;
+};
+
+export const deleteSelfAssigned = async (workoutLogId) => {
+  const { data } = await api.delete(`/workout/self-assigned/${workoutLogId}`);
+  return data;
+};
+
+// ── Muscle recovery (A.7) + wellness survey (A.5) ────────────────────────────
+export const fetchMuscleRecovery = async () => {
+  const { data } = await api.get('/member/muscle-recovery');
+  return data.data; // [{ muscleGroup, score, status }]
+};
+
+export const fetchWellnessToday = async (date) => {
+  const { data } = await api.get('/member/wellness/today', { params: { date } });
+  return data.data; // row or null
+};
+
+export const patchWellness = async ({ field, value, date, sessionId }) => {
+  const { data } = await api.patch('/member/wellness/today', { field, value, date, sessionId });
+  return data.data;
+};
+
+export const fetchWellnessTrend = async (from, to) => {
+  const { data } = await api.get('/member/wellness/trend', { params: { from, to } });
   return data.data;
 };
 

@@ -10,11 +10,12 @@ import { useAuthStore } from '../../store/authStore';
 import { getSocket } from '../../services/socketService';
 import {
   fetchActiveWorkout, startWorkout, logSet, getWorkoutSets, completeWorkout,
-  skipInstanceExercise, setInstanceRemark, startInstance,
+  skipInstanceExercise, setInstanceRemark, startInstance, fetchWorkingMax,
 } from '../../services/workoutService';
 import {
   formatLogged, formatTarget, secondsToMmss, mmssToSeconds, kmToMeters, metersToKm,
 } from '../../utils/measurement';
+import PlateCalculatorModal from '../../components/PlateCalculatorModal';
 
 const SKIP_REASONS = [
   { key: 'pain', label: 'Pain/discomfort' },
@@ -44,6 +45,24 @@ export default function WorkoutSessionScreen({ route, navigation }) {
   const [prCelebrate, setPrCelebrate] = useState(null);
   const [workoutRemark, setWorkoutRemark] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const [workingMaxMap, setWorkingMaxMap] = useState({}); // { [exerciseId]: estimated1rmKg }
+  const [plateFor, setPlateFor] = useState(null);         // exercise object for the plate modal
+
+  // A.1 — load the member's Working Max once the exercise list is known (read-only display).
+  useEffect(() => {
+    if (!exercises.length) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const rows = await fetchWorkingMax();
+        if (cancelled) return;
+        const map = {};
+        for (const r of rows || []) if (r.estimated1rmKg != null) map[r.exerciseId] = r.estimated1rmKg;
+        setWorkingMaxMap(map);
+      } catch { /* advisory only */ }
+    })();
+    return () => { cancelled = true; };
+  }, [exercises.length]);
   const timerRef = useRef(null);
   const startTimeRef = useRef(Date.now());
   const prAnim = useRef(new Animated.Value(0)).current;
@@ -69,6 +88,12 @@ export default function WorkoutSessionScreen({ route, navigation }) {
     targetTimeSeconds: ex.targetTimeSeconds ?? null,
     targetDistance: ex.targetDistance ?? null,
     restSeconds: ex.restSeconds || 90,
+    // A.6 plate calc — snapshot/library carry the equipment class + bar override
+    equipmentType: ex.equipmentType ?? null,
+    barWeightOverrideKg: ex.barWeightOverrideKg ?? ex.bar_weight_override_kg ?? null,
+    // A.2 — surfaced when a % prescription couldn't resolve (uncalibrated)
+    weightSource: ex.weightSource ?? null,
+    originalPercentage: ex.originalPercentage ?? null,
   }));
 
   // Group raw set rows into { [exerciseId]: [set, ...] }
@@ -440,6 +465,29 @@ export default function WorkoutSessionScreen({ route, navigation }) {
           contentContainerStyle={{ paddingBottom: 120 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.secondary} />}
         >
+          {(workingMaxMap[currentExercise.id] != null || currentExercise.equipmentType === 'barbell'
+            || currentExercise.weightSource === 'uncalibrated') && (
+            <View style={styles.wmRow}>
+              {workingMaxMap[currentExercise.id] != null && (
+                <View style={styles.wmChip}>
+                  <Ionicons name="trending-up" size={13} color={COLORS.secondary} />
+                  <Text style={styles.wmChipTxt}>Working Max {workingMaxMap[currentExercise.id]} kg</Text>
+                </View>
+              )}
+              {currentExercise.weightSource === 'uncalibrated' && (
+                <View style={styles.wmChip}>
+                  <Ionicons name="alert-circle-outline" size={13} color={COLORS.warning || '#FFC107'} />
+                  <Text style={styles.wmChipTxt}>% target — log a set to calibrate</Text>
+                </View>
+              )}
+              {currentExercise.equipmentType === 'barbell' && (
+                <TouchableOpacity style={styles.plateBtn} onPress={() => setPlateFor(currentExercise)}>
+                  <Ionicons name="barbell-outline" size={14} color={COLORS.secondary} />
+                  <Text style={styles.plateBtnTxt}>Plates</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
           <View style={styles.exHeaderRow}>
             <Text style={[styles.exerciseName, skipped[currentExercise.id] && styles.exNameSkipped]}>{currentExercise.name}</Text>
             {!isCompleted && (
@@ -539,6 +587,13 @@ export default function WorkoutSessionScreen({ route, navigation }) {
           )}
         </ScrollView>
       )}
+
+      {/* A.6 plate calculator (barbell exercises) */}
+      <PlateCalculatorModal
+        visible={!!plateFor}
+        exercise={plateFor}
+        onClose={() => setPlateFor(null)}
+      />
     </View>
   );
 }
@@ -819,6 +874,11 @@ const styles = StyleSheet.create({
 
   // Exercise header + skip
   exHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 },
+  wmRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginTop: 12 },
+  wmChip: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 14, paddingHorizontal: 10, paddingVertical: 5 },
+  wmChipTxt: { color: COLORS.textSecondary || '#D4C1CF', fontSize: 12, fontWeight: '600' },
+  plateBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, borderColor: COLORS.secondary || COLORS.primary || '#7C3AED', borderRadius: 14, paddingHorizontal: 10, paddingVertical: 5 },
+  plateBtnTxt: { color: COLORS.secondary || COLORS.primary || '#7C3AED', fontSize: 12, fontWeight: '700' },
   exNameSkipped: { textDecorationLine: 'line-through', color: COLORS.textMuted },
   skipBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 14, borderWidth: 1, borderColor: COLORS.border },
   skipBtnTxt: { color: COLORS.textMuted, fontSize: 12, fontWeight: '600' },
