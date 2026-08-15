@@ -23,6 +23,7 @@ const MENU = [
   // { id: 'bookings',  label: 'My Bookings',        sub: 'Manage your sessions',         icon: 'calendar-today', nav: 'MyBookings',   color: '#2DD4BF', bg: 'rgba(13,148,136,0.22)', legacyDisabled: true },
   // { id: 'orders',    label: 'Order History',      sub: 'Past transactions & invoices', icon: 'receipt-long',   nav: 'OrderHistory', color: '#2DD4BF', bg: 'rgba(13,148,136,0.22)', legacyDisabled: true },
   { id: 'activity',  label: 'Activity Dashboard', sub: 'Club usage & stats',           icon: 'insights',       nav: 'Activity',     color: '#FBBF24', bg: 'rgba(245,158,11,0.16)' },
+  { id: 'progress',  label: 'Progress Tracker',   sub: 'Body weight & photos',         icon: 'trending-up',    nav: 'ProgressTracker', color: '#34D399', bg: 'rgba(16,185,129,0.16)' },
   { id: 'settings',  label: 'Settings',           sub: 'App & privacy preferences',    icon: 'settings',       nav: 'Settings',     color: '#C7C4CC', bg: 'rgba(255,255,255,0.08)' },
   { id: 'support',   label: 'Support',            sub: '24/7 concierge assistance',    icon: 'support-agent',  nav: 'Support',      color: '#60A5FA', bg: 'rgba(96,165,250,0.14)' },
   { id: 'complaint', label: 'Register Complaint', sub: 'Feedback & issue reporting',   icon: 'report',         nav: 'MyComplaints', color: '#F87171', bg: 'rgba(248,113,113,0.14)' },

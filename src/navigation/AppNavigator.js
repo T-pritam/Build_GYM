@@ -46,6 +46,7 @@ import PaymentSuccessScreen from '../screens/profile/PaymentSuccessScreen';
 import PaymentFailedScreen from '../screens/profile/PaymentFailedScreen';
 import TransactionDetailScreen from '../screens/profile/TransactionDetailScreen';
 import ActivityDashboardScreen from '../screens/profile/ActivityDashboardScreen';
+import ProgressTrackerScreen from '../screens/profile/ProgressTrackerScreen';
 import ComplaintScreen from '../screens/profile/ComplaintScreen';
 import MyComplaintsScreen from '../screens/profile/MyComplaintsScreen';
 import MyComplaintDetailScreen from '../screens/profile/MyComplaintDetailScreen';
@@ -298,6 +299,7 @@ export default function AppNavigator() {
           options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen name="Activity" component={ActivityDashboardScreen} />
+        <Stack.Screen name="ProgressTracker" component={ProgressTrackerScreen} />
         <Stack.Screen name="Complaint" component={ComplaintScreen} />
         <Stack.Screen name="MyComplaints" component={MyComplaintsScreen} />
         <Stack.Screen name="MyComplaintDetail" component={MyComplaintDetailScreen} />
