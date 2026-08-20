@@ -16,6 +16,14 @@ export const fetchCurrentGamingSession = () =>
 export const fetchGamingSession = (id) =>
   api.get(`/gaming/sessions/${id}`);
 
+/** Freeze the paid clock while stepping away. Limited per session — see canPause on the card. */
+export const pauseGamingSession = (id) =>
+  api.post(`/gaming/sessions/${id}/pause`);
+
+/** Come back: the backend hands the banked time back by extending paidUntil. */
+export const resumeGamingSession = (id) =>
+  api.post(`/gaming/sessions/${id}/resume`);
+
 export const endGamingSession = (id) =>
   api.post(`/gaming/sessions/${id}/end`);
 
