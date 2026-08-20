@@ -24,6 +24,14 @@ export const pauseGamingSession = (id) =>
 export const resumeGamingSession = (id) =>
   api.post(`/gaming/sessions/${id}/resume`);
 
+/**
+ * Buy the next block early. Phone-only by design: the kiosk overlay has no
+ * identity behind it, so an "add time" button on the PC would let anyone walking
+ * past a seat spend the member's coins.
+ */
+export const extendGamingSession = (id) =>
+  api.post(`/gaming/sessions/${id}/extend`);
+
 export const endGamingSession = (id) =>
   api.post(`/gaming/sessions/${id}/end`);
 

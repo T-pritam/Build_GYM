@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert } fr
 import { Ionicons } from '@expo/vector-icons';
 import {
   fetchGamingSession, endGamingSession, reportGamingProblem,
-  pauseGamingSession, resumeGamingSession,
+  pauseGamingSession, resumeGamingSession, extendGamingSession,
 } from '../../../services/gamingService';
 import { getSocket } from '../../../services/socketService';
 import { useWalletStore } from '../../../store/walletStore';
@@ -22,7 +22,8 @@ const END_MESSAGE = {
   admin_forced: 'A staff member closed this session.',
   balance_exhausted: 'You ran out of coins.',
   absent_at_boundary: 'The session ended while you were away — no charge.',
-  offline: 'The PC lost its connection, so your paid time was finished out.',
+  offline: 'That PC stopped responding. Any time you paid for and didn’t get has been refunded.',
+  no_show: 'Nobody sat down at that PC, so it was released and your coins were refunded.',
 };
 
 export default function GamingActiveSessionScreen({ navigation, route }) {
@@ -62,7 +63,10 @@ export default function GamingActiveSessionScreen({ navigation, route }) {
         : Math.max(0, Math.round((paidUntilRef.current - Date.now()) / 1000)));
     }
     if (s.status === 'ended') {
-      Alert.alert('Session ended', END_MESSAGE[s.endReason] || 'Thanks for playing!');
+      const refunded = s.coinsRefunded > 0 ? `
+
+${s.coinsRefunded} coins refunded.` : '';
+      Alert.alert('Session ended', (END_MESSAGE[s.endReason] || 'Thanks for playing!') + refunded);
       navigation.goBack();
     }
   }, [navigation]);
@@ -153,6 +157,29 @@ export default function GamingActiveSessionScreen({ navigation, route }) {
     } finally { setBusy(false); }
   };
 
+  // Buy the next block now rather than waiting for the boundary. Handy when the
+  // zone is busy and you don't want to risk the auto-renew failing on a low balance.
+  const doExtend = () => Alert.alert(
+    'Add more time?',
+    `${session?.pricePerBlock ?? 50} coins for another ${session?.blockLengthMin ?? 30} minutes, added to the end of your current time.`,
+    [
+      { text: 'Not now', style: 'cancel' },
+      {
+        text: 'Add time',
+        onPress: async () => {
+          setBusy(true);
+          try {
+            const res = await extendGamingSession(sessionId);
+            applySession(res.data?.data?.session);
+            fetchBalance?.();
+          } catch (err) {
+            Alert.alert('Could not add time', err.response?.data?.message || 'Please try again.');
+          } finally { setBusy(false); }
+        },
+      },
+    ],
+  );
+
   const doEnd = () => Alert.alert(
     'End session?',
     `You still have ${clock(remaining)} paid. Unused time is not refunded.`,
@@ -234,6 +261,18 @@ export default function GamingActiveSessionScreen({ navigation, route }) {
             <Text style={styles.ghostText}>Pause</Text>
           </TouchableOpacity>
         )}
+        <TouchableOpacity
+          style={[styles.btn, styles.ghost, (paused || busy) && styles.btnDisabled]}
+          onPress={doExtend}
+          disabled={paused || busy}
+        >
+          <Ionicons name="add" size={20} color={C.text} />
+          <Text style={styles.ghostText}>Add time</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Second row. Four buttons across one phone width left every label cramped. */}
+      <View style={styles.actions}>
         <TouchableOpacity style={[styles.btn, styles.ghost]} onPress={doReport}>
           <Ionicons name="flag-outline" size={20} color={C.text} />
           <Text style={styles.ghostText}>Report</Text>
@@ -264,7 +303,7 @@ const styles = StyleSheet.create({
   stat: { alignItems: 'center', marginHorizontal: 18 },
   statVal: { color: C.text, fontSize: 24, fontWeight: '800' },
   statLbl: { color: C.sub, fontSize: 12, marginTop: 4 },
-  actions: { flexDirection: 'row', padding: 16, gap: 10 },
+  actions: { flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 6, gap: 10 },
   btn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderRadius: 14, paddingVertical: 15 },
   primary: { backgroundColor: C.accent },
   primaryText: { color: '#0B1020', fontWeight: '800', marginLeft: 6 },

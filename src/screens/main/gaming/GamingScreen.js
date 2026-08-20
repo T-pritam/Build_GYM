@@ -15,6 +15,7 @@ const C = {
 const STATE_LABEL = {
   IDLE: 'Free', ACTIVE: 'In use', AWAY: 'Away', PAUSED: 'Paused',
   ENDING: 'Ending', CLEANUP: 'Cleaning', OFFLINE: 'Offline',
+  MAINTENANCE: 'Out of service',
 };
 
 // "2026-07-25T12:34:00Z" -> "12:34"
