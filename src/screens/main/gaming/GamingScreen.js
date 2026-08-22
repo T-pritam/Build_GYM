@@ -13,7 +13,9 @@ const C = {
 };
 
 const STATE_LABEL = {
-  IDLE: 'Free', ACTIVE: 'In use', AWAY: 'Away', ENDING: 'Ending', CLEANUP: 'Cleaning', OFFLINE: 'Offline',
+  IDLE: 'Free', ACTIVE: 'In use', AWAY: 'Away', PAUSED: 'Paused',
+  ENDING: 'Ending', CLEANUP: 'Cleaning', OFFLINE: 'Offline',
+  MAINTENANCE: 'Out of service',
 };
 
 // "2026-07-25T12:34:00Z" -> "12:34"
@@ -79,7 +81,7 @@ export default function GamingScreen({ navigation }) {
               <View style={{ flex: 1, marginLeft: 12 }}>
                 <Text style={styles.resumeTitle}>Resume your session</Text>
                 <Text style={styles.resumeSub}>
-                  Playing · spent {mySession.coinsSpent ?? 0} coins
+                  {mySession.isPaused ? 'Paused — tap to resume' : 'Playing'} · spent {mySession.coinsSpent ?? 0} coins
                 </Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color="#0B1020" />

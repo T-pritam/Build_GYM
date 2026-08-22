@@ -46,6 +46,7 @@ import PaymentSuccessScreen from '../screens/profile/PaymentSuccessScreen';
 import PaymentFailedScreen from '../screens/profile/PaymentFailedScreen';
 import TransactionDetailScreen from '../screens/profile/TransactionDetailScreen';
 import ActivityDashboardScreen from '../screens/profile/ActivityDashboardScreen';
+import ProgressTrackerScreen from '../screens/profile/ProgressTrackerScreen';
 import ComplaintScreen from '../screens/profile/ComplaintScreen';
 import MyComplaintsScreen from '../screens/profile/MyComplaintsScreen';
 import MyComplaintDetailScreen from '../screens/profile/MyComplaintDetailScreen';
@@ -72,6 +73,9 @@ import {
   PersonalRecordsScreen,
   MuscleDistributionScreen,
   StreakDetailScreen,
+  FreestyleTemplatesScreen,
+  NutritionScreen,
+  ExerciseTrendScreen,
 } from '../screens/workout';
 
 // Detail screens
@@ -295,6 +299,7 @@ export default function AppNavigator() {
           options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen name="Activity" component={ActivityDashboardScreen} />
+        <Stack.Screen name="ProgressTracker" component={ProgressTrackerScreen} />
         <Stack.Screen name="Complaint" component={ComplaintScreen} />
         <Stack.Screen name="MyComplaints" component={MyComplaintsScreen} />
         <Stack.Screen name="MyComplaintDetail" component={MyComplaintDetailScreen} />
@@ -383,6 +388,9 @@ export default function AppNavigator() {
         <Stack.Screen name="ExercisePicker" component={ExercisePickerScreen} />
         <Stack.Screen name="WorkoutStats" component={WorkoutStatsScreen} />
         <Stack.Screen name="WorkoutHistory" component={WorkoutHistoryScreen} />
+        <Stack.Screen name="FreestyleTemplates" component={FreestyleTemplatesScreen} />
+        <Stack.Screen name="Nutrition" component={NutritionScreen} />
+        <Stack.Screen name="ExerciseTrend" component={ExerciseTrendScreen} />
         <Stack.Screen name="WorkoutDetail" component={WorkoutDetailScreen} />
         <Stack.Screen name="PersonalRecords" component={PersonalRecordsScreen} />
         <Stack.Screen name="MuscleDistribution" component={MuscleDistributionScreen} />

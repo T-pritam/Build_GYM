@@ -10,3 +10,6 @@ export { default as WorkoutDetailScreen } from './WorkoutDetailScreen';
 export { default as PersonalRecordsScreen } from './PersonalRecordsScreen';
 export { default as MuscleDistributionScreen } from './MuscleDistributionScreen';
 export { default as StreakDetailScreen } from './StreakDetailScreen';
+export { default as FreestyleTemplatesScreen } from './FreestyleTemplatesScreen';
+export { default as NutritionScreen } from './NutritionScreen';
+export { default as ExerciseTrendScreen } from './ExerciseTrendScreen';

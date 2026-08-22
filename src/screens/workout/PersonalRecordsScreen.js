@@ -63,7 +63,7 @@ export default function PersonalRecordsScreen({ navigation }) {
         <TouchableOpacity
           key={exId}
           style={styles.card}
-          onPress={() => navigation.navigate('ExercisePRDetail', { exerciseId: exId, exerciseName: name })}
+          onPress={() => navigation.navigate('ExerciseTrend', { exerciseId: exId, exerciseName: name })}
           activeOpacity={0.7}
         >
           <Text style={styles.exerciseName}>{name}</Text>

@@ -50,7 +50,7 @@ export default function GamingConsentScreen({ navigation, route }) {
         <Ionicons name="game-controller-outline" size={56} color={C.accent} />
         <Text style={styles.pc}>{pcCode}</Text>
         <Text style={styles.consent}>
-          50 coins will be charged every 30 minutes automatically until you end the session, step away, or your balance runs out.
+          50 coins will be charged every 30 minutes automatically until you end the session or your balance runs out. Need a break? Pause from this app — your paid time is saved while you're away.
         </Text>
         <Text style={styles.note}>
           You'll get clear warnings before every charge. Your logins are erased automatically when your session ends.

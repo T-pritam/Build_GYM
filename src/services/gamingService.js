@@ -16,6 +16,22 @@ export const fetchCurrentGamingSession = () =>
 export const fetchGamingSession = (id) =>
   api.get(`/gaming/sessions/${id}`);
 
+/** Freeze the paid clock while stepping away. Limited per session — see canPause on the card. */
+export const pauseGamingSession = (id) =>
+  api.post(`/gaming/sessions/${id}/pause`);
+
+/** Come back: the backend hands the banked time back by extending paidUntil. */
+export const resumeGamingSession = (id) =>
+  api.post(`/gaming/sessions/${id}/resume`);
+
+/**
+ * Buy the next block early. Phone-only by design: the kiosk overlay has no
+ * identity behind it, so an "add time" button on the PC would let anyone walking
+ * past a seat spend the member's coins.
+ */
+export const extendGamingSession = (id) =>
+  api.post(`/gaming/sessions/${id}/extend`);
+
 export const endGamingSession = (id) =>
   api.post(`/gaming/sessions/${id}/end`);
 
