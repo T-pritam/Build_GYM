@@ -22,6 +22,19 @@ import {
 import {
   EBGaramond_400Regular_Italic,
 } from '@expo-google-fonts/eb-garamond';
+// Stitch "Forge Tokyo" typography — used ONLY by the V3 re-skinned screens via
+// src/theme/stitchKit (KF). The app-wide FONTS below stay Anybody/Hanken.
+import {
+  Montserrat_600SemiBold,
+  Montserrat_700Bold,
+  Montserrat_800ExtraBold,
+} from '@expo-google-fonts/montserrat';
+import {
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+} from '@expo-google-fonts/inter';
 
 // Map passed to useFonts(). Key = the string you set as fontFamily.
 export const FONT_ASSETS = {
@@ -32,6 +45,13 @@ export const FONT_ASSETS = {
   HankenGrotesk_600SemiBold,
   HankenGrotesk_700Bold,
   EBGaramond_400Regular_Italic,
+  Montserrat_600SemiBold,
+  Montserrat_700Bold,
+  Montserrat_800ExtraBold,
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
 };
 
 // Semantic family names — use these in StyleSheet, never the raw strings.

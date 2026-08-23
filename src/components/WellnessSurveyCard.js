@@ -6,6 +6,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { COLORS } from '../constants/colors';
+import { KC, KF } from '../theme/stitchKit';
 import { patchWellness } from '../services/workoutService';
 
 const FACTORS = [
@@ -66,14 +67,14 @@ export default function WellnessSurveyCard({ date, sessionId, initial }) {
 }
 
 const s = StyleSheet.create({
-  card: { backgroundColor: COLORS.surface || '#151215', borderRadius: 16, padding: 18, marginTop: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
-  title: { color: COLORS.white, fontSize: 16, fontWeight: '800' },
+  card: { backgroundColor: KC.card, borderRadius: 16, padding: 18, marginTop: 16, borderWidth: 1, borderColor: KC.border },
+  title: { color: COLORS.white, fontSize: 16, fontFamily: KF.heading },
   sub: { color: COLORS.textMuted, fontSize: 12, marginTop: 3, marginBottom: 12 },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
-  label: { color: COLORS.textSecondary || '#D4C1CF', fontSize: 14, fontWeight: '600', width: 80 },
+  label: { color: COLORS.textSecondary || '#D4C1CF', fontSize: 14, fontFamily: KF.label, width: 80 },
   dots: { flexDirection: 'row', gap: 8 },
   dot: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.background || '#080608', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
   dotOn: { backgroundColor: COLORS.secondary || COLORS.primary || '#7C3AED', borderColor: 'transparent' },
-  dotTxt: { color: COLORS.textMuted, fontSize: 13, fontWeight: '700' },
-  dotTxtOn: { color: '#fff', fontWeight: '800' },
+  dotTxt: { color: COLORS.textMuted, fontSize: 13, fontFamily: KF.bodyBold },
+  dotTxtOn: { color: '#fff', fontFamily: KF.heading },
 });

@@ -359,7 +359,7 @@ const styles = StyleSheet.create({
   greeting: { fontSize: 28, fontWeight: '700', color: COLORS.white },
 
   card: { backgroundColor: COLORS.surface, borderRadius: 16, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: COLORS.border },
-  cardTitle: { fontSize: 16, fontWeight: '600', color: COLORS.white, marginBottom: 12 },
+  cardTitle: { fontSize: 13, fontWeight: '700', color: COLORS.white, marginBottom: 12, textTransform: 'uppercase', letterSpacing: 1.4 },
 
   // Rings
   ringsRow: { flexDirection: 'row', justifyContent: 'space-around' },

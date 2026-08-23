@@ -10,6 +10,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS } from '../constants/colors';
+import { KC, KF } from '../theme/stitchKit';
 import { computePlates, resolveBarWeight, summarizePlates, DEFAULT_BAR_KG } from '../utils/plateCalc';
 import { fetchPlateSettings, updatePlateSettings } from '../services/workoutService';
 
@@ -132,24 +133,24 @@ export default function PlateCalculatorModal({ visible, onClose, exercise }) {
 
 const s = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
-  sheet: { backgroundColor: COLORS.surface || '#151215', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 36 },
+  sheet: { backgroundColor: KC.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 36 },
   handle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: COLORS.textMuted, opacity: 0.4, marginBottom: 12 },
   titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  title: { color: COLORS.white, fontSize: 18, fontWeight: '700' },
+  title: { color: COLORS.white, fontSize: 18, fontFamily: KF.bodyBold },
   sub: { color: COLORS.textMuted, fontSize: 13, marginTop: 2, marginBottom: 8 },
-  lbl: { color: COLORS.textSecondary || '#D4C1CF', fontSize: 12, fontWeight: '600', marginTop: 14, marginBottom: 6 },
-  input: { backgroundColor: COLORS.background || '#080608', borderRadius: 10, padding: 12, color: COLORS.white, fontSize: 16, fontWeight: '700', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
+  lbl: { color: COLORS.textSecondary || '#D4C1CF', fontSize: 12, fontFamily: KF.label, marginTop: 14, marginBottom: 6 },
+  input: { backgroundColor: COLORS.background || '#080608', borderRadius: 10, padding: 12, color: COLORS.white, fontSize: 16, fontFamily: KF.bodyBold, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
   barRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
   barChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, backgroundColor: COLORS.background || '#080608', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
   barChipOn: { backgroundColor: COLORS.secondary || COLORS.primary || '#7C3AED', borderColor: 'transparent' },
-  barChipTxt: { color: COLORS.textSecondary || '#D4C1CF', fontSize: 13, fontWeight: '700' },
-  barChipTxtOn: { color: '#fff', fontSize: 13, fontWeight: '800' },
+  barChipTxt: { color: COLORS.textSecondary || '#D4C1CF', fontSize: 13, fontFamily: KF.bodyBold },
+  barChipTxtOn: { color: '#fff', fontSize: 13, fontFamily: KF.heading },
   resultBox: { marginTop: 18, backgroundColor: COLORS.background || '#080608', borderRadius: 12, padding: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
-  justBar: { color: COLORS.white, fontSize: 16, fontWeight: '700', textAlign: 'center' },
-  perSideLabel: { color: COLORS.textMuted, fontSize: 11, fontWeight: '700', marginBottom: 10, textTransform: 'uppercase' },
+  justBar: { color: COLORS.white, fontSize: 16, fontFamily: KF.bodyBold, textAlign: 'center' },
+  perSideLabel: { color: COLORS.textMuted, fontSize: 11, fontFamily: KF.bodyBold, marginBottom: 10, textTransform: 'uppercase' },
   plateRow: { gap: 8, paddingRight: 8 },
-  plate: { minWidth: 52, alignItems: 'center', backgroundColor: COLORS.surface || '#151215', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
-  plateKg: { color: COLORS.white, fontSize: 18, fontWeight: '800' },
+  plate: { minWidth: 52, alignItems: 'center', backgroundColor: KC.card, borderRadius: 10, paddingVertical: 10, paddingHorizontal: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
+  plateKg: { color: COLORS.white, fontSize: 18, fontFamily: KF.heading },
   plateCount: { color: COLORS.textMuted, fontSize: 11, marginTop: 2 },
   loaded: { color: COLORS.textSecondary || '#D4C1CF', fontSize: 13, marginTop: 12, textAlign: 'center' },
 });

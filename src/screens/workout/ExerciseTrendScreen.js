@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Polyline, Circle, Line, Text as SvgText } from 'react-native-svg';
 import { COLORS } from '../../constants/colors';
+import { KC, KF } from '../../theme/stitchKit';
 import { fetch1rmTrend } from '../../services/workoutService';
 
 export default function ExerciseTrendScreen({ route, navigation }) {
@@ -80,11 +81,11 @@ const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.background },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 6, padding: 24 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 12 },
-  title: { color: COLORS.white, fontSize: 18, fontWeight: '700', flex: 1, textAlign: 'center' },
+  title: { color: COLORS.white, fontSize: 18, fontFamily: KF.bodyBold, flex: 1, textAlign: 'center' },
   sub: { color: COLORS.textSecondary || '#D4C1CF', fontSize: 13, marginBottom: 12 },
-  chartWrap: { alignItems: 'center', backgroundColor: COLORS.surface || '#151215', borderRadius: 14, paddingVertical: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
+  chartWrap: { alignItems: 'center', backgroundColor: KC.card, borderRadius: 14, paddingVertical: 12, borderWidth: 1, borderColor: KC.border },
   legendRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 12 },
-  legendVal: { color: COLORS.white, fontSize: 14, fontWeight: '700' },
-  emptyTxt: { color: COLORS.white, fontSize: 16, fontWeight: '700', marginTop: 8 },
+  legendVal: { color: COLORS.white, fontSize: 14, fontFamily: KF.bodyBold },
+  emptyTxt: { color: COLORS.white, fontSize: 16, fontFamily: KF.bodyBold, marginTop: 8 },
   emptySub: { color: COLORS.textMuted, fontSize: 13, textAlign: 'center' },
 });

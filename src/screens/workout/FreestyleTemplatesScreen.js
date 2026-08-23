@@ -11,6 +11,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
+import { KC, KF } from '../../theme/stitchKit';
 import {
   browseTemplates, fetchTemplateTagOptions, selfAssignTemplate,
 } from '../../services/workoutService';
@@ -167,25 +168,25 @@ const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.background },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 6, padding: 24 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 12 },
-  title: { color: COLORS.white, fontSize: 18, fontWeight: '700' },
+  title: { color: COLORS.white, fontSize: 18, fontFamily: KF.bodyBold },
   dateStrip: { paddingHorizontal: 12, gap: 8, paddingVertical: 8 },
-  dateCell: { width: 52, alignItems: 'center', paddingVertical: 8, borderRadius: 12, backgroundColor: COLORS.surface || '#151215', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
+  dateCell: { width: 52, alignItems: 'center', paddingVertical: 8, borderRadius: 12, backgroundColor: KC.card, borderWidth: 1, borderColor: KC.border },
   dateCellOn: { backgroundColor: COLORS.secondary || COLORS.primary || '#7C3AED', borderColor: 'transparent' },
-  dateDow: { color: COLORS.textMuted, fontSize: 11, fontWeight: '700' },
-  dateNum: { color: COLORS.white, fontSize: 16, fontWeight: '800', marginTop: 2 },
+  dateDow: { color: COLORS.textMuted, fontSize: 11, fontFamily: KF.bodyBold },
+  dateNum: { color: COLORS.white, fontSize: 16, fontFamily: KF.heading, marginTop: 2 },
   dateTxtOn: { color: '#fff' },
   filterRow: { paddingHorizontal: 12, gap: 8, paddingVertical: 6 },
-  chip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: COLORS.surface || '#151215', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
+  chip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: KC.card, borderWidth: 1, borderColor: KC.border },
   chipOn: { backgroundColor: COLORS.secondary || COLORS.primary || '#7C3AED', borderColor: 'transparent' },
-  chipTxt: { color: COLORS.textSecondary || '#D4C1CF', fontSize: 12, fontWeight: '600' },
-  chipTxtOn: { color: '#fff', fontWeight: '800' },
-  card: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: COLORS.surface || '#151215', borderRadius: 12, padding: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', marginBottom: 8 },
-  name: { color: COLORS.white, fontSize: 15, fontWeight: '700' },
+  chipTxt: { color: COLORS.textSecondary || '#D4C1CF', fontSize: 12, fontFamily: KF.label },
+  chipTxtOn: { color: '#fff', fontFamily: KF.heading },
+  card: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: KC.card, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: KC.border, marginBottom: 8 },
+  name: { color: COLORS.white, fontSize: 15, fontFamily: KF.bodyBold },
   meta: { color: COLORS.textSecondary || '#D4C1CF', fontSize: 12, marginTop: 3 },
   muscles: { color: COLORS.textMuted, fontSize: 11, marginTop: 3 },
   addBtn: { backgroundColor: COLORS.secondary || COLORS.primary || '#7C3AED', borderRadius: 8, paddingHorizontal: 16, paddingVertical: 8, minWidth: 60, alignItems: 'center' },
-  addTxt: { color: '#fff', fontWeight: '800', fontSize: 13 },
+  addTxt: { color: '#fff', fontFamily: KF.heading, fontSize: 13 },
   empty: { color: COLORS.textMuted, textAlign: 'center', marginTop: 50 },
-  forbiddenTxt: { color: COLORS.white, fontSize: 16, fontWeight: '700', marginTop: 8 },
+  forbiddenTxt: { color: COLORS.white, fontSize: 16, fontFamily: KF.bodyBold, marginTop: 8 },
   forbiddenSub: { color: COLORS.textMuted, fontSize: 13, textAlign: 'center' },
 });

@@ -7,12 +7,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, FONTS } from '../../theme';
+import { KC, KF } from '../../theme/stitchKit';
 import SafeBottomBar from '../../components/SafeBottomBar';
 import GradientIcon from '../../components/GradientIcon';
 import { fetchDashboard } from '../../services/dashboardService';
 
 const PERIODS = [['week', 'This Week'], ['month', 'This Month'], ['all', 'All Time']];
 const HEAT = ['rgba(255,255,255,0.05)', 'rgba(124,58,237,0.3)', 'rgba(124,58,237,0.55)', 'rgba(124,58,237,0.8)', '#00BCD4'];
+const SURFACE = KC.card;
+const BORDER = KC.border;
 
 const localIso = () => {
   const d = new Date();
@@ -237,60 +240,60 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   glowTop: { position: 'absolute', top: 0, left: 0, right: 0, height: 260, backgroundColor: 'rgba(127,41,130,0.06)' },
   floatLeft: { position: 'absolute', top: 52, left: 20, zIndex: 100, padding: 4 },
-  headerTitle: { fontFamily: FONTS.bodyBold, fontSize: 16, color: COLORS.white, textAlign: 'center', marginTop: 54 },
+  headerTitle: { fontFamily: KF.bodyBold, fontSize: 16, color: COLORS.white, textAlign: 'center', marginTop: 54 },
   scroll: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 20 },
 
-  recapCard: { backgroundColor: '#1A1A2E', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(0,188,212,0.35)', padding: 16, marginBottom: 16 },
+  recapCard: { backgroundColor: SURFACE, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(0,188,212,0.35)', padding: 16, marginBottom: 16 },
   recapHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  recapTitle: { fontFamily: FONTS.bodyBold, fontSize: 15, color: COLORS.white },
+  recapTitle: { fontFamily: KF.bodyBold, fontSize: 13, color: COLORS.white, textTransform: 'uppercase', letterSpacing: 1.4 },
   recapRow: { flexDirection: 'row', justifyContent: 'space-between' },
   recapStat: { alignItems: 'center', flex: 1 },
-  recapValue: { fontFamily: FONTS.headline, fontSize: 22, color: '#00BCD4' },
-  recapLabel: { fontFamily: FONTS.body, fontSize: 11, color: COLORS.textMuted, marginTop: 2 },
-  recapDelta: { fontFamily: FONTS.body, fontSize: 12, color: COLORS.textSecondary, marginTop: 12, textAlign: 'center' },
+  recapValue: { fontFamily: KF.heading, fontSize: 22, color: '#00BCD4' },
+  recapLabel: { fontFamily: KF.body, fontSize: 11, color: COLORS.textMuted, marginTop: 2 },
+  recapDelta: { fontFamily: KF.body, fontSize: 12, color: COLORS.textSecondary, marginTop: 12, textAlign: 'center' },
 
-  calCard: { backgroundColor: '#1A1A2E', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(245,158,11,0.3)', padding: 18, marginBottom: 16, alignItems: 'center' },
-  calLabel: { fontFamily: FONTS.label, fontSize: 11, color: COLORS.textMuted, letterSpacing: 1 },
-  calValue: { fontFamily: FONTS.headline, fontSize: 40, color: '#F59E0B', marginTop: 4 },
+  calCard: { backgroundColor: SURFACE, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(245,158,11,0.3)', padding: 18, marginBottom: 16, alignItems: 'center' },
+  calLabel: { fontFamily: KF.label, fontSize: 11, color: COLORS.textMuted, letterSpacing: 1 },
+  calValue: { fontFamily: KF.heading, fontSize: 40, color: '#F59E0B', marginTop: 4 },
   calUnit: { fontSize: 18, color: COLORS.textMuted },
   calBreak: { marginTop: 10, gap: 2, alignItems: 'center' },
-  calBreakItem: { fontFamily: FONTS.body, fontSize: 13, color: COLORS.textSecondary },
-  calHint: { fontFamily: FONTS.body, fontSize: 10, color: COLORS.textMuted, marginTop: 8 },
+  calBreakItem: { fontFamily: KF.body, fontSize: 13, color: COLORS.textSecondary },
+  calHint: { fontFamily: KF.body, fontSize: 10, color: COLORS.textMuted, marginTop: 8 },
 
-  periodRow: { flexDirection: 'row', backgroundColor: '#1A1A2E', borderRadius: 999, padding: 4, marginBottom: 20 },
+  periodRow: { flexDirection: 'row', backgroundColor: SURFACE, borderRadius: 999, padding: 4, marginBottom: 20 },
   periodPill: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 9, borderRadius: 999, overflow: 'hidden' },
-  periodText: { fontFamily: FONTS.bodyMedium, fontSize: 13, color: COLORS.textMuted },
-  periodTextActive: { color: '#000', fontFamily: FONTS.bodyBold },
+  periodText: { fontFamily: KF.bodyMed, fontSize: 13, color: COLORS.textMuted },
+  periodTextActive: { color: '#000', fontFamily: KF.bodyBold },
 
   kpiGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 16 },
-  kpiCard: { width: '47%', flexGrow: 1, backgroundColor: '#1A1A2E', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)', padding: 16, gap: 6 },
+  kpiCard: { width: '47%', flexGrow: 1, backgroundColor: SURFACE, borderRadius: 16, borderWidth: 1, borderColor: BORDER, padding: 16, gap: 6 },
   kpiTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  kpiLabel: { fontFamily: FONTS.label, fontSize: 10, color: COLORS.textMuted, letterSpacing: 1 },
-  kpiValue: { fontFamily: FONTS.headline, fontSize: 22 },
+  kpiLabel: { fontFamily: KF.label, fontSize: 10, color: COLORS.textMuted, letterSpacing: 1 },
+  kpiValue: { fontFamily: KF.heading, fontSize: 22 },
 
-  progressCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#1A1A2E', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)', padding: 16, marginBottom: 16 },
+  progressCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: SURFACE, borderRadius: 16, borderWidth: 1, borderColor: BORDER, padding: 16, marginBottom: 16 },
   progressIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(52,211,153,0.14)', alignItems: 'center', justifyContent: 'center' },
-  progressTitle: { fontFamily: FONTS.bodyBold, fontSize: 14, color: COLORS.white },
-  progressSub: { fontFamily: FONTS.body, fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
+  progressTitle: { fontFamily: KF.bodyBold, fontSize: 14, color: COLORS.white },
+  progressSub: { fontFamily: KF.body, fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
 
-  sectionCard: { backgroundColor: '#1A1A2E', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)', padding: 18, marginBottom: 16 },
+  sectionCard: { backgroundColor: SURFACE, borderRadius: 16, borderWidth: 1, borderColor: BORDER, padding: 18, marginBottom: 16 },
   sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
-  sectionTitle: { fontFamily: FONTS.bodyBold, fontSize: 15, color: COLORS.white },
-  sectionSub: { fontFamily: FONTS.body, fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
-  emptyTxt: { fontFamily: FONTS.body, fontSize: 13, color: COLORS.textMuted, marginTop: 8 },
+  sectionTitle: { fontFamily: KF.bodyBold, fontSize: 13, color: COLORS.white, textTransform: 'uppercase', letterSpacing: 1.4 },
+  sectionSub: { fontFamily: KF.body, fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
+  emptyTxt: { fontFamily: KF.body, fontSize: 13, color: COLORS.textMuted, marginTop: 8 },
 
   logRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)' },
-  logName: { flex: 1, fontFamily: FONTS.body, fontSize: 13, color: COLORS.textPrimary },
-  logMeta: { fontFamily: FONTS.body, fontSize: 12, color: COLORS.textMuted },
+  logName: { flex: 1, fontFamily: KF.body, fontSize: 13, color: COLORS.textPrimary },
+  logMeta: { fontFamily: KF.body, fontSize: 12, color: COLORS.textMuted },
 
   heatGrid: { gap: 6 },
   heatRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 6 },
   heatCell: { flex: 1, aspectRatio: 1, borderRadius: 4 },
   legendRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 12, justifyContent: 'flex-end' },
-  legendText: { fontFamily: FONTS.body, fontSize: 10, color: COLORS.textMuted, marginHorizontal: 4 },
+  legendText: { fontFamily: KF.body, fontSize: 10, color: COLORS.textMuted, marginHorizontal: 4 },
   legendCell: { width: 12, height: 12, borderRadius: 3 },
 
   streakRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  streakValue: { fontFamily: FONTS.headline, fontSize: 28, color: '#F59E0B', marginTop: 4 },
+  streakValue: { fontFamily: KF.heading, fontSize: 28, color: '#F59E0B', marginTop: 4 },
   trophyWrap: { width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(245,158,11,0.14)', alignItems: 'center', justifyContent: 'center' },
 });

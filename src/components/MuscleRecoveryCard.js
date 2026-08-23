@@ -5,6 +5,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { COLORS } from '../constants/colors';
+import { KC, KF } from '../theme/stitchKit';
 
 const STATUS_COLOR = {
   fresh: '#4CAF50',
@@ -37,12 +38,12 @@ export default function MuscleRecoveryCard({ data }) {
 }
 
 const s = StyleSheet.create({
-  card: { backgroundColor: COLORS.surface || '#151215', borderRadius: 16, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
+  card: { backgroundColor: KC.card, borderRadius: 16, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: KC.border },
   headerRow: { marginBottom: 12 },
-  title: { color: COLORS.white, fontSize: 16, fontWeight: '800' },
+  title: { color: COLORS.white, fontSize: 13, fontFamily: KF.heading, textTransform: 'uppercase', letterSpacing: 1.4 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: COLORS.background || '#080608', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 7, borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)' },
   dot: { width: 8, height: 8, borderRadius: 4 },
-  muscle: { color: COLORS.textSecondary || '#D4C1CF', fontSize: 12, fontWeight: '600' },
-  status: { fontSize: 11, fontWeight: '800' },
+  muscle: { color: COLORS.textSecondary || '#D4C1CF', fontSize: 12, fontFamily: KF.bodyMed },
+  status: { fontSize: 11, fontFamily: KF.bodyBold },
 });
