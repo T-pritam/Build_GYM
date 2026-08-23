@@ -172,7 +172,7 @@ const styles = StyleSheet.create({
   statLabel: { fontSize: 12, color: COLORS.textSecondary, marginTop: 2 },
 
   prSection: { backgroundColor: COLORS.surface, borderRadius: 16, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: 'rgba(255,215,0,0.3)' },
-  sectionTitle: { fontSize: 16, fontWeight: '600', color: COLORS.white, marginBottom: 10 },
+  sectionTitle: { fontSize: 13, fontWeight: '700', color: COLORS.white, marginBottom: 10, textTransform: 'uppercase', letterSpacing: 1.4 },
   prRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: COLORS.border },
   prExercise: { color: COLORS.white, fontSize: 14, fontWeight: '500' },
   prValue: { color: '#FFD700', fontSize: 14, fontWeight: '600' },

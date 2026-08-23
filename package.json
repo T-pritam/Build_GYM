@@ -15,6 +15,8 @@
     "@expo-google-fonts/anybody": "^0.4.2",
     "@expo-google-fonts/eb-garamond": "^0.4.2",
     "@expo-google-fonts/hanken-grotesk": "^0.4.3",
+    "@expo-google-fonts/inter": "^0.4.2",
+    "@expo-google-fonts/montserrat": "^0.4.2",
     "@expo/vector-icons": "^15.1.1",
     "@hookform/resolvers": "^5.2.2",
     "@react-native-async-storage/async-storage": "^2.2.0",

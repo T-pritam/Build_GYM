@@ -13,13 +13,14 @@ import { Ionicons } from '@expo/vector-icons';
 import Svg, { Polyline, Circle, Line, Text as SvgText } from 'react-native-svg';
 import dayjs from 'dayjs';
 import { COLORS, FONTS } from '../../theme';
+import { KC, KF } from '../../theme/stitchKit';
 import {
   fetchWeightLog, logWeight, deleteWeight,
   fetchProgressPhotos, addProgressPhotos, deleteProgressPhoto,
 } from '../../services/progressService';
 
-const SURFACE = '#1A1A2E';
-const BORDER = 'rgba(255,255,255,0.05)';
+const SURFACE = KC.card;
+const BORDER = KC.border;
 
 export default function ProgressTrackerScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -236,11 +237,11 @@ const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.background },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 12 },
-  title: { color: COLORS.textPrimary, fontSize: 18, fontFamily: FONTS?.bodyBold, fontWeight: '700' },
+  title: { color: COLORS.textPrimary, fontSize: 18, fontFamily: KF.bodyBold },
   tabs: { flexDirection: 'row', marginHorizontal: 16, backgroundColor: SURFACE, borderRadius: 12, padding: 4, marginBottom: 8 },
   tab: { flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: 9 },
   tabOn: { backgroundColor: COLORS.primaryBright || '#7C3AED' },
-  tabTxt: { color: COLORS.textSecondary, fontSize: 13, fontWeight: '700' },
+  tabTxt: { color: COLORS.textSecondary, fontSize: 13, fontFamily: KF.bodyBold },
   tabTxtOn: { color: '#fff' },
   card: { backgroundColor: SURFACE, borderRadius: 16, padding: 16, marginBottom: 14, borderWidth: 1, borderColor: BORDER, alignItems: 'center' },
   emptyBox: { paddingVertical: 30, gap: 8 },
@@ -248,25 +249,25 @@ const s = StyleSheet.create({
   addRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
   input: { flex: 1, backgroundColor: SURFACE, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, color: COLORS.textPrimary, borderWidth: 1, borderColor: BORDER, fontSize: 15 },
   logBtn: { backgroundColor: COLORS.primaryBright || '#7C3AED', borderRadius: 12, paddingHorizontal: 22, alignItems: 'center', justifyContent: 'center', minWidth: 64 },
-  logBtnTxt: { color: '#fff', fontWeight: '800', fontSize: 14 },
+  logBtnTxt: { color: '#fff', fontFamily: KF.heading, fontSize: 14 },
   entryRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: BORDER },
   entryDate: { flex: 1, color: COLORS.textSecondary, fontSize: 13 },
-  entryKg: { color: COLORS.textPrimary, fontSize: 15, fontWeight: '700' },
+  entryKg: { color: COLORS.textPrimary, fontSize: 15, fontFamily: KF.bodyBold },
   photoActions: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
   photoBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: COLORS.primaryBright || '#7C3AED', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 10 },
-  photoBtnTxt: { color: '#fff', fontWeight: '700', fontSize: 13 },
+  photoBtnTxt: { color: '#fff', fontFamily: KF.bodyBold, fontSize: 13 },
   compareBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: COLORS.cyan || '#06B6D4', borderRadius: 12, paddingVertical: 11, marginBottom: 12 },
-  compareTxt: { color: '#000', fontWeight: '800', fontSize: 14 },
+  compareTxt: { color: '#000', fontFamily: KF.heading, fontSize: 14 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   photoCell: { width: '31.5%', aspectRatio: 0.8, borderRadius: 12, overflow: 'hidden', backgroundColor: SURFACE, borderWidth: 2, borderColor: 'transparent' },
   photoCellSel: { borderColor: COLORS.cyan || '#06B6D4' },
   photoImg: { width: '100%', height: '100%' },
-  photoDate: { position: 'absolute', bottom: 4, left: 6, color: '#fff', fontSize: 10, fontWeight: '700', textShadowColor: '#000', textShadowRadius: 4 },
+  photoDate: { position: 'absolute', bottom: 4, left: 6, color: '#fff', fontSize: 10, fontFamily: KF.bodyBold, textShadowColor: '#000', textShadowRadius: 4 },
   selBadge: { position: 'absolute', top: 4, right: 4, backgroundColor: COLORS.cyan || '#06B6D4', borderRadius: 10, width: 20, height: 20, alignItems: 'center', justifyContent: 'center' },
   hint: { color: COLORS.textMuted, fontSize: 11, textAlign: 'center', marginTop: 12 },
   compareOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', paddingTop: 60 },
   compareHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, marginBottom: 12 },
-  compareTitle: { color: '#fff', fontSize: 18, fontWeight: '800' },
+  compareTitle: { color: '#fff', fontSize: 18, fontFamily: KF.heading },
   compareRow: { flex: 1, flexDirection: 'row', gap: 4, paddingHorizontal: 8, paddingBottom: 30 },
   compareCol: { flex: 1 },
   compareImg: { flex: 1, width: '100%' },

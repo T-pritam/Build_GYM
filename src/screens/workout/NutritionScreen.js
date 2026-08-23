@@ -10,6 +10,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
+import { KC, KF } from '../../theme/stitchKit';
 import { fetchNutritionPlan, postMealAdherence } from '../../services/nutritionService';
 
 const localIsoDate = () => {
@@ -136,20 +137,20 @@ const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.background },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 6, padding: 24 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 12 },
-  title: { color: COLORS.white, fontSize: 18, fontWeight: '700' },
-  planName: { color: COLORS.white, fontSize: 20, fontWeight: '800', marginBottom: 12 },
+  title: { color: COLORS.white, fontSize: 18, fontFamily: KF.bodyBold },
+  planName: { color: COLORS.white, fontSize: 20, fontFamily: KF.heading, marginBottom: 12 },
   targets: { flexDirection: 'row', gap: 8, marginBottom: 16 },
-  targetCell: { flex: 1, alignItems: 'center', backgroundColor: COLORS.surface || '#151215', borderRadius: 12, paddingVertical: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
-  targetVal: { color: COLORS.white, fontSize: 16, fontWeight: '800' },
+  targetCell: { flex: 1, alignItems: 'center', backgroundColor: KC.card, borderRadius: 12, paddingVertical: 12, borderWidth: 1, borderColor: KC.border },
+  targetVal: { color: COLORS.white, fontSize: 16, fontFamily: KF.heading },
   targetLbl: { color: COLORS.textMuted, fontSize: 11, marginTop: 2 },
-  mealCard: { backgroundColor: COLORS.surface || '#151215', borderRadius: 14, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
-  mealName: { color: COLORS.white, fontSize: 15, fontWeight: '700', marginBottom: 8 },
+  mealCard: { backgroundColor: KC.card, borderRadius: 14, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: KC.border },
+  mealName: { color: COLORS.white, fontSize: 15, fontFamily: KF.bodyBold, marginBottom: 8 },
   foodRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 5 },
   foodName: { color: COLORS.textSecondary || '#D4C1CF', fontSize: 13, flex: 1, marginRight: 8 },
   foodMacro: { color: COLORS.textMuted, fontSize: 12 },
   adherenceRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
   statusBtn: { flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: 10, backgroundColor: COLORS.background || '#080608', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
-  statusTxt: { color: COLORS.textSecondary || '#D4C1CF', fontSize: 12, fontWeight: '700' },
-  emptyTxt: { color: COLORS.white, fontSize: 16, fontWeight: '700', marginTop: 8 },
+  statusTxt: { color: COLORS.textSecondary || '#D4C1CF', fontSize: 12, fontFamily: KF.bodyBold },
+  emptyTxt: { color: COLORS.white, fontSize: 16, fontFamily: KF.bodyBold, marginTop: 8 },
   emptySub: { color: COLORS.textMuted, fontSize: 13, textAlign: 'center' },
 });
