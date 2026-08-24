@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Circle } from 'react-native-svg';
 import { COLORS } from '../../constants/colors';
+import { KC, KF } from '../../theme/stitchKit';
 import {
   fetchKPIs, fetchWeeklySummary, fetchMuscleDistribution,
   fetchPersonalRecords, fetchWorkoutHistory, fetchExtendedStats,
@@ -14,8 +15,8 @@ import {
 import { prMeta } from '../../utils/measurement';
 
 const PERIODS = [['7D', 7], ['30D', 30], ['90D', 90], ['All', 365]];
-// Warm, orange-led palette (brand) — distinct slices without the old violet/cyan.
-const MUSCLE_PALETTE = ['#E96316', '#FF7A35', '#FFA000', '#FFC107', '#CB5210', '#FF8A65', '#F4511E', '#FFB74D', '#D84315', '#FF7043', '#FFD54F'];
+// Stitch "Forge Tokyo" violet↔cyan family — distinct slices matching the re-skinned V3 screens.
+const MUSCLE_PALETTE = ['#7C3AED', '#06B6D4', '#A78BFA', '#22D3EE', '#8B5CF6', '#38BDF8', '#6D28D9', '#0EA5E9', '#C4B5FD', '#67E8F9', '#4F46E5'];
 
 export default function WorkoutStatsScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -53,14 +54,14 @@ export default function WorkoutStatsScreen({ navigation }) {
   const onRefresh = () => { setRefreshing(true); loadData(); };
 
   if (loading) {
-    return <View style={styles.center}><ActivityIndicator size="large" color={COLORS.secondary} /></View>;
+    return <View style={styles.center}><ActivityIndicator size="large" color={KC.primary} /></View>;
   }
 
   return (
     <ScrollView
       style={styles.container}
       contentContainerStyle={[styles.content, { paddingTop: insets.top + 16 }]}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.secondary} />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={KC.primary} />}
     >
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
       <View style={styles.header}>
@@ -292,7 +293,7 @@ function Heatmap({ history, weeks = 12 }) {
   // chunk into weeks (columns)
   const cols = [];
   for (let i = 0; i < cells.length; i += 7) cols.push(cells.slice(i, i + 7));
-  const SHADES = ['rgba(255,255,255,0.06)', 'rgba(233,99,22,0.35)', 'rgba(233,99,22,0.65)', '#E96316'];
+  const SHADES = ['rgba(255,255,255,0.06)', 'rgba(124,58,237,0.35)', 'rgba(124,58,237,0.65)', '#7C3AED'];
   return (
     <View style={styles.heatRow}>
       {cols.map((col, ci) => (
@@ -307,7 +308,7 @@ function Heatmap({ history, weeks = 12 }) {
 function QuickLink({ icon, label, onPress }) {
   return (
     <TouchableOpacity style={styles.quickLink} onPress={onPress} activeOpacity={0.7}>
-      <Ionicons name={icon} size={22} color={COLORS.secondary} />
+      <Ionicons name={icon} size={22} color={KC.cyan} />
       <Text style={styles.quickLinkText}>{label}</Text>
       <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
     </TouchableOpacity>
@@ -320,56 +321,56 @@ const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background },
 
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, marginTop: 8 },
-  title: { fontSize: 20, fontWeight: '700', color: COLORS.white },
+  title: { fontSize: 20, fontFamily: KF.heading, color: COLORS.white, letterSpacing: 0.3 },
 
-  card: { backgroundColor: COLORS.surface, borderRadius: 16, padding: 16, marginBottom: 14, borderWidth: 1, borderColor: COLORS.border },
-  cardTitle: { fontSize: 14, fontWeight: '600', color: COLORS.textSecondary, marginBottom: 10 },
+  card: { backgroundColor: KC.card, borderRadius: 20, padding: 18, marginBottom: 14, borderWidth: 1, borderColor: KC.border },
+  cardTitle: { fontSize: 11, fontFamily: KF.label, color: COLORS.textMuted, letterSpacing: 1.6, textTransform: 'uppercase', marginBottom: 12 },
 
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   kpiBox: { width: '47%', alignItems: 'center', paddingVertical: 10 },
-  kpiValue: { fontSize: 22, fontWeight: '700', color: COLORS.white },
-  kpiLabel: { fontSize: 12, color: COLORS.textSecondary, marginTop: 2 },
-  calRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  calName: { color: COLORS.textSecondary, fontSize: 13, flex: 1, marginRight: 8 },
-  calVal: { color: COLORS.white, fontSize: 13, fontWeight: '700' },
+  kpiValue: { fontSize: 22, fontFamily: KF.heading, color: COLORS.white },
+  kpiLabel: { fontSize: 12, fontFamily: KF.body, color: COLORS.textSecondary, marginTop: 2 },
+  calRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: KC.border },
+  calName: { color: COLORS.textSecondary, fontSize: 13, fontFamily: KF.body, flex: 1, marginRight: 8 },
+  calVal: { color: COLORS.white, fontSize: 13, fontFamily: KF.bodyBold },
   trendRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 4, height: 100, marginTop: 8 },
   trendCol: { flex: 1, alignItems: 'center' },
-  trendBarTrack: { width: '70%', height: 80, backgroundColor: COLORS.background, borderRadius: 4, justifyContent: 'flex-end', overflow: 'hidden' },
-  trendBarFill: { width: '100%', backgroundColor: COLORS.secondary || '#7C3AED', borderRadius: 4 },
-  trendLabel: { color: COLORS.textMuted, fontSize: 8, marginTop: 4 },
+  trendBarTrack: { width: '70%', height: 80, backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 4, justifyContent: 'flex-end', overflow: 'hidden' },
+  trendBarFill: { width: '100%', backgroundColor: KC.primary, borderRadius: 4 },
+  trendLabel: { color: COLORS.textMuted, fontSize: 8, fontFamily: KF.body, marginTop: 4 },
 
-  bigValue: { fontSize: 32, fontWeight: '700', color: COLORS.white },
+  bigValue: { fontSize: 32, fontFamily: KF.headingExtra, color: COLORS.white },
   positive: { color: '#34C759' },
   negative: { color: '#FF3B30' },
-  kpiDesc: { fontSize: 12, color: COLORS.textMuted, marginTop: 4 },
+  kpiDesc: { fontSize: 12, fontFamily: KF.body, color: COLORS.textMuted, marginTop: 4 },
 
   consistencyRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  barOuter: { flex: 1, height: 8, backgroundColor: COLORS.border, borderRadius: 4 },
-  barInner: { height: 8, backgroundColor: COLORS.secondary, borderRadius: 4 },
+  barOuter: { flex: 1, height: 8, backgroundColor: KC.border, borderRadius: 4 },
+  barInner: { height: 8, backgroundColor: KC.primary, borderRadius: 4 },
 
   linksRow: { flexDirection: 'row', gap: 10, marginBottom: 10 },
-  quickLink: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: COLORS.surface, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: COLORS.border },
-  quickLinkText: { flex: 1, color: COLORS.white, fontSize: 13, fontWeight: '500' },
+  quickLink: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: KC.card, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: KC.border },
+  quickLinkText: { flex: 1, color: COLORS.white, fontSize: 13, fontFamily: KF.bodyMed },
 
   // Period selector
   periodRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
-  periodBtn: { flex: 1, paddingVertical: 8, borderRadius: 10, alignItems: 'center', backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border },
-  periodBtnOn: { backgroundColor: COLORS.secondary, borderColor: COLORS.secondary },
-  periodTxt: { color: COLORS.textSecondary, fontWeight: '700', fontSize: 12 },
-  periodTxtOn: { color: COLORS.white },
+  periodBtn: { flex: 1, paddingVertical: 8, borderRadius: 10, alignItems: 'center', backgroundColor: KC.card, borderWidth: 1, borderColor: KC.border },
+  periodBtnOn: { backgroundColor: KC.primary, borderColor: KC.primary },
+  periodTxt: { color: COLORS.textSecondary, fontFamily: KF.label, fontSize: 12, letterSpacing: 0.3 },
+  periodTxtOn: { color: '#fff', fontFamily: KF.bodyBold },
 
   // Donut
   donutRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   legendRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legendDot: { width: 10, height: 10, borderRadius: 5 },
-  legendTxt: { flex: 1, color: COLORS.textSecondary, fontSize: 12, textTransform: 'capitalize' },
-  legendPct: { color: COLORS.white, fontSize: 12, fontWeight: '700' },
+  legendTxt: { flex: 1, color: COLORS.textSecondary, fontSize: 12, fontFamily: KF.body, textTransform: 'capitalize' },
+  legendPct: { color: COLORS.white, fontSize: 12, fontFamily: KF.bodyBold },
 
   // PR shelf
-  prCard: { backgroundColor: 'rgba(255,215,0,0.08)', borderWidth: 1, borderColor: 'rgba(255,215,0,0.3)', borderRadius: 12, padding: 12, width: 120 },
-  prCardEx: { color: COLORS.white, fontSize: 12, fontWeight: '700' },
-  prCardVal: { color: '#FFD700', fontSize: 20, fontWeight: '900', marginTop: 4 },
-  prCardType: { color: COLORS.textMuted, fontSize: 10, marginTop: 2 },
+  prCard: { backgroundColor: 'rgba(255,193,7,0.08)', borderWidth: 1, borderColor: 'rgba(255,193,7,0.3)', borderRadius: 14, padding: 12, width: 120 },
+  prCardEx: { color: COLORS.white, fontSize: 12, fontFamily: KF.bodyBold },
+  prCardVal: { color: KC.gold, fontSize: 20, fontFamily: KF.headingExtra, marginTop: 4 },
+  prCardType: { color: COLORS.textMuted, fontSize: 10, fontFamily: KF.body, marginTop: 2 },
 
   // Heatmap
   heatRow: { flexDirection: 'row', gap: 3, flexWrap: 'nowrap' },
