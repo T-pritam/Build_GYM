@@ -12,6 +12,7 @@ import { FCM_TOKEN_KEY, saveFCMToken } from '../../services/notificationService'
 import { sendOTP, passwordLogin } from '../../services/authService';
 import { useAuthStore } from '../../store/authStore';
 import { CommonActions } from '@react-navigation/native';
+import { LEGAL_URLS } from '../../constants/legal';
 
 const EMAIL_RE = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/;
 const PHONE_RE = /^\d{10}$/;
@@ -26,6 +27,8 @@ export default function LoginScreen({ navigation }) {
   const [showPw,     setShowPw]     = useState(false);
 
   const [loading, setLoading] = useState(false);
+  // Guideline 1.2 (UGC): user must accept the Terms/EULA before logging in.
+  const [agreed, setAgreed] = useState(false);
 
   // Logo scales with screen width (caps at 256, the mockup's w-64) so it never
   // overflows on small devices.
@@ -38,6 +41,7 @@ export default function LoginScreen({ navigation }) {
 
   const handleGetOTP = async () => {
     if (mobile.length < 10 || loading) return;
+    if (!agreed) { Alert.alert('Please agree to continue', 'You must accept the Terms & Conditions to sign in.'); return; }
     const fullPhone = `+91${mobile}`;
     setLoading(true);
     try {
@@ -62,6 +66,7 @@ export default function LoginScreen({ navigation }) {
 
   const handlePasswordLogin = async () => {
     if (!identifier.trim() || !password || loading) return;
+    if (!agreed) { Alert.alert('Please agree to continue', 'You must accept the Terms & Conditions to sign in.'); return; }
     const trimmedId = identifier.trim();
     if (trimmedId.includes('@')) {
       if (!EMAIL_RE.test(trimmedId)) {
@@ -161,7 +166,7 @@ export default function LoginScreen({ navigation }) {
               label="SEND ACCESS CODE"
               onPress={handleGetOTP}
               loading={loading}
-              disabled={mobile.length < 10}
+              disabled={mobile.length < 10 || !agreed}
               style={styles.cta}
             />
           </View>
@@ -201,10 +206,32 @@ export default function LoginScreen({ navigation }) {
               label="ENTER THE CLUB"
               onPress={handlePasswordLogin}
               loading={loading}
-              disabled={!identifier.trim() || !password}
+              disabled={!identifier.trim() || !password || !agreed}
             />
           </View>
         )}
+
+        {/* Guideline 1.2 — Terms/EULA acceptance (required to sign in) */}
+        <TouchableOpacity
+          style={styles.agreeRow}
+          activeOpacity={0.75}
+          onPress={() => setAgreed((v) => !v)}
+        >
+          <Ionicons
+            name={agreed ? 'checkbox' : 'square-outline'}
+            size={20}
+            color={agreed ? COLORS.primaryNeon : COLORS.textMuted}
+          />
+          <Text style={styles.agreeText}>
+            I agree to the{' '}
+            <Text style={styles.agreeLink} onPress={() => Linking.openURL(LEGAL_URLS.terms)}>
+              Terms &amp; Conditions
+            </Text>{' '}and{' '}
+            <Text style={styles.agreeLink} onPress={() => Linking.openURL(LEGAL_URLS.privacy)}>
+              Privacy Policy
+            </Text>, including a zero-tolerance policy for objectionable content and abusive behaviour.
+          </Text>
+        </TouchableOpacity>
       </GlassCard>
 
       {/* Help */}
@@ -262,6 +289,15 @@ const styles = StyleSheet.create({
   forgotText: { ...TYPE.bodySm, color: COLORS.primaryLight },
 
   cta: { marginTop: 8 },                                              // mt-2
+
+  // Terms/EULA agreement row (Guideline 1.2)
+  agreeRow: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 10,
+    marginTop: 20, paddingTop: 16,
+    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255,255,255,0.08)',
+  },
+  agreeText: { flex: 1, fontFamily: FONTS.body, fontSize: 11, lineHeight: 16, color: 'rgba(212,193,207,0.8)' },
+  agreeLink: { color: '#9d4fff', fontFamily: FONTS.bodyMedium },
 
   // Help box — mt-8, px-4 py-3, border #7f29ff/20, bg #7f29ff/5, rounded-lg
   helpBox: {
