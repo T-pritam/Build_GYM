@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   StatusBar, Linking, LayoutAnimation, UIManager, Platform,
-  ActivityIndicator, FlatList, RefreshControl, TextInput, Modal,
+  ActivityIndicator, FlatList, RefreshControl, TextInput, Modal, Alert,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
@@ -15,7 +15,15 @@ import CommentsSheet from '../../components/community/CommentsSheet';
 import FeedPoll from '../../components/community/FeedPoll';
 import { useAuthStore } from '../../store/authStore';
 import { faqs, reviews } from '../../constants/dummyData';
-import { fetchCommunityPosts, votePost, fetchCommunityMembers } from '../../services/communityService';
+import { fetchCommunityPosts, votePost, fetchCommunityMembers, reportPost, blockUser } from '../../services/communityService';
+
+// Platform-aware app-store references (iOS must not reference Google Play — Guideline 2.3.10).
+const IS_IOS = Platform.OS === 'ios';
+const STORE_NAME = IS_IOS ? 'APP STORE' : 'PLAY STORE';
+const STORE_NAME_TITLE = IS_IOS ? 'App Store' : 'Play Store';
+const STORE_URL = IS_IOS
+  ? 'https://apps.apple.com/app/id6792065211'
+  : 'https://play.google.com/store/apps/details?id=com.buildgym.app';
 
 // Theme-compat: legacy colour keys → new "Holographic Noir" palette.
 const COLORS = {
@@ -119,6 +127,62 @@ function CommunityFeedTab({ navigation, searchQuery = '' }) {
   // Bottom-sheet modals (Stitch flow)
   const [createVisible, setCreateVisible] = useState(false);
   const [commentsPostId, setCommentsPostId] = useState(null);
+
+  // Current user (to hide moderation actions on own posts) + moderation (Guideline 1.2)
+  const me = useAuthStore((s) => s.user?.id);
+
+  const submitReport = useCallback(async (post, reason) => {
+    try {
+      await reportPost(post.id, reason);
+      Alert.alert('Reported', 'Thanks — our team will review this post.');
+    } catch (err) {
+      const msg = err?.response?.data?.message || 'Could not report this post. Please try again.';
+      Alert.alert(err?.response?.status === 409 ? 'Already reported' : 'Error', msg);
+    }
+  }, []);
+
+  const confirmBlock = useCallback((post) => {
+    Alert.alert(
+      `Block ${post.author_name || 'this member'}?`,
+      'You will no longer see their posts or comments, and our team is notified. You can unblock later from a blocked post.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Block',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await blockUser(post.member_id, { postId: post.id });
+              // Instantly remove all of this author's posts from the feed
+              setPosts((prev) => prev.filter((p) => p.member_id !== post.member_id));
+              Alert.alert('Blocked', 'You will no longer see content from this member.');
+            } catch (err) {
+              Alert.alert('Error', err?.response?.data?.message || 'Could not block this member. Please try again.');
+            }
+          },
+        },
+      ],
+    );
+  }, []);
+
+  const openPostMenu = useCallback((post) => {
+    const reportAction = {
+      text: 'Report post',
+      onPress: () => Alert.alert('Report post', 'Why are you reporting this?', [
+        { text: 'Inappropriate', onPress: () => submitReport(post, 'inappropriate') },
+        { text: 'Spam', onPress: () => submitReport(post, 'spam') },
+        { text: 'Harassment', onPress: () => submitReport(post, 'harassment') },
+        { text: 'Other', onPress: () => submitReport(post, 'other') },
+        { text: 'Cancel', style: 'cancel' },
+      ]),
+    };
+    const options = [reportAction];
+    if (post.member_id && post.member_id !== me) {
+      options.push({ text: `Block ${post.author_name || 'member'}`, style: 'destructive', onPress: () => confirmBlock(post) });
+    }
+    options.push({ text: 'Cancel', style: 'cancel' });
+    Alert.alert('Post options', undefined, options);
+  }, [me, submitReport, confirmBlock]);
 
   const handleCommentCountChange = useCallback((postId, delta) => {
     setPosts((prev) => prev.map((p) => (
@@ -276,6 +340,13 @@ function CommunityFeedTab({ navigation, searchQuery = '' }) {
             <View style={[styles.communityCategoryBadge, { borderColor: badgeColor + '80', backgroundColor: badgeColor + '0D' }]}>
               <Text style={[styles.communityCategoryText, { color: badgeColor }]}>{post.category}</Text>
             </View>
+            <TouchableOpacity
+              onPress={(e) => { e.stopPropagation(); openPostMenu(post); }}
+              style={styles.postMenuBtn}
+              hitSlop={10}
+            >
+              <MaterialIcons name="more-horiz" size={20} color={COLORS.textMuted} />
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -500,12 +571,12 @@ function ReviewsTab() {
       showsVerticalScrollIndicator={false}
       contentContainerStyle={styles.tabScrollContent}
     >
-      {/* Rate on Play Store card */}
+      {/* Rate on store card (platform-aware) */}
       <View style={styles.rateCard}>
         <View style={styles.rateIconWrap}>
           <Ionicons name="star" size={28} color={COLORS.secondary} />
         </View>
-        <Text style={styles.rateTitle}>Enjoying Build Gym?</Text>
+        <Text style={styles.rateTitle}>Enjoying Maison de Build?</Text>
         <Text style={styles.rateSub}>Your review helps us grow. Takes just 30 seconds!</Text>
         <View style={styles.starsRow}>
           {[1, 2, 3, 4, 5].map((i) => (
@@ -514,11 +585,11 @@ function ReviewsTab() {
         </View>
         <TouchableOpacity
           style={styles.rateBtn}
-          onPress={() => Linking.openURL('https://play.google.com/store')}
+          onPress={() => Linking.openURL(STORE_URL)}
           activeOpacity={0.85}
         >
-          <Ionicons name="play" size={14} color={COLORS.white} />
-          <Text style={styles.rateBtnText}>RATE ON PLAY STORE</Text>
+          <Ionicons name="star" size={14} color={COLORS.white} />
+          <Text style={styles.rateBtnText}>RATE ON {STORE_NAME}</Text>
           <Ionicons name="arrow-forward" size={14} color={COLORS.white} />
         </TouchableOpacity>
       </View>
@@ -526,7 +597,7 @@ function ReviewsTab() {
       {/* Reviews list */}
       <View>
         <Text style={styles.reviewsHeading}>What people say</Text>
-        <Text style={styles.reviewsSub}>Reviews from the Play Store</Text>
+        <Text style={styles.reviewsSub}>Reviews from the {STORE_NAME_TITLE}</Text>
         {(reviews || []).map((review) => (
           <View key={review.id} style={styles.reviewCard}>
             <View style={styles.reviewHeader}>
@@ -764,6 +835,7 @@ const styles = StyleSheet.create({
   communityAuthorName: { fontSize: 14, color: COLORS.white, fontFamily: FONTS.bodyBold },
   communityTimestamp: { fontSize: 10, color: COLORS.textMuted, marginTop: 2, fontFamily: FONTS.label, letterSpacing: 0.5 },
   communityCategoryBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, borderWidth: 1 },
+  postMenuBtn: { marginLeft: 8, padding: 2 },
   communityCategoryText: { fontSize: 9, fontFamily: FONTS.label, textTransform: 'uppercase', letterSpacing: 1 },
   communityPostBody: { fontSize: 14, color: COLORS.textSecondary, lineHeight: 21, marginBottom: 14, fontFamily: FONTS.body },
   communityPostImage: {

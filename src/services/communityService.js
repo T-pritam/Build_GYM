@@ -109,6 +109,26 @@ export const reportPost = async (postId, reason) => {
   return data;
 };
 
+// ── Blocking (peer, Guideline 1.2) ───────────────────────────────────────────
+
+/** POST /api/community/block/:userId — block a member (hides their content, notifies staff) */
+export const blockUser = async (userId, { reason, postId } = {}) => {
+  const { data } = await api.post(`/community/block/${userId}`, { reason, postId });
+  return data;
+};
+
+/** DELETE /api/community/block/:userId — unblock a member */
+export const unblockUser = async (userId) => {
+  const { data } = await api.delete(`/community/block/${userId}`);
+  return data;
+};
+
+/** GET /api/community/blocked — ids the current user has blocked */
+export const fetchBlockedIds = async () => {
+  const { data } = await api.get('/community/blocked');
+  return data.data || [];
+};
+
 // ── Members ──────────────────────────────────────────────────────────────────
 
 /** GET /api/community/members — all opted-in members */

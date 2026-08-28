@@ -1,27 +1,74 @@
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, Switch,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, Switch, Linking, Alert,
 } from 'react-native';
+import { CommonActions } from '@react-navigation/native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, FONTS } from '../../theme';
 import SafeBottomBar from '../../components/SafeBottomBar';
 import GradientIcon from '../../components/GradientIcon';
+import { useAuthStore } from '../../store/authStore';
+import { LEGAL_URLS } from '../../constants/legal';
+import { requestAccountDeletion } from '../../services/customerProfileService';
 
 /**
- * BUILD Settings — visual shell only (per plan).
- * Toggles flip locally for feel; rows/buttons are NOT wired to any logic,
- * navigation, or persistence. The functional Log Out / account deletion live
- * on the Profile screen.
+ * BUILD Settings.
+ * Toggles flip locally for feel; every tappable row is wired to real navigation,
+ * an external legal/support link, or an account action.
  */
 export default function SettingsScreen({ navigation }) {
+  const logout = useAuthStore((s) => s.logout);
   const [toggles, setToggles] = useState({
     push: true, whatsapp: true, booking: true, classUpd: false, promo: false,
     visibility: true, rankings: true, sharing: false,
   });
   const flip = (key) => setToggles((t) => ({ ...t, [key]: !t[key] }));
 
-  const LinkRow = ({ icon, label, value, locked }) => (
-    <TouchableOpacity style={styles.row} activeOpacity={0.7} disabled>
+  const openURL = (url) =>
+    Linking.openURL(url).catch(() =>
+      Alert.alert('Unable to open link', 'Please try again later.'));
+
+  const handleLogout = () =>
+    Alert.alert('Log Out', 'Are you sure you want to log out?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Log Out',
+        style: 'destructive',
+        onPress: async () => {
+          await logout();
+          navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'Login' }] }));
+        },
+      },
+    ]);
+
+  const handleRequestDeletion = () =>
+    Alert.alert(
+      'Request Account Deletion',
+      'This sends a request to permanently delete your account and associated data. Our team will process it. Continue?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Request Deletion',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await requestAccountDeletion();
+              Alert.alert('Request received', 'Your account deletion request has been submitted.');
+            } catch (err) {
+              Alert.alert('Error', err?.response?.data?.message || 'Could not submit the request. Please try again.');
+            }
+          },
+        },
+      ],
+    );
+
+  const LinkRow = ({ icon, label, value, locked, onPress, display }) => (
+    <TouchableOpacity
+      style={styles.row}
+      activeOpacity={0.7}
+      disabled={locked || display || !onPress}
+      onPress={onPress}
+    >
       <View style={styles.rowIcon}>
         <MaterialIcons name={icon} size={20} color={COLORS.textSecondary} />
       </View>
@@ -29,7 +76,9 @@ export default function SettingsScreen({ navigation }) {
       {!!value && <Text style={styles.rowValue}>{value}</Text>}
       {locked
         ? <MaterialIcons name="lock" size={16} color={COLORS.textMuted} />
-        : <MaterialIcons name="chevron-right" size={22} color={COLORS.textMuted} />}
+        : display
+          ? null
+          : <MaterialIcons name="chevron-right" size={22} color={COLORS.textMuted} />}
     </TouchableOpacity>
   );
 
@@ -61,10 +110,10 @@ export default function SettingsScreen({ navigation }) {
         {/* Account */}
         <Text style={styles.sectionLabel}>Account</Text>
         <View style={styles.card}>
-          <LinkRow icon="key" label="Change Password" />
+          <LinkRow icon="key" label="Change Password" onPress={() => navigation.navigate('ForgotPassword')} />
           <LinkRow icon="smartphone" label="Linked Phone" locked />
-          <LinkRow icon="mail" label="Email Address" />
-          <LinkRow icon="language" label="Language" value="English" />
+          <LinkRow icon="mail" label="Email Address" onPress={() => navigation.navigate('EditProfile')} />
+          <LinkRow icon="language" label="Language" value="English" display />
         </View>
 
         {/* Notifications */}
@@ -83,15 +132,15 @@ export default function SettingsScreen({ navigation }) {
           <ToggleRow icon="visibility" label="Profile Visibility" k="visibility" />
           <ToggleRow icon="leaderboard" label="Show in Rankings" k="rankings" />
           <ToggleRow icon="share" label="Activity Sharing" k="sharing" />
-          <LinkRow icon="analytics" label="Data & Analytics" />
+          <LinkRow icon="analytics" label="Data & Analytics" onPress={() => openURL(LEGAL_URLS.privacy)} />
         </View>
 
         {/* About */}
         <Text style={styles.sectionLabel}>About</Text>
         <View style={styles.card}>
-          <LinkRow icon="help" label="Help & Support" />
-          <LinkRow icon="policy" label="Privacy Policy" />
-          <LinkRow icon="description" label="Terms & Conditions" />
+          <LinkRow icon="help" label="Help & Support" onPress={() => navigation.navigate('Support')} />
+          <LinkRow icon="policy" label="Privacy Policy" onPress={() => openURL(LEGAL_URLS.privacy)} />
+          <LinkRow icon="description" label="Terms & Conditions" onPress={() => openURL(LEGAL_URLS.terms)} />
           <View style={styles.row}>
             <View style={styles.rowIcon}>
               <MaterialIcons name="info" size={20} color={COLORS.textSecondary} />
@@ -101,12 +150,12 @@ export default function SettingsScreen({ navigation }) {
           </View>
         </View>
 
-        {/* Footer actions (visual only) */}
-        <TouchableOpacity style={styles.deleteBtn} activeOpacity={0.8} disabled>
+        {/* Footer actions */}
+        <TouchableOpacity style={styles.deleteBtn} activeOpacity={0.8} onPress={handleRequestDeletion}>
           <MaterialIcons name="delete-outline" size={16} color="#F87171" />
           <Text style={styles.deleteText}>Request Account Deletion</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.logoutBtn} activeOpacity={0.8} disabled>
+        <TouchableOpacity style={styles.logoutBtn} activeOpacity={0.8} onPress={handleLogout}>
           <Text style={styles.logoutText}>Log Out</Text>
         </TouchableOpacity>
 
