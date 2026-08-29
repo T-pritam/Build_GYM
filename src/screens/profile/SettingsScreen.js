@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, Switch, Linking, Alert,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, Linking, Alert,
 } from 'react-native';
 import { CommonActions } from '@react-navigation/native';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -13,16 +13,12 @@ import { requestAccountDeletion } from '../../services/customerProfileService';
 
 /**
  * BUILD Settings.
- * Toggles flip locally for feel; every tappable row is wired to real navigation,
- * an external legal/support link, or an account action.
+ * Every row is wired to a real action — navigation, an external legal/support
+ * link, opening the OS notification settings, or an account action. Non-functional
+ * placeholder toggles were removed.
  */
 export default function SettingsScreen({ navigation }) {
   const logout = useAuthStore((s) => s.logout);
-  const [toggles, setToggles] = useState({
-    push: true, whatsapp: true, booking: true, classUpd: false, promo: false,
-    visibility: true, rankings: true, sharing: false,
-  });
-  const flip = (key) => setToggles((t) => ({ ...t, [key]: !t[key] }));
 
   const openURL = (url) =>
     Linking.openURL(url).catch(() =>
@@ -82,21 +78,6 @@ export default function SettingsScreen({ navigation }) {
     </TouchableOpacity>
   );
 
-  const ToggleRow = ({ icon, label, k }) => (
-    <View style={styles.row}>
-      <View style={styles.rowIcon}>
-        <MaterialIcons name={icon} size={20} color={COLORS.textSecondary} />
-      </View>
-      <Text style={styles.rowLabel}>{label}</Text>
-      <Switch
-        value={toggles[k]}
-        onValueChange={() => flip(k)}
-        trackColor={{ false: 'rgba(255,255,255,0.12)', true: COLORS.primary }}
-        thumbColor={COLORS.white}
-      />
-    </View>
-  );
-
   return (
     <SafeBottomBar style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
@@ -119,19 +100,18 @@ export default function SettingsScreen({ navigation }) {
         {/* Notifications */}
         <Text style={styles.sectionLabel}>Notifications</Text>
         <View style={styles.card}>
-          <ToggleRow icon="notifications" label="Push Notifications" k="push" />
-          <ToggleRow icon="forum" label="WhatsApp Alerts" k="whatsapp" />
-          <ToggleRow icon="event" label="Booking Reminders" k="booking" />
-          <ToggleRow icon="school" label="Class Updates" k="classUpd" />
-          <ToggleRow icon="local-offer" label="Promotional Offers" k="promo" />
+          <LinkRow
+            icon="notifications"
+            label="Push Notifications"
+            value="System settings"
+            onPress={() => Linking.openSettings().catch(() =>
+              Alert.alert('Unable to open settings', 'Please manage notifications in your phone’s Settings app.'))}
+          />
         </View>
 
         {/* Privacy */}
         <Text style={styles.sectionLabel}>Privacy</Text>
         <View style={styles.card}>
-          <ToggleRow icon="visibility" label="Profile Visibility" k="visibility" />
-          <ToggleRow icon="leaderboard" label="Show in Rankings" k="rankings" />
-          <ToggleRow icon="share" label="Activity Sharing" k="sharing" />
           <LinkRow icon="analytics" label="Data & Analytics" onPress={() => openURL(LEGAL_URLS.privacy)} />
         </View>
 
