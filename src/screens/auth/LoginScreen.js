@@ -9,6 +9,7 @@ import {
   AuthBackground, BrandHeader, GlassCard, AuthField, HoloButton,
 } from '../../components/auth';
 import { FCM_TOKEN_KEY, saveFCMToken } from '../../services/notificationService';
+import NotificationPermissionBanner from '../../components/NotificationPermissionBanner';
 import { sendOTP, passwordLogin } from '../../services/authService';
 import { useAuthStore } from '../../store/authStore';
 import { CommonActions } from '@react-navigation/native';
@@ -232,6 +233,13 @@ export default function LoginScreen({ navigation }) {
             </Text>, including a zero-tolerance policy for objectionable content and abusive behaviour.
           </Text>
         </TouchableOpacity>
+
+        {/* Notifications are the primary channel for OTP, bookings and coach
+            messages — surface the ask here on every visit to the login screen. */}
+        <NotificationPermissionBanner
+          style={styles.permissionBanner}
+          message="Notifications are off. Turn them on so you don’t miss your OTP, booking reminders or messages from your coach."
+        />
       </GlassCard>
 
       {/* Help */}
@@ -291,6 +299,7 @@ const styles = StyleSheet.create({
   cta: { marginTop: 8 },                                              // mt-2
 
   // Terms/EULA agreement row (Guideline 1.2)
+  permissionBanner: { marginTop: 18 },
   agreeRow: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 10,
     marginTop: 20, paddingTop: 16,

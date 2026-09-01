@@ -166,6 +166,14 @@ export const useAuthStore = create((set, get) => ({
    * Clear all auth state and SecureStore keys. Navigates to Login via listener.
    */
   logout: async () => {
+    // Detach this device from the outgoing user first, so their pushes don't
+    // follow the handset to whoever signs in next. Best-effort and non-blocking.
+    // Imported lazily: notificationService reaches back into the stores, and a
+    // static import here would close that cycle at module-eval time.
+    import('../services/notificationService')
+      .then((m) => m.deregisterFCMToken())
+      .catch(() => {});
+
     try {
       await Promise.all([
         SecureStore.deleteItemAsync(KEYS.ACCESS_TOKEN),

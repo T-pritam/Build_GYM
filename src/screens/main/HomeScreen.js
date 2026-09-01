@@ -15,6 +15,7 @@ import { getMyLeaderboardStats } from '../../services/leaderboardService';
 import { fetchMyAttendance } from '../../services/gymService';
 import { fetchMyTrials } from '../../services/trialService';
 import ActiveOrderBar from '../../components/ActiveOrderBar';
+import NotificationPermissionBanner from '../../components/NotificationPermissionBanner';
 import GreyedOut from '../../components/GreyedOut';
 import { IS_LEGACY_BUILD } from '../../config/featureFlags';
 
@@ -216,6 +217,9 @@ export default function HomeScreen({ navigation }) {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primaryLight} />
         }
       >
+        {/* Re-checked on every foreground; renders nothing once permission is on. */}
+        <NotificationPermissionBanner style={styles.permissionBanner} />
+
         {/* ── WEEKLY OVERVIEW STRIP ────────────────── */}
         <View style={styles.weekCard}>
           <View style={styles.weekHeader}>
@@ -494,6 +498,7 @@ const styles = StyleSheet.create({
   bannerText: { fontFamily: FONTS.bodyBold, fontSize: 12, color: '#000', flex: 1 },
 
   // Weekly overview
+  permissionBanner: { marginBottom: 16 },
   weekCard: {
     backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 18, borderWidth: 1, borderColor: COLORS.primaryBorder,
     padding: 16, marginBottom: 16, gap: 14,
