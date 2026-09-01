@@ -59,7 +59,8 @@
          FCM notification-payload messages land on Firebase's fallback channel. -->
     <meta-data
       android:name="com.google.firebase.messaging.default_notification_channel_id"
-      android:value="default" />
+      android:value="default"
+      tools:replace="android:value" />
 
     <!-- NFC Host Card Emulation service for Rosslare SDK -->
     <service

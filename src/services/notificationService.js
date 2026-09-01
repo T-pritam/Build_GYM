@@ -368,7 +368,11 @@ export const setupNotificationListeners = ({ getUserId } = {}) => {
             body: remoteMessage.notification.body,
             data: remoteMessage.data,
           },
-          trigger: null,
+          // A null trigger fires immediately but drops the notification on
+          // expo's fallback channel, losing the MAX importance, colour and
+          // vibration configured on 'default'. ChannelAwareTriggerInput is also
+          // immediate and keeps the channel. iOS has no channels — null there.
+          trigger: Platform.OS === 'android' ? { channelId: ANDROID_CHANNEL_ID } : null,
         });
       }
     });
