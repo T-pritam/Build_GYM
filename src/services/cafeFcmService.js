@@ -8,9 +8,9 @@
  * fcm_tokens tables.
  */
 
-import * as Device from 'expo-device';
 import { Platform } from 'react-native';
 import cafeApi from './cafeApiService';
+import { getDeviceId } from '../utils/deviceId';
 import { ensureCafeAuth } from './cafeAuthService';
 
 let lastRegisteredToken = null;
@@ -21,7 +21,10 @@ export async function registerCafeFcmToken(fcmToken, { phone, userId } = {}) {
 
   try {
     await ensureCafeAuth();
-    const deviceId = Device.osInternalBuildId || Device.modelId || 'gym-unknown';
+    // Same per-install UUID the gym backend gets — the old
+    // osInternalBuildId/modelId value was the OS build number on iOS and
+    // Build.DISPLAY on Android, i.e. identical across every handset on that build.
+    const deviceId = await getDeviceId();
     const payload = {
       token: fcmToken,
       deviceId,

@@ -54,6 +54,12 @@
       android:name="com.google.firebase.messaging.default_notification_color"
       android:resource="@color/notification_color"
       tools:replace="android:resource" />
+    <!-- Must match the channel created in notificationService.ensureAndroidChannel()
+         and the channelId the backend sets on android.notification. Without it,
+         FCM notification-payload messages land on Firebase's fallback channel. -->
+    <meta-data
+      android:name="com.google.firebase.messaging.default_notification_channel_id"
+      android:value="default" />
 
     <!-- NFC Host Card Emulation service for Rosslare SDK -->
     <service

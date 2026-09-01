@@ -3,8 +3,10 @@ import * as Notifications from 'expo-notifications';
 import messaging from '@react-native-firebase/messaging';
 import { Platform, Linking } from 'react-native';
 import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BASE_API_URL } from '@env';
 
+import { getDeviceId } from '../utils/deviceId';
 import { navigateTo } from '../navigation/navigationRef';
 import { useMembershipStore } from '../store/membershipStore';
 import { logEvent } from './analyticsService';
@@ -191,40 +193,93 @@ export const handleNotificationData = (data) => {
   if (fallback) handleDeepLink(fallback);
 };
 
+// expo-notifications SDK 54 replaced `shouldShowAlert` with the explicit
+// `shouldShowBanner` / `shouldShowList` pair. The old key is ignored, which
+// silently suppressed foreground notifications on both platforms.
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
   }),
 });
 
+export const ANDROID_CHANNEL_ID = 'default';
+
+/**
+ * Create the one Android notification channel this app uses.
+ *
+ * Android freezes a channel's importance at creation time, so this must be the
+ * only definition — there used to be a second, conflicting one in App.js and
+ * whichever ran first on a fresh install won permanently. The id must match the
+ * `channelId` the backend sets on android.notification, and the
+ * `default_notification_channel_id` meta-data in AndroidManifest.xml.
+ */
+export const ensureAndroidChannel = async () => {
+  if (Platform.OS !== 'android') return;
+  try {
+    await Notifications.setNotificationChannelAsync(ANDROID_CHANNEL_ID, {
+      name: 'Build Fitness',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: '#FF6B35',
+      sound: 'default',
+      enableVibrate: true,
+    });
+  } catch (err) {
+    console.warn('ensureAndroidChannel failed:', err?.message);
+  }
+};
+
+/**
+ * Current notification permission state, without ever triggering a prompt.
+ * @returns {Promise<{granted: boolean, canAskAgain: boolean}>}
+ */
+export const getNotificationPermission = async () => {
+  try {
+    const { status, canAskAgain } = await Notifications.getPermissionsAsync();
+    return { granted: status === 'granted', canAskAgain: canAskAgain !== false };
+  } catch (err) {
+    console.warn('getNotificationPermission failed:', err?.message);
+    return { granted: false, canAskAgain: false };
+  }
+};
+
+/**
+ * Ask the OS for notification permission. The system dialog only ever appears
+ * once per install — after a denial this resolves to false with no UI, which is
+ * why NotificationPermissionBanner falls back to opening OS settings.
+ * @returns {Promise<boolean>} whether permission is granted afterwards
+ */
+export const requestNotificationPermission = async () => {
+  try {
+    await ensureAndroidChannel();
+    const { status } = await Notifications.requestPermissionsAsync();
+    return status === 'granted';
+  } catch (err) {
+    console.warn('requestNotificationPermission failed:', err?.message);
+    return false;
+  }
+};
+
+/**
+ * Fetch the FCM token for this install.
+ * Does NOT prompt: registration runs at launch, while the ask is owned by the
+ * permission banner, so a cold start never throws a dialog at an unlogged-in user.
+ */
 export const registerForPushNotificationsAsync = async () => {
   let token = '';
 
   try {
-    if (Platform.OS === 'android') {
-      await Notifications.setNotificationChannelAsync('default', {
-        name: 'default',
-        importance: Notifications.AndroidImportance.MAX,
-        vibrationPattern: [0, 250, 250, 250],
-        lightColor: '#FF231F7C',
-      });
-    }
+    await ensureAndroidChannel();
 
     // Device.isDevice is false on Android emulators and the iOS Simulator
     // even though both can still show the OS permission prompt.
     if (Device.isDevice || Platform.OS === 'android' || Platform.OS === 'ios') {
-      const { status: existingStatus } = await Notifications.getPermissionsAsync();
-      let finalStatus = existingStatus;
-
-      if (existingStatus !== 'granted') {
-        const { status } = await Notifications.requestPermissionsAsync();
-        finalStatus = status;
-      }
-
-      if (finalStatus !== 'granted') {
-        console.log('Failed to get push token for push notification!');
+      const { granted } = await getNotificationPermission();
+      if (!granted) {
+        console.log('Notification permission not granted; skipping token fetch');
         return null;
       }
 
@@ -248,7 +303,7 @@ export const registerForPushNotificationsAsync = async () => {
 
 export const saveFCMToken = async (fcmToken, phone = null, userId = null) => {
   try {
-    const deviceId = Device.osInternalBuildId || Device.modelId || 'unknown';
+    const deviceId = await getDeviceId();
 
     const payload = {
       token: fcmToken,
@@ -268,7 +323,16 @@ export const saveFCMToken = async (fcmToken, phone = null, userId = null) => {
   }
 };
 
-export const setupNotificationListeners = () => {
+/**
+ * Wire up foreground / tap / token-refresh handlers.
+ *
+ * @param {object} [opts]
+ * @param {() => (string|null)} [opts.getUserId]  Reads the signed-in user id when a
+ *   refreshed token needs re-associating. Passed in rather than imported so this
+ *   module stays free of a dependency on the auth store.
+ * @returns {() => void} cleanup
+ */
+export const setupNotificationListeners = ({ getUserId } = {}) => {
   try {
     // Handle notifications when app is in foreground
     const foregroundSubscription = Notifications.addNotificationReceivedListener(notification => {
@@ -309,13 +373,43 @@ export const setupNotificationListeners = () => {
       }
     });
 
+    // FCM rotates tokens (reinstall, restore, cache clear). Without this the
+    // backend keeps the dead token until the next cold start.
+    const unsubscribeOnTokenRefresh = messaging().onTokenRefresh(async (newToken) => {
+      try {
+        const userId = getUserId?.() ?? null;
+        await saveFCMToken(newToken, null, userId);
+        await AsyncStorage.setItem(FCM_TOKEN_KEY, newToken);
+        console.log('FCM token refreshed and re-saved');
+      } catch (err) {
+        console.warn('onTokenRefresh save failed:', err?.message);
+      }
+    });
+
     return () => {
       foregroundSubscription.remove();
       responseSubscription.remove();
       unsubscribeOnMessage();
+      unsubscribeOnTokenRefresh();
     };
   } catch (error) {
     console.error('Error setting up notification listeners:', error);
     return () => { }; // Return empty cleanup function
+  }
+};
+
+/**
+ * Detach this device from the signed-out user so the next person to log in here
+ * doesn't inherit their pushes. Best-effort: a failure just leaves the token to
+ * be re-pointed on the next login.
+ */
+export const deregisterFCMToken = async () => {
+  try {
+    const deviceId = await getDeviceId();
+    await axios.delete(`${BASE_API_URL}/fcm-tokens/${encodeURIComponent(deviceId)}`, {
+      params: { app: 'member' },
+    });
+  } catch (error) {
+    console.warn('deregisterFCMToken failed:', error.response?.data ?? error.message);
   }
 };

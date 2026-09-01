@@ -1,7 +1,5 @@
 import React, { useEffect } from 'react';
-import { AppState, Platform } from 'react-native';
-import * as Notifications from 'expo-notifications';
-import { AndroidImportance } from 'expo-notifications';
+import { AppState } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -11,6 +9,7 @@ import AppNavigator from './src/navigation/AppNavigator';
 import { FONT_ASSETS } from './src/theme';
 import {
   FCM_TOKEN_KEY,
+  ensureAndroidChannel,
   registerForPushNotificationsAsync,
   saveFCMToken,
   setupNotificationListeners,
@@ -24,16 +23,10 @@ export default function App() {
   const [fontsLoaded] = useFonts(FONT_ASSETS);
 
   useEffect(() => {
-    if (Platform.OS === 'android') {
-      Notifications.setNotificationChannelAsync('default', {
-        name: 'Build Fitness',
-        importance: AndroidImportance.MAX,
-        vibrationPattern: [0, 250, 250, 250],
-        lightColor: '#FF6B35',
-        sound: 'default',
-        enableVibrate: true,
-      });
-    }
+    // The Android channel is defined once, in notificationService — Android
+    // freezes a channel's importance at creation, so a second definition here
+    // used to race the first one on fresh installs.
+    ensureAndroidChannel();
 
     let cleanupNotifications;
     let appStateSubscription;
@@ -51,18 +44,19 @@ export default function App() {
         const fcmToken = await registerForPushNotificationsAsync();
 
         if (fcmToken) {
-          const existingToken = await AsyncStorage.getItem(FCM_TOKEN_KEY);
-
-          if (existingToken !== fcmToken) {
-            await saveFCMToken(fcmToken);
-            await AsyncStorage.setItem(FCM_TOKEN_KEY, fcmToken);
-            console.log('FCM token updated');
-          } else {
-            console.log('FCM token unchanged, skipping backend save');
-          }
+          // Always upsert, never skip on an unchanged token. The row can be gone
+          // or deactivated server-side (stale-token pruning, the legacy device_id
+          // cleanup) while the token itself is unchanged — the old "skip if same"
+          // shortcut meant such a device never re-registered. The call is a cheap
+          // upsert and also refreshes last_seen_at, which gym occupancy reads.
+          const { user } = useAuthStore.getState();
+          await saveFCMToken(fcmToken, null, user?.id ?? null);
+          await AsyncStorage.setItem(FCM_TOKEN_KEY, fcmToken);
         }
 
-        cleanupNotifications = setupNotificationListeners();
+        cleanupNotifications = setupNotificationListeners({
+          getUserId: () => useAuthStore.getState().user?.id ?? null,
+        });
       } catch (error) {
         console.error('Error initializing notifications:', error);
       }
