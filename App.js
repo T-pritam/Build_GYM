@@ -6,6 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import messaging from '@react-native-firebase/messaging';
 import { useFonts } from 'expo-font';
 import AppNavigator from './src/navigation/AppNavigator';
+import UpdateGate from './src/components/UpdateGate';
 import { FONT_ASSETS } from './src/theme';
 import {
   FCM_TOKEN_KEY,
@@ -119,6 +120,7 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <AppNavigator />
+        <UpdateGate />
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

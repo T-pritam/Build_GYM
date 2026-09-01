@@ -4,6 +4,7 @@ import {
   StatusBar, Image, RefreshControl,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { COLORS, FONTS } from '../../theme';
 import { useAnnouncementStore } from '../../store/announcementStore';
@@ -273,6 +274,7 @@ export default function HomeScreen({ navigation }) {
             </View>
             <Text style={styles.calDelta}>+12% vs last week</Text>
           </View>
+          <View style={styles.calGraphWrap}>
           <View style={styles.calChart}>
             {CAL_BARS.map((b, i) => {
               const colors = b.c === 'purple'
@@ -296,6 +298,23 @@ export default function HomeScreen({ navigation }) {
             {['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'].map((d, i) => (
               <Text key={d} style={[styles.calLabel, i === 3 && { color: COLORS.white }]}>{d}</Text>
             ))}
+          </View>
+
+            {/* Feature not live yet — blur the graph and mark it Coming Soon.
+                Header text (CALORIES BURNED / kcal / +12%) stays sharp. */}
+            <BlurView
+              intensity={18}
+              tint="dark"
+              experimentalBlurMethod="dimezisBlurView"
+              style={StyleSheet.absoluteFill}
+              pointerEvents="none"
+            />
+            <View style={styles.comingSoonWrap} pointerEvents="none">
+              <View style={styles.comingSoonBadge}>
+                <MaterialIcons name="schedule" size={13} color={COLORS.white} />
+                <Text style={styles.comingSoonText}>COMING SOON</Text>
+              </View>
+            </View>
           </View>
         </View>
 
@@ -534,6 +553,14 @@ const styles = StyleSheet.create({
   calValue: { fontFamily: FONTS.headline, fontSize: 22, color: COLORS.white, marginTop: 2 },
   calUnit: { fontFamily: FONTS.body, fontSize: 12, color: COLORS.textMuted },
   calDelta: { fontFamily: FONTS.label, fontSize: 10, color: GREEN },
+  calGraphWrap: { position: 'relative', borderRadius: 10, overflow: 'hidden' },
+  comingSoonWrap: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
+  comingSoonBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999,
+    backgroundColor: 'rgba(20,18,26,0.72)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)',
+  },
+  comingSoonText: { fontFamily: FONTS.label, fontSize: 11, letterSpacing: 1.6, color: COLORS.white },
   calChart: { height: 120, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 10 },
   calBarSlot: { flex: 1, height: '100%', justifyContent: 'flex-end' },
   calBar: { width: '100%', borderTopLeftRadius: 4, borderTopRightRadius: 4 },

@@ -133,5 +133,13 @@ const styles = StyleSheet.create({
   content: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
   },
-  label: { color: COLORS.white, letterSpacing: 2.4 },
+  // labelCaps sets lineHeight:14 < fontSize:16, which clips the caps' tops inside
+  // the fixed-height button. Override with a roomy line-height so text isn't cut off.
+  label: {
+    color: COLORS.white,
+    letterSpacing: 2.4,
+    lineHeight: 22,
+    includeFontPadding: false,
+    textAlignVertical: 'center',
+  },
 });
