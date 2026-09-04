@@ -34,8 +34,24 @@ export default function UpdateGate() {
   const blocking = !!info.updateRequired;
   if (!blocking && dismissed) return null;
 
+  // Prefer the native store scheme so the button lands on the app's listing
+  // inside the Play Store / App Store rather than a browser tab, falling back
+  // to the universal https link.
+  //
+  // Deliberately openURL().catch() rather than canOpenURL(): on Android 11+
+  // canOpenURL returns false for a non-https scheme unless it is declared in a
+  // <queries> block in AndroidManifest.xml, so it would report a false negative
+  // on every device. openURL fires the intent and only rejects when nothing
+  // handles it, which is the signal we actually want.
   const openStore = () => {
-    if (info.storeUrl) Linking.openURL(info.storeUrl).catch(() => {});
+    const { storeUrlNative: native, storeUrl: web } = info;
+    if (native) {
+      Linking.openURL(native).catch(() => {
+        if (web) Linking.openURL(web).catch(() => {});
+      });
+    } else if (web) {
+      Linking.openURL(web).catch(() => {});
+    }
   };
 
   return (
