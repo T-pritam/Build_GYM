@@ -37,6 +37,10 @@ export async function initChatCache() {
       status          TEXT DEFAULT 'sent'
     );
     CREATE INDEX IF NOT EXISTS idx_msg_thread ON messages (thread_id, created_at);
+    CREATE TABLE IF NOT EXISTS kv (
+      key   TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
     CREATE TABLE IF NOT EXISTS outbox (
       client_msg_uuid TEXT PRIMARY KEY,
       thread_id       TEXT NOT NULL,
@@ -165,4 +169,37 @@ function rowToMessage(r) {
     workoutLogId: r.workout_log_id, systemEvent: r.system_event, clientMsgUuid: r.client_msg_uuid,
     createdAt: r.created_at, status: r.status,
   };
+}
+
+/**
+ * Wipe every cached message and queued outbox row.
+ *
+ * The cache file is a single per-device database with no user column, so it MUST
+ * be emptied on logout — otherwise the next account to sign in on this handset
+ * paints the previous user's conversations straight off disk.
+ */
+export async function clearChatCache() {
+  const db = await getDb();
+  await db.execAsync(`DELETE FROM messages; DELETE FROM outbox; DELETE FROM kv;`);
+}
+
+/**
+ * The thread LIST, cached so a cold open with no connectivity still shows the
+ * real coach instead of falling through to the "no coach assigned" empty state.
+ * Stored as one blob — it's a handful of rows and always replaced wholesale.
+ */
+export async function cacheThreads(threads = []) {
+  const db = await getDb();
+  await db.runAsync(
+    `INSERT INTO kv (key, value) VALUES ('threads', ?)
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+    [JSON.stringify(threads)],
+  );
+}
+
+export async function getCachedThreads() {
+  const db = await getDb();
+  const row = await db.getFirstAsync(`SELECT value FROM kv WHERE key = 'threads'`);
+  if (!row?.value) return [];
+  try { return JSON.parse(row.value); } catch (_) { return []; }
 }

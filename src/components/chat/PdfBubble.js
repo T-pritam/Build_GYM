@@ -18,7 +18,7 @@ function formatBytes(bytes) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export default function PdfBubble({ threadId, message, getMedia, onPress }) {
+export default function PdfBubble({ threadId, message, getMedia, onPress, onLongPress }) {
   const [thumbnailUrl, setThumbnailUrl] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -35,7 +35,7 @@ export default function PdfBubble({ threadId, message, getMedia, onPress }) {
   const size = formatBytes(message.mediaSize);
 
   return (
-    <TouchableOpacity activeOpacity={0.85} onPress={onPress} style={styles.wrap}>
+    <TouchableOpacity activeOpacity={0.85} onPress={onPress} onLongPress={onLongPress} style={styles.wrap}>
       <View style={styles.thumbWrap}>
         {thumbnailUrl ? (
           <Image source={{ uri: thumbnailUrl }} style={styles.thumbImg} contentFit="cover" contentPosition="top" />

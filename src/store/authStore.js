@@ -189,6 +189,12 @@ export const useAuthStore = create((set, get) => ({
     });
     // Drop the previous user's unread count so it can't leak into the next login.
     useAnnouncementStore.getState().clearUnread();
+    // Same for chat: drop the /chat socket (it stays authenticated as the outgoing
+    // user until disconnected), clear the store and empty the on-device cache.
+    // Lazily imported for the same store-cycle reason as notificationService above.
+    import('./chatStore')
+      .then((m) => m.useChatStore.getState().reset())
+      .catch(() => {});
     // Clear GA4 identity so the next session starts clean.
     setUserId(null).catch(() => {});
   },

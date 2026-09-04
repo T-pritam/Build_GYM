@@ -160,7 +160,15 @@ export default function WorkoutHomeScreen({ navigation }) {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.greeting}>Workouts</Text>
+          <View style={styles.headerLeft}>
+            <TouchableOpacity
+              style={styles.backBtn}
+              onPress={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('MainTabs'))}
+            >
+              <Ionicons name="chevron-back" size={24} color={COLORS.textPrimary} />
+            </TouchableOpacity>
+            <Text style={styles.greeting}>Workouts</Text>
+          </View>
           <TouchableOpacity onPress={() => navigation.navigate('WorkoutHistory')}>
             <Ionicons name="time-outline" size={24} color={COLORS.textSecondary} />
           </TouchableOpacity>
@@ -355,6 +363,8 @@ const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background },
 
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: -8 },
+  backBtn: { padding: 4 },
   greeting: { fontSize: 28, fontWeight: '700', color: COLORS.white },
 
   card: { backgroundColor: COLORS.surface, borderRadius: 16, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: COLORS.border },

@@ -8,7 +8,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView,
-  Platform, ActivityIndicator, Alert, Linking, Modal, FlatList,
+  Platform, ActivityIndicator, Alert, Linking, Modal, FlatList, Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -28,6 +28,7 @@ import ChatImageThumb from '../../components/chat/ChatImageThumb';
 import MediaAlbumGrid from '../../components/chat/MediaAlbumGrid';
 import MediaAlbumViewer from '../../components/chat/MediaAlbumViewer';
 import PdfBubble from '../../components/chat/PdfBubble';
+import AttachmentPreview from '../../components/chat/AttachmentPreview';
 import { RECEPTION_PHONE } from '../../services/notificationService';
 
 const MAX_LEN = 2000;
@@ -47,7 +48,9 @@ export default function ChatThreadScreen({ route, navigation }) {
   const retry = useChatStore((s) => s.retry);
   const setThreadMuted = useChatStore((s) => s.setThreadMuted);
 
-  const coachId = thread?.trainerId || route.params.coachId;
+  const coachId = thread?.trainerId || thread?.counterpartId || route.params.coachId;
+  const coachName = thread?.counterpartName || route.params.coachName || 'Your Coach';
+  const coachPhoto = thread?.counterpartPhoto || route.params.coachPhoto || null;
   const state = thread?.state || route.params.state || 'active';
 
   const insets = useSafeAreaInsets();
@@ -58,6 +61,8 @@ export default function ChatThreadScreen({ route, navigation }) {
   const [showPicker, setShowPicker] = useState(false);
   const [showMute, setShowMute] = useState(false);
   const [albumViewer, setAlbumViewer] = useState(null); // { images, initialIndex } | null
+  const [pending, setPending] = useState([]);            // picked files awaiting an explicit Send
+  const [uploadPct, setUploadPct] = useState(0);
 
   useEffect(() => {
     openThread(threadId);
@@ -85,38 +90,62 @@ export default function ChatThreadScreen({ route, navigation }) {
   };
 
   const onAttach = () => setShowPicker(true);
+
+  // Picking only STAGES the files — nothing reaches the thread until Send is
+  // pressed. Messages are immutable, so an accidental send can't be undone.
   const doImage = async (fromCamera) => {
     try {
       const files = await pickAndCompressImage(fromCamera);
       if (!files || !files.length) return;
-      setUploading(true);
-      for (const file of files) { // sequential: preserves pick order, kinder to a poor connection
-        try {
-          const { objectKey, type } = await uploadToR2(threadId, file);
-          await sendMedia(threadId, { type, objectKey });
-        } catch (e) { /* this image's optimistic row already shows its own failed/retry state */ }
-      }
-    } catch (e) { Alert.alert('Upload failed', e.message || 'Please try again'); }
-    finally { setUploading(false); }
+      setPending(files);
+    } catch (e) { Alert.alert('Could not attach', e.message || 'Please try again'); }
   };
   const doPdf = async () => {
     try {
       const file = await pickPdf();
       if (!file) return;
-      setUploading(true);
-      const { objectKey, type, fileName } = await uploadToR2(threadId, file);
-      await sendMedia(threadId, { type, objectKey, fileName });
-    } catch (e) { Alert.alert('Upload failed', e.message || 'Please try again'); }
-    finally { setUploading(false); }
+      setPending([file]);
+    } catch (e) { Alert.alert('Could not attach', e.message || 'Please try again'); }
+  };
+
+  const sendPending = async () => {
+    const files = pending;
+    setUploading(true);
+    setUploadPct(0);
+    try {
+      for (let i = 0; i < files.length; i += 1) { // sequential: preserves pick order, kinder to a poor connection
+        const file = files[i];
+        try {
+          const { objectKey, type, fileName } = await uploadToR2(threadId, file, (f) => {
+            // Spread each file's progress across the whole batch.
+            setUploadPct((i + f) / files.length);
+          });
+          await sendMedia(threadId, { type, objectKey, fileName });
+        } catch (e) { /* this file's optimistic row already shows its own failed/retry state */ }
+      }
+    } finally {
+      setUploading(false);
+      setUploadPct(0);
+      setPending([]);
+    }
   };
 
   const onLongPress = (m) => {
-    if (m.type !== 'text') return;
-    Alert.alert('Message', undefined, [
-      { text: 'Copy', onPress: () => Clipboard.setStringAsync(m.body || '') },
-      { text: 'Report', style: 'destructive', onPress: () => reportMsg(m) },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
+    // System lines and workout cards aren't authored by a person — nothing to
+    // copy and nobody to report. Everything else (text, image, PDF) is fair game.
+    if (m.type === 'system' || m.type === 'workout_card') return;
+    const own = m.senderId && m.senderId === me;
+    const actions = [];
+    if (m.type === 'text') {
+      actions.push({ text: 'Copy text', onPress: () => Clipboard.setStringAsync(m.body || '') });
+    }
+    // Reporting your own message does nothing useful and just floods the queue.
+    if (!own) {
+      actions.push({ text: 'Report', style: 'destructive', onPress: () => reportMsg(m) });
+    }
+    actions.push({ text: 'Cancel', style: 'cancel' });
+    if (actions.length === 1) return; // nothing on offer but Cancel
+    Alert.alert('Message', undefined, actions);
   };
   const reportMsg = (m) => {
     svc.reportMessage(m.id, 'Reported from chat')
@@ -159,6 +188,7 @@ export default function ChatThreadScreen({ route, navigation }) {
           <View style={[styles.bubbleRow, { justifyContent: item.senderId === me ? 'flex-end' : 'flex-start' }]}>
             <MediaAlbumGrid threadId={threadId} images={item.images} getMedia={svc.getMedia}
               onOpenAt={(idx) => setAlbumViewer({ images: item.images, initialIndex: idx })}
+              onLongPress={() => onLongPress(item.images[0])}
               lastTileTimeLabel={dayjs(lastTile.createdAt).format('HH:mm')} lastTileTick={tickFor(lastTile)} />
           </View>
         </View>
@@ -177,11 +207,35 @@ export default function ChatThreadScreen({ route, navigation }) {
 
   return (
     <KeyboardAvoidingView style={styles.screen} behavior="padding">
-      <Header navigation={navigation} coachId={coachId} muted={thread?.muted} frozen={state === 'frozen'} onMute={onMute} topInset={insets.top} />
+      <Header
+        navigation={navigation} coachId={coachId} coachName={coachName} coachPhoto={coachPhoto}
+        muted={thread?.muted} state={state} onMute={onMute} topInset={insets.top}
+      />
       {showDisclosure ? <DisclosureBanner onAck={ackDisclosure} /> : null}
+
+      <AttachmentPreview
+        visible={pending.length > 0}
+        files={pending}
+        sending={uploading}
+        progress={uploadPct}
+        onCancel={() => setPending([])}
+        onRemove={(i) => setPending((cur) => cur.filter((_, idx) => idx !== i))}
+        onSend={sendPending}
+      />
 
       {messages.length === 0 ? (
         <View style={styles.emptyThread}>
+          {/* Coach intro card above the placeholder, so a brand-new thread
+              introduces the coach instead of opening on a bare screen. */}
+          {coachPhoto
+            ? <Image source={{ uri: coachPhoto }} style={styles.emptyAvatar} />
+            : <View style={[styles.emptyAvatar, styles.emptyAvatarFallback]}>
+                <Text style={styles.emptyAvatarLetter}>{(coachName || 'C').charAt(0).toUpperCase()}</Text>
+              </View>}
+          <Text style={styles.emptyName}>{coachName}</Text>
+          {thread?.counterpartSpecialisation
+            ? <Text style={styles.emptySpec}>{thread.counterpartSpecialisation}</Text>
+            : <Text style={styles.emptySpec}>Your personal trainer</Text>}
           <Text style={styles.emptyHi}>Say hi to your coach 👋</Text>
         </View>
       ) : (
@@ -227,17 +281,22 @@ export default function ChatThreadScreen({ route, navigation }) {
 }
 
 // ─── Subcomponents ────────────────────────────────────────────────────────────
-function Header({ navigation, coachId, muted, frozen, onMute, topInset = 0 }) {
+function Header({ navigation, coachId, coachName, coachPhoto, muted, state, onMute, topInset = 0 }) {
+  const tag = state === 'frozen' ? '🔒 Paused' : state === 'archived' ? 'Past coach' : 'Coach';
   return (
     <View style={[styles.header, { paddingTop: topInset + 10 }]}>
       <TouchableOpacity onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('MainTabs')} style={styles.hBtn}>
         <Ionicons name="chevron-back" size={24} color={COLORS.textPrimary} />
       </TouchableOpacity>
       <TouchableOpacity style={styles.hTitle} onPress={() => coachId && navigation.navigate('TrainerDetail', { trainerId: coachId })}>
-        <View style={styles.hAvatar}><Ionicons name="person" size={18} color={COLORS.textSecondary} /></View>
-        <View>
-          <Text style={styles.hName}>Your Coach</Text>
-          <Text style={styles.hTag}>{frozen ? '🔒 Paused' : 'Coach'}</Text>
+        {coachPhoto
+          ? <Image source={{ uri: coachPhoto }} style={styles.hAvatar} />
+          : <View style={styles.hAvatar}>
+              <Text style={styles.hAvatarLetter}>{(coachName || 'C').charAt(0).toUpperCase()}</Text>
+            </View>}
+        <View style={{ flexShrink: 1 }}>
+          <Text style={styles.hName} numberOfLines={1}>{coachName}</Text>
+          <Text style={styles.hTag}>{tag}</Text>
         </View>
       </TouchableOpacity>
       <TouchableOpacity onPress={onMute} style={styles.hBtn}>
@@ -288,9 +347,9 @@ function MessageRow({ m, mine, tick, onLongPress, onRetry, onOpenMedia, navigati
       <View style={[styles.bubble, mine ? styles.bubbleMine : styles.bubbleTheirs, isMedia && styles.bubbleMedia]}>
         {m.type === 'image' ? (
           <ChatImageThumb threadId={threadId} messageId={m.id} getMedia={getMedia} style={styles.singleImageThumb} onPress={onOpenMedia}
-            timeLabel={dayjs(m.createdAt).format('HH:mm')} tick={tick} />
+            onLongPress={onLongPress} timeLabel={dayjs(m.createdAt).format('HH:mm')} tick={tick} />
         ) : m.type === 'pdf' ? (
-          <PdfBubble threadId={threadId} message={m} getMedia={getMedia} onPress={onOpenMedia} />
+          <PdfBubble threadId={threadId} message={m} getMedia={getMedia} onPress={onOpenMedia} onLongPress={onLongPress} />
         ) : (
           <Text style={styles.bubbleTxt}>{m.body}</Text>
         )}
@@ -441,6 +500,12 @@ const styles = StyleSheet.create({
   hBtn: { padding: 6 },
   hTitle: { flex: 1, flexDirection: 'row', alignItems: 'center', marginLeft: 4 },
   hAvatar: { width: 34, height: 34, borderRadius: 17, backgroundColor: COLORS.surface3, alignItems: 'center', justifyContent: 'center', marginRight: 10 },
+  hAvatarLetter: { color: COLORS.textPrimary, fontSize: 15, fontWeight: '800' },
+  emptyAvatar: { width: 84, height: 84, borderRadius: 42, marginBottom: 12 },
+  emptyAvatarFallback: { backgroundColor: COLORS.surface3, alignItems: 'center', justifyContent: 'center' },
+  emptyAvatarLetter: { color: COLORS.textPrimary, fontSize: 32, fontWeight: '800' },
+  emptyName: { color: COLORS.textPrimary, fontSize: 18, fontWeight: '800' },
+  emptySpec: { color: COLORS.textSecondary, fontSize: 13, marginTop: 2, marginBottom: 14 },
   hName: { color: COLORS.textPrimary, fontSize: 15, fontWeight: '700' },
   hTag: { color: COLORS.primaryLight, fontSize: 11 },
   disclosure: { backgroundColor: COLORS.primarySoft, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 10 },

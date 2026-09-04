@@ -9,6 +9,7 @@
  * the socket is an accelerator. Every open does a `?after=` delta-sync so a missed
  * live event is filled in, and the outbox auto-retries on reconnect.
  */
+import { AppState } from 'react-native';
 import { create } from 'zustand';
 import { useAuthStore } from './authStore';
 import * as svc from '../services/chat/chatService';
@@ -16,7 +17,8 @@ import * as sock from '../services/chat/chatSocket';
 import {
   initChatCache, cacheMessages, getCachedMessages, getLastServerId,
   addOptimistic, confirmOptimistic, markFailed,
-  enqueueOutbox, dequeueOutbox, getOutbox,
+  enqueueOutbox, dequeueOutbox, getOutbox, clearChatCache,
+  cacheThreads, getCachedThreads,
 } from '../services/chat/chatCache';
 
 const genId = () =>
@@ -40,12 +42,19 @@ export const useChatStore = create((set, get) => ({
   readsByThread: {},     // { threadId: { [userId]: {lastReadMessageId, lastDeliveredMessageId} } }
   openThreadId: null,
   _wired: false,
+  _appStateSub: null,
 
   unreadTotal: () => get().threads.reduce((s, t) => s + (t.unread || 0), 0),
 
   // ── bootstrap ───────────────────────────────────────────────────────────────
   init: async () => {
     await initChatCache();
+    // Paint from cache first so a cold open offline still shows the real coach
+    // rather than the "no coach assigned yet" empty state.
+    if (!get().threads.length) {
+      const cached = await getCachedThreads().catch(() => []);
+      if (cached.length) set({ threads: cached });
+    }
     get().wireSocket();
     await get().loadThreads();
     get().flushOutbox();
@@ -55,12 +64,33 @@ export const useChatStore = create((set, get) => ({
     try {
       const threads = await svc.listThreads();
       set({ threads });
-    } catch (e) { /* keep cached threads */ }
+      cacheThreads(threads).catch(() => {});
+    } catch (e) { /* offline → whatever we painted from cache stands */ }
   },
 
   // ── socket wiring (once) ─────────────────────────────────────────────────────
+  /**
+   * Presence follows the OS app state, not just screen mount/unmount.
+   * React Navigation keeps ChatThreadScreen mounted when the app is backgrounded,
+   * so without this the server still believes the user is watching the thread —
+   * it marks incoming messages read and suppresses their push.
+   */
+  wireAppState: () => {
+    if (get()._appStateSub) return;
+    const sub = AppState.addEventListener('change', (next) => {
+      const active = next === 'active';
+      const tid = get().openThreadId;
+      if (!tid) return;
+      sock.setForeground(active);
+      // Coming back to a thread that's on screen: catch up the read pointer now.
+      if (active) get().markReadNewest(tid);
+    });
+    set({ _appStateSub: sub });
+  },
+
   wireSocket: () => {
     if (get()._wired) return;
+    get().wireAppState();
     const s = sock.getChatSocket();
     s.on('chat:message', (m) => get().handleIncoming(m));
     s.on('chat:read', ({ threadId, userId, upToMessageId }) => get().applyPointer(threadId, userId, 'lastReadMessageId', upToMessageId));
@@ -139,6 +169,17 @@ export const useChatStore = create((set, get) => ({
   // ── incoming live message ────────────────────────────────────────────────────
   handleIncoming: async (m) => {
     const me = useAuthStore.getState().user?.id;
+    // Nobody is signed in, or this event belongs to a thread we don't hold — a
+    // stale socket from a previous session can still deliver here, and merging it
+    // would leak the previous account's messages into this one.
+    if (!me) return;
+    // A thread we don't hold is either brand new (a mapping just created one) or
+    // not ours at all. Re-fetch the list rather than trusting the event: if the
+    // thread really is ours it reappears, and if it isn't we've dropped it.
+    if (!get().threads.some((t) => t.id === m.threadId)) {
+      await get().loadThreads();
+      if (!get().threads.some((t) => t.id === m.threadId)) return;
+    }
     // Our own message echoed back over the socket — trySend already persists and
     // renders it. Reprocessing collides with confirmOptimistic's SQLite transaction
     // and (the echo carries no status) would overwrite the optimistic 'sent'.
@@ -158,6 +199,8 @@ export const useChatStore = create((set, get) => ({
   },
 
   markReadNewest: (threadId) => {
+    // Never claim "read" while the app is backgrounded — the user isn't looking.
+    if (AppState.currentState !== 'active') return;
     const list = get().messagesByThread[threadId] || [];
     const newest = list.find((m) => !String(m.id).startsWith('tmp:'));
     if (!newest) return;
@@ -203,10 +246,16 @@ export const useChatStore = create((set, get) => ({
         clientMsgUuid: item.clientMsgUuid, fileName: item.fileName,
       });
     } catch (e) {
-      // Only an HTTP send rejection means "not sent".
+      // Only an HTTP send rejection means "not sent" — the server saw it and said
+      // no, so retrying can't help. A transport failure (offline, DNS, timeout)
+      // carries no `response`: that message MUST stay queued so flushOutbox can
+      // resend it when connectivity returns.
+      const rejected = !!e?.response;
       const ended = e?.response?.data?.code === 'THREAD_NOT_ACTIVE';
       await markFailed(item.clientMsgUuid).catch(() => {});
-      await dequeueOutbox(item.clientMsgUuid).catch(() => {}); // don't retry hard failures
+      if (rejected) await dequeueOutbox(item.clientMsgUuid).catch(() => {});
+      // Still shown as "Not sent — tap to retry" either way, so the user keeps
+      // manual agency; the difference is only whether flushOutbox will retry it.
       get().setMsgStatus(threadId, `tmp:${item.clientMsgUuid}`, ended ? 'ended' : 'failed');
       return;
     }
@@ -243,6 +292,22 @@ export const useChatStore = create((set, get) => ({
 
   setThreadMuted: (threadId, muted) => {
     set((st) => ({ threads: st.threads.map((t) => (t.id === threadId ? { ...t, muted } : t)) }));
+  },
+
+  /**
+   * Tear everything down on logout: drop the socket (it stays authenticated as
+   * the outgoing user otherwise), wipe in-memory state and empty the on-device
+   * cache. Without this the next account on the same handset inherits the
+   * previous user's threads, messages and read pointers.
+   */
+  reset: async () => {
+    sock.disconnectChatSocket();
+    get()._appStateSub?.remove?.();
+    set({
+      threads: [], messagesByThread: {}, readsByThread: {},
+      openThreadId: null, _wired: false, _appStateSub: null,
+    });
+    await clearChatCache().catch(() => {});
   },
 }));
 

@@ -10,6 +10,7 @@ import { COLORS, FONTS } from '../../theme';
 import { useAnnouncementStore } from '../../store/announcementStore';
 import { useAuthStore } from '../../store/authStore';
 import { useWalletStore } from '../../store/walletStore';
+import { useChatStore } from '../../store/chatStore';
 import { getSocket } from '../../services/socketService';
 import { fetchTodaysPlan, fetchStreak, fetchInstances } from '../../services/workoutService';
 import { getMyLeaderboardStats } from '../../services/leaderboardService';
@@ -47,7 +48,6 @@ const QUICK = [
   { label: 'RANKING',    icon: 'leaderboard',          color: GOLD,      route: 'Leaderboard' },
   { label: 'COMMUNITY',  icon: 'forum',                color: '#9C27B0', route: 'Community' },
   { label: 'TRAINERS',   icon: 'sports-martial-arts',  color: '#4CAF50', route: 'Trainers' },
-  { label: 'MY COACH',   icon: 'chat',                 color: '#A78BFA', route: 'MyChat' },
   { label: 'BLOGS',      icon: 'menu-book',            color: '#4A90D9', route: 'BlogList' },
   { label: 'GAMING',     icon: 'sports-esports',       color: '#7C3AED', route: 'Gaming' },
 ];
@@ -339,6 +339,9 @@ export default function HomeScreen({ navigation }) {
           </View>
         </TouchableOpacity>
 
+        {/* ── MY COACH ─────────────────────────────── */}
+        <MyCoachCard navigation={navigation} />
+
         {/* ── QUICK ACCESS GRID ────────────────────── */}
         <View style={styles.quickGrid}>
           {QUICK.map((q) => {
@@ -465,6 +468,59 @@ function KpiCard({ label, value, icon, color }) {
   );
 }
 
+/**
+ * MY COACH entry — avatar, coach name, last message and unread pill.
+ * Renders nothing until the thread list is known, so Home never flashes a
+ * "no coach" row for a member who does have one.
+ */
+function MyCoachCard({ navigation }) {
+  const threads = useChatStore((s) => s.threads);
+  const init = useChatStore((s) => s.init);
+
+  useEffect(() => { init().catch(() => {}); }, [init]);
+
+  const active = threads.find((t) => t.state !== 'archived');
+  const hasPast = threads.some((t) => t.state === 'archived');
+  if (!active && !hasPast) return null;
+
+  const go = () => navigation.push('MyChat');
+
+  if (!active) {
+    return (
+      <TouchableOpacity style={styles.coachCard} activeOpacity={0.85} onPress={go}>
+        <View style={[styles.coachAvatar, styles.coachAvatarFallback]}>
+          <MaterialIcons name="chat" size={22} color="#A78BFA" />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.coachName}>Past coaches</Text>
+          <Text style={styles.coachPreview} numberOfLines={1}>View your previous coaching chats</Text>
+        </View>
+        <MaterialIcons name="chevron-right" size={18} color={COLORS.textMuted} />
+      </TouchableOpacity>
+    );
+  }
+
+  return (
+    <TouchableOpacity style={styles.coachCard} activeOpacity={0.85} onPress={go}>
+      {active.counterpartPhoto
+        ? <Image source={{ uri: active.counterpartPhoto }} style={styles.coachAvatar} />
+        : <View style={[styles.coachAvatar, styles.coachAvatarFallback]}>
+            <Text style={styles.coachLetter}>{(active.counterpartName || 'C').charAt(0).toUpperCase()}</Text>
+          </View>}
+      <View style={{ flex: 1 }}>
+        <Text style={styles.coachLabel}>MY COACH</Text>
+        <Text style={styles.coachName} numberOfLines={1}>{active.counterpartName || 'Your Coach'}</Text>
+        <Text style={styles.coachPreview} numberOfLines={1}>
+          {active.lastMessagePreview || 'Say hi to your coach'}
+        </Text>
+      </View>
+      {active.unread > 0
+        ? <View style={styles.coachPill}><Text style={styles.coachPillTxt}>{active.unread}</Text></View>
+        : <MaterialIcons name="chevron-right" size={18} color={COLORS.textMuted} />}
+    </TouchableOpacity>
+  );
+}
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   glow: { position: 'absolute', top: 0, left: 0, right: 0, height: 320 },
@@ -584,6 +640,15 @@ const styles = StyleSheet.create({
   coinsHint: { fontFamily: FONTS.body, fontSize: 10, color: COLORS.textMuted, opacity: 0.5 },
 
   // Quick access
+  coachCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderRadius: 16, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: COLORS.border },
+  coachAvatar: { width: 48, height: 48, borderRadius: 24 },
+  coachAvatarFallback: { backgroundColor: COLORS.surface3, alignItems: 'center', justifyContent: 'center' },
+  coachLetter: { color: COLORS.textPrimary, fontSize: 20, fontWeight: '800' },
+  coachLabel: { fontFamily: FONTS.label, fontSize: 10, color: '#A78BFA', letterSpacing: 2 },
+  coachName: { color: COLORS.textPrimary, fontSize: 15, fontWeight: '700', marginTop: 1 },
+  coachPreview: { color: COLORS.textSecondary, fontSize: 13, marginTop: 2 },
+  coachPill: { backgroundColor: COLORS.primary, borderRadius: 11, minWidth: 22, paddingHorizontal: 7, paddingVertical: 3, alignItems: 'center' },
+  coachPillTxt: { color: COLORS.black, fontSize: 11, fontWeight: '800' },
   quickGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 16 },
   // Stitch: glass-card · p-4 · rounded-2xl · gap-2 · items/justify-center.
   // Real vertical padding (no aspectRatio) keeps the label balanced off the

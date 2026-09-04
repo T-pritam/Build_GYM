@@ -13,7 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../theme/colors';
 import { getOrFetch, invalidate } from '../../services/chat/chatMediaUrlCache';
 
-export default function ChatImageThumb({ threadId, messageId, getMedia, style, resizeMode = 'cover', onPress, timeLabel, tick }) {
+export default function ChatImageThumb({ threadId, messageId, getMedia, style, resizeMode = 'cover', onPress, onLongPress, timeLabel, tick }) {
   const [url, setUrl] = useState(null);
   const [failed, setFailed] = useState(false);
   const retriedRef = useRef(false);
@@ -39,7 +39,7 @@ export default function ChatImageThumb({ threadId, messageId, getMedia, style, r
   };
 
   return (
-    <TouchableOpacity activeOpacity={0.85} onPress={onPress} style={[styles.wrap, style]}>
+    <TouchableOpacity activeOpacity={0.85} onPress={onPress} onLongPress={onLongPress} style={[styles.wrap, style]}>
       {url ? (
         <Image source={{ uri: url }} style={StyleSheet.absoluteFill} contentFit={resizeMode} onError={onError} />
       ) : failed ? (
