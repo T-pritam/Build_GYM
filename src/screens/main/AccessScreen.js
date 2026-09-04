@@ -14,7 +14,7 @@ import {
   Linking,
   AppState,
 } from 'react-native';
-import { autoUnlock } from '../../services/bleService';
+import { unlockGate, EVENT_TYPE_GRANTED } from '../../services/gateUnlockService';
 import { fetchMyMembership } from '../../services/membershipService';
 import { fetchMyGateEvents } from '../../services/accessService';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -76,7 +76,7 @@ function formatNowStr() {
 }
 
 function eventToLog(event, index) {
-  const granted = event.iEventType === 17; // AxTraxPro: 17=Granted, 33/25=Denied
+  const granted = event.iEventType === EVENT_TYPE_GRANTED; // AxTraxPro: 17=Granted, 33/25=Denied
   const reader = event.IdReader ? `Reader ${event.IdReader}` : 'Gate';
   const time = formatEventTime(event.dtEventReal);
   return {
@@ -188,56 +188,41 @@ export default function AccessScreen({ navigation }) {
     setBtState('unknown');
     setStatus('scanning');
     startPulse();
-    const tappedAt = Date.now();
-    try {
-      await autoUnlock(10);
-      // Active BLE unlock succeeded
-      stopPulse();
+
+    // Shared with the check-in modal — handles active unlock, device-state
+    // errors and passive-reader reconciliation in one place.
+    const verdict = await unlockGate({ timeoutSeconds: 10 });
+    stopPulse();
+
+    // Reconciliation already pulled fresh events — reuse them for the log.
+    if (verdict.events) setLogs((verdict.events ?? []).map(eventToLog));
+
+    if (verdict.granted) {
       setBtState('on');
-      fetchMyGateEvents(15).then((events) => {
-        setLogs((events ?? []).map(eventToLog));
-      }).catch(() => {});
       setStatus('idle');
+      if (!verdict.events) {
+        fetchMyGateEvents(15).then((events) => {
+          setLogs((events ?? []).map(eventToLog));
+        }).catch(() => {});
+      }
       navigation.navigate('AccessGranted', buildResultParams());
-    } catch (err) {
-      stopPulse();
-      console.log('[BLE] autoUnlock error — code:', err.code, '| message:', err.message);
-      const code = err.code ?? err.message;
-
-      if (code === 'BT_NOT_ENABLED') {
-        setBtState('off');
-        setStatus('idle');
-        return;
-      }
-      if (code === 'PERMISSION_DENIED') {
-        setStatus('idle');
-        return;
-      }
-
-      // Passive BLE mode: reader auto-grants access without active app connection.
-      // autoUnlock throws NO_READERS_FOUND even though the gate opened.
-      // Verify by checking AxTraxPro for a recent Access Granted event (last 30s).
-      try {
-        const events = await fetchMyGateEvents(5);
-        const passiveGranted = (events ?? []).some((e) => {
-          const eventMs = new Date(e.dtEventReal).getTime();
-          return e.iEventType === 17 && eventMs >= tappedAt - 10000;
-        });
-        const logMapped = (events ?? []).map(eventToLog);
-        setLogs(logMapped);
-        if (passiveGranted) {
-          setBtState('on');
-          setStatus('idle');
-          navigation.navigate('AccessGranted', buildResultParams());
-        } else {
-          setStatus('idle');
-          navigation.navigate('AccessDenied', buildResultParams('BLE authentication failed'));
-        }
-      } catch {
-        setStatus('idle');
-        navigation.navigate('AccessDenied', buildResultParams('BLE authentication failed'));
-      }
+      return;
     }
+
+    console.log('[BLE] unlock denied — code:', verdict.code);
+
+    if (verdict.code === 'BT_NOT_ENABLED') {
+      setBtState('off');
+      setStatus('idle');
+      return;
+    }
+    if (verdict.code === 'PERMISSION_DENIED') {
+      setStatus('idle');
+      return;
+    }
+
+    setStatus('idle');
+    navigation.navigate('AccessDenied', buildResultParams(verdict.reason ?? 'BLE authentication failed'));
   };
 
   const openBluetoothSettings = () => {

@@ -34,6 +34,13 @@ export default function HoldUnlock({
   const [holding, setHolding] = useState(false);
   const completedRef = useRef(false);
 
+  // The completion latch must clear when the dial becomes usable again —
+  // otherwise a hold that completed while the parent was busy leaves the dial
+  // permanently dead until the whole screen unmounts.
+  useEffect(() => {
+    if (!disabled) completedRef.current = false;
+  }, [disabled]);
+
   // Idle breathing glow on the face.
   const idle = useRef(new Animated.Value(0)).current;
   useEffect(() => {

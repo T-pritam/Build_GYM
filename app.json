@@ -3,7 +3,7 @@
     "name": "Maison de Build",
     "slug": "BuildGym",
     "owner": "pritamrao48",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "notification": {
@@ -29,7 +29,9 @@
         "NSCameraUsageDescription": "Used to take a photo with your camera — for example, tapping the camera icon on your profile to set a profile picture, or adding a photo to a community post or a chat with your coach.",
         "NSPhotoLibraryUsageDescription": "Used to choose an existing photo from your library — for example, setting your profile picture, or attaching an image to a community post or a chat message.",
         "NSPhotoLibraryAddUsageDescription": "Used to save a photo to your library — for example, saving an image shared in a chat with your coach.",
-        "NSMicrophoneUsageDescription": "Used only if you record a video to share, so the clip can include sound."
+        "NSMicrophoneUsageDescription": "Used only if you record a video to share, so the clip can include sound.",
+        "NSBluetoothAlwaysUsageDescription": "Used to unlock the gym gate. When you hold the check-in dial, the app sends your membership credential over Bluetooth to the door reader at the entrance.",
+        "NSBluetoothPeripheralUsageDescription": "Used to unlock the gym gate. When you hold the check-in dial, the app sends your membership credential over Bluetooth to the door reader at the entrance."
       }
     },
     "android": {

@@ -1,0 +1,5028 @@
+{
+  "ABIRoot": {
+    "kind": "Root",
+    "name": "TopLevel",
+    "printedName": "TopLevel",
+    "children": [
+      {
+        "kind": "Import",
+        "name": "Foundation",
+        "printedName": "Foundation",
+        "declKind": "Import",
+        "moduleName": "RosslareBleLib"
+      },
+      {
+        "kind": "Import",
+        "name": "CoreBluetooth",
+        "printedName": "CoreBluetooth",
+        "declKind": "Import",
+        "moduleName": "RosslareBleLib"
+      },
+      {
+        "kind": "Import",
+        "name": "UIKit",
+        "printedName": "UIKit",
+        "declKind": "Import",
+        "moduleName": "RosslareBleLib"
+      },
+      {
+        "kind": "Import",
+        "name": "AppCenter",
+        "printedName": "AppCenter",
+        "declKind": "Import",
+        "moduleName": "RosslareBleLib"
+      },
+      {
+        "kind": "Import",
+        "name": "AppCenterCrashes",
+        "printedName": "AppCenterCrashes",
+        "declKind": "Import",
+        "moduleName": "RosslareBleLib"
+      },
+      {
+        "kind": "Import",
+        "name": "AppCenterAnalytics",
+        "printedName": "AppCenterAnalytics",
+        "declKind": "Import",
+        "moduleName": "RosslareBleLib"
+      },
+      {
+        "kind": "TypeDecl",
+        "name": "BleService",
+        "printedName": "BleService",
+        "children": [
+          {
+            "kind": "Constructor",
+            "name": "init",
+            "printedName": "init()",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "BleService",
+                "printedName": "RosslareBleLib.BleService",
+                "usr": "c:@M@RosslareBleLib@objc(cs)BleService"
+              }
+            ],
+            "declKind": "Constructor",
+            "usr": "c:@M@RosslareBleLib@objc(cs)BleService(im)init",
+            "mangledName": "$s14RosslareBleLib0B7ServiceCACycfc",
+            "moduleName": "RosslareBleLib",
+            "overriding": true,
+            "objc_name": "init",
+            "declAttributes": [
+              "Dynamic",
+              "ObjC",
+              "Override",
+              "AccessControl"
+            ],
+            "init_kind": "Designated"
+          },
+          {
+            "kind": "Function",
+            "name": "initService",
+            "printedName": "initService(withAnalytics:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Bool",
+                "printedName": "Swift.Bool",
+                "usr": "s:Sb"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:14RosslareBleLib0B7ServiceC04initD013withAnalyticsySb_tF",
+            "mangledName": "$s14RosslareBleLib0B7ServiceC04initD013withAnalyticsySb_tF",
+            "moduleName": "RosslareBleLib",
+            "isOpen": true,
+            "declAttributes": [
+              "AccessControl"
+            ],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "stopBleService",
+            "printedName": "stopBleService()",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:14RosslareBleLib0B7ServiceC04stopbD0yyF",
+            "mangledName": "$s14RosslareBleLib0B7ServiceC04stopbD0yyF",
+            "moduleName": "RosslareBleLib",
+            "isOpen": true,
+            "declAttributes": [
+              "AccessControl"
+            ],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "getDiscoveredBleDevices",
+            "printedName": "getDiscoveredBleDevices()",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Array",
+                "printedName": "[RosslareBleLib.BleDeviceInfo]",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "BleDeviceInfo",
+                    "printedName": "RosslareBleLib.BleDeviceInfo",
+                    "usr": "s:14RosslareBleLib0B10DeviceInfoV"
+                  }
+                ],
+                "usr": "s:Sa"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:14RosslareBleLib0B7ServiceC013getDiscoveredB7DevicesSayAA0B10DeviceInfoVGyF",
+            "mangledName": "$s14RosslareBleLib0B7ServiceC013getDiscoveredB7DevicesSayAA0B10DeviceInfoVGyF",
+            "moduleName": "RosslareBleLib",
+            "isOpen": true,
+            "declAttributes": [
+              "AccessControl",
+              "RawDocComment"
+            ],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "setAutoBleId",
+            "printedName": "setAutoBleId()",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:14RosslareBleLib0B7ServiceC07setAutoB2IdyyF",
+            "mangledName": "$s14RosslareBleLib0B7ServiceC07setAutoB2IdyyF",
+            "moduleName": "RosslareBleLib",
+            "isOpen": true,
+            "declAttributes": [
+              "AccessControl"
+            ],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "setCustomBleId",
+            "printedName": "setCustomBleId(id:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UInt64",
+                "printedName": "Swift.UInt64",
+                "usr": "s:s6UInt64V"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:14RosslareBleLib0B7ServiceC09setCustomB2Id2idys6UInt64V_tF",
+            "mangledName": "$s14RosslareBleLib0B7ServiceC09setCustomB2Id2idys6UInt64V_tF",
+            "moduleName": "RosslareBleLib",
+            "isOpen": true,
+            "declAttributes": [
+              "AccessControl"
+            ],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "searchBleReaders",
+            "printedName": "searchBleReaders(timeoutSec:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Double",
+                "printedName": "Swift.Double",
+                "usr": "s:Sd"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:14RosslareBleLib0B7ServiceC06searchB7Readers10timeoutSecySd_tF",
+            "mangledName": "$s14RosslareBleLib0B7ServiceC06searchB7Readers10timeoutSecySd_tF",
+            "moduleName": "RosslareBleLib",
+            "isOpen": true,
+            "declAttributes": [
+              "AccessControl"
+            ],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "transmitBleId",
+            "printedName": "transmitBleId(currentDevice:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Bool",
+                "printedName": "Swift.Bool",
+                "usr": "s:Sb"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "BleDeviceInfo",
+                "printedName": "RosslareBleLib.BleDeviceInfo",
+                "usr": "s:14RosslareBleLib0B10DeviceInfoV"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:14RosslareBleLib0B7ServiceC08transmitB2Id13currentDeviceSbAA0bH4InfoV_tF",
+            "mangledName": "$s14RosslareBleLib0B7ServiceC08transmitB2Id13currentDeviceSbAA0bH4InfoV_tF",
+            "moduleName": "RosslareBleLib",
+            "isOpen": true,
+            "declAttributes": [
+              "AccessControl"
+            ],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "setReaderNameFilter",
+            "printedName": "setReaderNameFilter(filter:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:14RosslareBleLib0B7ServiceC19setReaderNameFilter6filterySS_tF",
+            "mangledName": "$s14RosslareBleLib0B7ServiceC19setReaderNameFilter6filterySS_tF",
+            "moduleName": "RosslareBleLib",
+            "isOpen": true,
+            "declAttributes": [
+              "AccessControl"
+            ],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "centralManagerDidUpdateState",
+            "printedName": "centralManagerDidUpdateState(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "CBCentralManager",
+                "printedName": "CoreBluetooth.CBCentralManager",
+                "usr": "c:objc(cs)CBCentralManager"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@CM@RosslareBleLib@objc(cs)BleService(im)centralManagerDidUpdateState:",
+            "mangledName": "$s14RosslareBleLib0B7ServiceC28centralManagerDidUpdateStateyySo09CBCentralF0CF",
+            "moduleName": "RosslareBleLib",
+            "isOpen": true,
+            "objc_name": "centralManagerDidUpdateState:",
+            "declAttributes": [
+              "Dynamic",
+              "ObjC",
+              "AccessControl"
+            ],
+            "isFromExtension": true,
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "centralManager",
+            "printedName": "centralManager(_:didDiscover:advertisementData:rssi:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "CBCentralManager",
+                "printedName": "CoreBluetooth.CBCentralManager",
+                "usr": "c:objc(cs)CBCentralManager"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "CBPeripheral",
+                "printedName": "CoreBluetooth.CBPeripheral",
+                "usr": "c:objc(cs)CBPeripheral"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Dictionary",
+                "printedName": "[Swift.String : Any]",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "ProtocolComposition",
+                    "printedName": "Any"
+                  }
+                ],
+                "usr": "s:SD"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "NSNumber",
+                "printedName": "Foundation.NSNumber",
+                "usr": "c:objc(cs)NSNumber"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@CM@RosslareBleLib@objc(cs)BleService(im)centralManager:didDiscoverPeripheral:advertisementData:RSSI:",
+            "mangledName": "$s14RosslareBleLib0B7ServiceC14centralManager_11didDiscover17advertisementData4rssiySo09CBCentralF0C_So12CBPeripheralCSDySSypGSo8NSNumberCtF",
+            "moduleName": "RosslareBleLib",
+            "isOpen": true,
+            "objc_name": "centralManager:didDiscoverPeripheral:advertisementData:RSSI:",
+            "declAttributes": [
+              "Dynamic",
+              "ObjC",
+              "AccessControl",
+              "RawDocComment"
+            ],
+            "isFromExtension": true,
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "centralManager",
+            "printedName": "centralManager(_:didFailToConnect:error:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "CBCentralManager",
+                "printedName": "CoreBluetooth.CBCentralManager",
+                "usr": "c:objc(cs)CBCentralManager"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "CBPeripheral",
+                "printedName": "CoreBluetooth.CBPeripheral",
+                "usr": "c:objc(cs)CBPeripheral"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Optional",
+                "printedName": "Swift.Error?",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Error",
+                    "printedName": "Swift.Error",
+                    "usr": "s:s5ErrorP"
+                  }
+                ],
+                "usr": "s:Sq"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@CM@RosslareBleLib@objc(cs)BleService(im)centralManager:didFailToConnectPeripheral:error:",
+            "mangledName": "$s14RosslareBleLib0B7ServiceC14centralManager_16didFailToConnect5errorySo09CBCentralF0C_So12CBPeripheralCs5Error_pSgtF",
+            "moduleName": "RosslareBleLib",
+            "isOpen": true,
+            "objc_name": "centralManager:didFailToConnectPeripheral:error:",
+            "declAttributes": [
+              "Dynamic",
+              "ObjC",
+              "AccessControl",
+              "RawDocComment"
+            ],
+            "isFromExtension": true,
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "centralManager",
+            "printedName": "centralManager(_:didConnect:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "CBCentralManager",
+                "printedName": "CoreBluetooth.CBCentralManager",
+                "usr": "c:objc(cs)CBCentralManager"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "CBPeripheral",
+                "printedName": "CoreBluetooth.CBPeripheral",
+                "usr": "c:objc(cs)CBPeripheral"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@CM@RosslareBleLib@objc(cs)BleService(im)centralManager:didConnectPeripheral:",
+            "mangledName": "$s14RosslareBleLib0B7ServiceC14centralManager_10didConnectySo09CBCentralF0C_So12CBPeripheralCtF",
+            "moduleName": "RosslareBleLib",
+            "isOpen": true,
+            "objc_name": "centralManager:didConnectPeripheral:",
+            "declAttributes": [
+              "Dynamic",
+              "ObjC",
+              "AccessControl",
+              "RawDocComment"
+            ],
+            "isFromExtension": true,
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "centralManager",
+            "printedName": "centralManager(_:didDisconnectPeripheral:error:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "CBCentralManager",
+                "printedName": "CoreBluetooth.CBCentralManager",
+                "usr": "c:objc(cs)CBCentralManager"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "CBPeripheral",
+                "printedName": "CoreBluetooth.CBPeripheral",
+                "usr": "c:objc(cs)CBPeripheral"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Optional",
+                "printedName": "Swift.Error?",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Error",
+                    "printedName": "Swift.Error",
+                    "usr": "s:s5ErrorP"
+                  }
+                ],
+                "usr": "s:Sq"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@CM@RosslareBleLib@objc(cs)BleService(im)centralManager:didDisconnectPeripheral:error:",
+            "mangledName": "$s14RosslareBleLib0B7ServiceC14centralManager_23didDisconnectPeripheral5errorySo09CBCentralF0C_So12CBPeripheralCs5Error_pSgtF",
+            "moduleName": "RosslareBleLib",
+            "isOpen": true,
+            "objc_name": "centralManager:didDisconnectPeripheral:error:",
+            "declAttributes": [
+              "Dynamic",
+              "ObjC",
+              "AccessControl",
+              "RawDocComment"
+            ],
+            "isFromExtension": true,
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "disconnect",
+            "printedName": "disconnect(peripheral:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "CBPeripheral",
+                "printedName": "CoreBluetooth.CBPeripheral",
+                "usr": "c:objc(cs)CBPeripheral"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:14RosslareBleLib0B7ServiceC10disconnect10peripheralySo12CBPeripheralC_tF",
+            "mangledName": "$s14RosslareBleLib0B7ServiceC10disconnect10peripheralySo12CBPeripheralC_tF",
+            "moduleName": "RosslareBleLib",
+            "isOpen": true,
+            "declAttributes": [
+              "RawDocComment"
+            ],
+            "isFromExtension": true,
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "peripheral",
+            "printedName": "peripheral(_:didModifyServices:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "CBPeripheral",
+                "printedName": "CoreBluetooth.CBPeripheral",
+                "usr": "c:objc(cs)CBPeripheral"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Array",
+                "printedName": "[CoreBluetooth.CBService]",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "CBService",
+                    "printedName": "CoreBluetooth.CBService",
+                    "usr": "c:objc(cs)CBService"
+                  }
+                ],
+                "usr": "s:Sa"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@CM@RosslareBleLib@objc(cs)BleService(im)peripheral:didModifyServices:",
+            "mangledName": "$s14RosslareBleLib0B7ServiceC10peripheral_17didModifyServicesySo12CBPeripheralC_SaySo9CBServiceCGtF",
+            "moduleName": "RosslareBleLib",
+            "isOpen": true,
+            "objc_name": "peripheral:didModifyServices:",
+            "declAttributes": [
+              "Dynamic",
+              "ObjC",
+              "AccessControl",
+              "RawDocComment"
+            ],
+            "isFromExtension": true,
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "peripheral",
+            "printedName": "peripheral(_:didDiscoverServices:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "CBPeripheral",
+                "printedName": "CoreBluetooth.CBPeripheral",
+                "usr": "c:objc(cs)CBPeripheral"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Optional",
+                "printedName": "Swift.Error?",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Error",
+                    "printedName": "Swift.Error",
+                    "usr": "s:s5ErrorP"
+                  }
+                ],
+                "usr": "s:Sq"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@CM@RosslareBleLib@objc(cs)BleService(im)peripheral:didDiscoverServices:",
+            "mangledName": "$s14RosslareBleLib0B7ServiceC10peripheral_19didDiscoverServicesySo12CBPeripheralC_s5Error_pSgtF",
+            "moduleName": "RosslareBleLib",
+            "isOpen": true,
+            "objc_name": "peripheral:didDiscoverServices:",
+            "declAttributes": [
+              "Dynamic",
+              "ObjC",
+              "AccessControl",
+              "RawDocComment"
+            ],
+            "isFromExtension": true,
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "peripheral",
+            "printedName": "peripheral(_:didDiscoverCharacteristicsFor:error:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "CBPeripheral",
+                "printedName": "CoreBluetooth.CBPeripheral",
+                "usr": "c:objc(cs)CBPeripheral"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "CBService",
+                "printedName": "CoreBluetooth.CBService",
+                "usr": "c:objc(cs)CBService"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Optional",
+                "printedName": "Swift.Error?",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Error",
+                    "printedName": "Swift.Error",
+                    "usr": "s:s5ErrorP"
+                  }
+                ],
+                "usr": "s:Sq"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@CM@RosslareBleLib@objc(cs)BleService(im)peripheral:didDiscoverCharacteristicsForService:error:",
+            "mangledName": "$s14RosslareBleLib0B7ServiceC10peripheral_29didDiscoverCharacteristicsFor5errorySo12CBPeripheralC_So9CBServiceCs5Error_pSgtF",
+            "moduleName": "RosslareBleLib",
+            "isOpen": true,
+            "objc_name": "peripheral:didDiscoverCharacteristicsForService:error:",
+            "declAttributes": [
+              "Dynamic",
+              "ObjC",
+              "AccessControl"
+            ],
+            "isFromExtension": true,
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "peripheral",
+            "printedName": "peripheral(_:didUpdateValueFor:error:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "CBPeripheral",
+                "printedName": "CoreBluetooth.CBPeripheral",
+                "usr": "c:objc(cs)CBPeripheral"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "CBCharacteristic",
+                "printedName": "CoreBluetooth.CBCharacteristic",
+                "usr": "c:objc(cs)CBCharacteristic"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Optional",
+                "printedName": "Swift.Error?",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Error",
+                    "printedName": "Swift.Error",
+                    "usr": "s:s5ErrorP"
+                  }
+                ],
+                "usr": "s:Sq"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@CM@RosslareBleLib@objc(cs)BleService(im)peripheral:didUpdateValueForCharacteristic:error:",
+            "mangledName": "$s14RosslareBleLib0B7ServiceC10peripheral_17didUpdateValueFor5errorySo12CBPeripheralC_So16CBCharacteristicCs5Error_pSgtF",
+            "moduleName": "RosslareBleLib",
+            "isOpen": true,
+            "objc_name": "peripheral:didUpdateValueForCharacteristic:error:",
+            "declAttributes": [
+              "Dynamic",
+              "ObjC",
+              "AccessControl"
+            ],
+            "isFromExtension": true,
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "peripheral",
+            "printedName": "peripheral(_:didUpdateNotificationStateFor:error:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "CBPeripheral",
+                "printedName": "CoreBluetooth.CBPeripheral",
+                "usr": "c:objc(cs)CBPeripheral"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "CBCharacteristic",
+                "printedName": "CoreBluetooth.CBCharacteristic",
+                "usr": "c:objc(cs)CBCharacteristic"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Optional",
+                "printedName": "Swift.Error?",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Error",
+                    "printedName": "Swift.Error",
+                    "usr": "s:s5ErrorP"
+                  }
+                ],
+                "usr": "s:Sq"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@CM@RosslareBleLib@objc(cs)BleService(im)peripheral:didUpdateNotificationStateForCharacteristic:error:",
+            "mangledName": "$s14RosslareBleLib0B7ServiceC10peripheral_29didUpdateNotificationStateFor5errorySo12CBPeripheralC_So16CBCharacteristicCs5Error_pSgtF",
+            "moduleName": "RosslareBleLib",
+            "isOpen": true,
+            "objc_name": "peripheral:didUpdateNotificationStateForCharacteristic:error:",
+            "declAttributes": [
+              "Dynamic",
+              "ObjC",
+              "AccessControl"
+            ],
+            "isFromExtension": true,
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "peripheral",
+            "printedName": "peripheral(_:didWriteValueFor:error:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "CBPeripheral",
+                "printedName": "CoreBluetooth.CBPeripheral",
+                "usr": "c:objc(cs)CBPeripheral"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "CBCharacteristic",
+                "printedName": "CoreBluetooth.CBCharacteristic",
+                "usr": "c:objc(cs)CBCharacteristic"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Optional",
+                "printedName": "Swift.Error?",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Error",
+                    "printedName": "Swift.Error",
+                    "usr": "s:s5ErrorP"
+                  }
+                ],
+                "usr": "s:Sq"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@CM@RosslareBleLib@objc(cs)BleService(im)peripheral:didWriteValueForCharacteristic:error:",
+            "mangledName": "$s14RosslareBleLib0B7ServiceC10peripheral_16didWriteValueFor5errorySo12CBPeripheralC_So16CBCharacteristicCs5Error_pSgtF",
+            "moduleName": "RosslareBleLib",
+            "isOpen": true,
+            "objc_name": "peripheral:didWriteValueForCharacteristic:error:",
+            "declAttributes": [
+              "Dynamic",
+              "ObjC",
+              "AccessControl"
+            ],
+            "isFromExtension": true,
+            "funcSelfKind": "NonMutating"
+          }
+        ],
+        "declKind": "Class",
+        "usr": "c:@M@RosslareBleLib@objc(cs)BleService",
+        "mangledName": "$s14RosslareBleLib0B7ServiceC",
+        "moduleName": "RosslareBleLib",
+        "isOpen": true,
+        "declAttributes": [
+          "AccessControl",
+          "ObjC"
+        ],
+        "superclassUsr": "c:objc(cs)NSObject",
+        "inheritsConvenienceInitializers": true,
+        "superclassNames": [
+          "ObjectiveC.NSObject"
+        ],
+        "conformances": [
+          {
+            "kind": "Conformance",
+            "name": "Equatable",
+            "printedName": "Equatable",
+            "usr": "s:SQ",
+            "mangledName": "$sSQ"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Hashable",
+            "printedName": "Hashable",
+            "usr": "s:SH",
+            "mangledName": "$sSH"
+          },
+          {
+            "kind": "Conformance",
+            "name": "CVarArg",
+            "printedName": "CVarArg",
+            "usr": "s:s7CVarArgP",
+            "mangledName": "$ss7CVarArgP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "_KeyValueCodingAndObservingPublishing",
+            "printedName": "_KeyValueCodingAndObservingPublishing",
+            "usr": "s:10Foundation37_KeyValueCodingAndObservingPublishingP",
+            "mangledName": "$s10Foundation37_KeyValueCodingAndObservingPublishingP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "_KeyValueCodingAndObserving",
+            "printedName": "_KeyValueCodingAndObserving",
+            "usr": "s:10Foundation27_KeyValueCodingAndObservingP",
+            "mangledName": "$s10Foundation27_KeyValueCodingAndObservingP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "CustomStringConvertible",
+            "printedName": "CustomStringConvertible",
+            "usr": "s:s23CustomStringConvertibleP",
+            "mangledName": "$ss23CustomStringConvertibleP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "CustomDebugStringConvertible",
+            "printedName": "CustomDebugStringConvertible",
+            "usr": "s:s28CustomDebugStringConvertibleP",
+            "mangledName": "$ss28CustomDebugStringConvertibleP"
+          }
+        ]
+      },
+      {
+        "kind": "Import",
+        "name": "Foundation",
+        "printedName": "Foundation",
+        "declKind": "Import",
+        "moduleName": "RosslareBleLib"
+      },
+      {
+        "kind": "TypeDecl",
+        "name": "PBleProtocolMessage",
+        "printedName": "PBleProtocolMessage",
+        "children": [
+          {
+            "kind": "Function",
+            "name": "setPayload",
+            "printedName": "setPayload(data:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Array",
+                "printedName": "[Swift.UInt8]",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "UInt8",
+                    "printedName": "Swift.UInt8",
+                    "usr": "s:s5UInt8V"
+                  }
+                ],
+                "usr": "s:Sa"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:14RosslareBleLib19PBleProtocolMessageP10setPayload4dataySays5UInt8VG_tF",
+            "mangledName": "$s14RosslareBleLib19PBleProtocolMessageP10setPayload4dataySays5UInt8VG_tF",
+            "moduleName": "RosslareBleLib",
+            "genericSig": "<τ_0_0 where τ_0_0 : RosslareBleLib.PBleProtocolMessage>",
+            "sugared_genericSig": "<Self where Self : RosslareBleLib.PBleProtocolMessage>",
+            "protocolReq": true,
+            "reqNewWitnessTableEntry": true,
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "getFragments",
+            "printedName": "getFragments()",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Array",
+                "printedName": "[Foundation.NSData]",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "NSData",
+                    "printedName": "Foundation.NSData",
+                    "usr": "c:objc(cs)NSData"
+                  }
+                ],
+                "usr": "s:Sa"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:14RosslareBleLib19PBleProtocolMessageP12getFragmentsSaySo6NSDataCGyF",
+            "mangledName": "$s14RosslareBleLib19PBleProtocolMessageP12getFragmentsSaySo6NSDataCGyF",
+            "moduleName": "RosslareBleLib",
+            "genericSig": "<τ_0_0 where τ_0_0 : RosslareBleLib.PBleProtocolMessage>",
+            "sugared_genericSig": "<Self where Self : RosslareBleLib.PBleProtocolMessage>",
+            "protocolReq": true,
+            "reqNewWitnessTableEntry": true,
+            "funcSelfKind": "NonMutating"
+          }
+        ],
+        "declKind": "Protocol",
+        "usr": "s:14RosslareBleLib19PBleProtocolMessageP",
+        "mangledName": "$s14RosslareBleLib19PBleProtocolMessageP",
+        "moduleName": "RosslareBleLib"
+      },
+      {
+        "kind": "Import",
+        "name": "Foundation",
+        "printedName": "Foundation",
+        "declKind": "Import",
+        "moduleName": "RosslareBleLib",
+        "declAttributes": [
+          "RawDocComment"
+        ]
+      },
+      {
+        "kind": "Import",
+        "name": "CoreBluetooth",
+        "printedName": "CoreBluetooth",
+        "declKind": "Import",
+        "moduleName": "RosslareBleLib"
+      },
+      {
+        "kind": "TypeDecl",
+        "name": "BleServiceUUID",
+        "printedName": "BleServiceUUID",
+        "children": [
+          {
+            "kind": "Var",
+            "name": "service",
+            "printedName": "service",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:14RosslareBleLib0B11ServiceUUIDP7serviceSSvp",
+            "mangledName": "$s14RosslareBleLib0B11ServiceUUIDP7serviceSSvp",
+            "moduleName": "RosslareBleLib",
+            "protocolReq": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:14RosslareBleLib0B11ServiceUUIDP7serviceSSvg",
+                "mangledName": "$s14RosslareBleLib0B11ServiceUUIDP7serviceSSvg",
+                "moduleName": "RosslareBleLib",
+                "genericSig": "<τ_0_0 where τ_0_0 : RosslareBleLib.BleServiceUUID>",
+                "sugared_genericSig": "<Self where Self : RosslareBleLib.BleServiceUUID>",
+                "protocolReq": true,
+                "reqNewWitnessTableEntry": true,
+                "accessorKind": "get"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "receiveCharacteristic",
+            "printedName": "receiveCharacteristic",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:14RosslareBleLib0B11ServiceUUIDP21receiveCharacteristicSSvp",
+            "mangledName": "$s14RosslareBleLib0B11ServiceUUIDP21receiveCharacteristicSSvp",
+            "moduleName": "RosslareBleLib",
+            "protocolReq": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:14RosslareBleLib0B11ServiceUUIDP21receiveCharacteristicSSvg",
+                "mangledName": "$s14RosslareBleLib0B11ServiceUUIDP21receiveCharacteristicSSvg",
+                "moduleName": "RosslareBleLib",
+                "genericSig": "<τ_0_0 where τ_0_0 : RosslareBleLib.BleServiceUUID>",
+                "sugared_genericSig": "<Self where Self : RosslareBleLib.BleServiceUUID>",
+                "protocolReq": true,
+                "reqNewWitnessTableEntry": true,
+                "accessorKind": "get"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "transmitCharacteristic",
+            "printedName": "transmitCharacteristic",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:14RosslareBleLib0B11ServiceUUIDP22transmitCharacteristicSSvp",
+            "mangledName": "$s14RosslareBleLib0B11ServiceUUIDP22transmitCharacteristicSSvp",
+            "moduleName": "RosslareBleLib",
+            "protocolReq": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:14RosslareBleLib0B11ServiceUUIDP22transmitCharacteristicSSvg",
+                "mangledName": "$s14RosslareBleLib0B11ServiceUUIDP22transmitCharacteristicSSvg",
+                "moduleName": "RosslareBleLib",
+                "genericSig": "<τ_0_0 where τ_0_0 : RosslareBleLib.BleServiceUUID>",
+                "sugared_genericSig": "<Self where Self : RosslareBleLib.BleServiceUUID>",
+                "protocolReq": true,
+                "reqNewWitnessTableEntry": true,
+                "accessorKind": "get"
+              }
+            ]
+          }
+        ],
+        "declKind": "Protocol",
+        "usr": "s:14RosslareBleLib0B11ServiceUUIDP",
+        "mangledName": "$s14RosslareBleLib0B11ServiceUUIDP",
+        "moduleName": "RosslareBleLib"
+      },
+      {
+        "kind": "TypeDecl",
+        "name": "AxTraxServiceUUID",
+        "printedName": "AxTraxServiceUUID",
+        "children": [
+          {
+            "kind": "Var",
+            "name": "service",
+            "printedName": "service",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:14RosslareBleLib17AxTraxServiceUUIDV7serviceSSvp",
+            "mangledName": "$s14RosslareBleLib17AxTraxServiceUUIDV7serviceSSvp",
+            "moduleName": "RosslareBleLib",
+            "declAttributes": [
+              "HasInitialValue",
+              "HasStorage"
+            ],
+            "fixedbinaryorder": 0,
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:14RosslareBleLib17AxTraxServiceUUIDV7serviceSSvg",
+                "mangledName": "$s14RosslareBleLib17AxTraxServiceUUIDV7serviceSSvg",
+                "moduleName": "RosslareBleLib",
+                "implicit": true,
+                "declAttributes": [
+                  "Transparent"
+                ],
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:14RosslareBleLib17AxTraxServiceUUIDV7serviceSSvs",
+                "mangledName": "$s14RosslareBleLib17AxTraxServiceUUIDV7serviceSSvs",
+                "moduleName": "RosslareBleLib",
+                "implicit": true,
+                "declAttributes": [
+                  "Transparent"
+                ],
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:14RosslareBleLib17AxTraxServiceUUIDV7serviceSSvM",
+                "mangledName": "$s14RosslareBleLib17AxTraxServiceUUIDV7serviceSSvM",
+                "moduleName": "RosslareBleLib",
+                "implicit": true,
+                "declAttributes": [
+                  "Transparent"
+                ],
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "receiveCharacteristic",
+            "printedName": "receiveCharacteristic",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:14RosslareBleLib17AxTraxServiceUUIDV21receiveCharacteristicSSvp",
+            "mangledName": "$s14RosslareBleLib17AxTraxServiceUUIDV21receiveCharacteristicSSvp",
+            "moduleName": "RosslareBleLib",
+            "declAttributes": [
+              "HasInitialValue",
+              "HasStorage"
+            ],
+            "fixedbinaryorder": 1,
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:14RosslareBleLib17AxTraxServiceUUIDV21receiveCharacteristicSSvg",
+                "mangledName": "$s14RosslareBleLib17AxTraxServiceUUIDV21receiveCharacteristicSSvg",
+                "moduleName": "RosslareBleLib",
+                "implicit": true,
+                "declAttributes": [
+                  "Transparent"
+                ],
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:14RosslareBleLib17AxTraxServiceUUIDV21receiveCharacteristicSSvs",
+                "mangledName": "$s14RosslareBleLib17AxTraxServiceUUIDV21receiveCharacteristicSSvs",
+                "moduleName": "RosslareBleLib",
+                "implicit": true,
+                "declAttributes": [
+                  "Transparent"
+                ],
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:14RosslareBleLib17AxTraxServiceUUIDV21receiveCharacteristicSSvM",
+                "mangledName": "$s14RosslareBleLib17AxTraxServiceUUIDV21receiveCharacteristicSSvM",
+                "moduleName": "RosslareBleLib",
+                "implicit": true,
+                "declAttributes": [
+                  "Transparent"
+                ],
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "transmitCharacteristic",
+            "printedName": "transmitCharacteristic",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:14RosslareBleLib17AxTraxServiceUUIDV22transmitCharacteristicSSvp",
+            "mangledName": "$s14RosslareBleLib17AxTraxServiceUUIDV22transmitCharacteristicSSvp",
+            "moduleName": "RosslareBleLib",
+            "declAttributes": [
+              "HasInitialValue",
+              "HasStorage"
+            ],
+            "fixedbinaryorder": 2,
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:14RosslareBleLib17AxTraxServiceUUIDV22transmitCharacteristicSSvg",
+                "mangledName": "$s14RosslareBleLib17AxTraxServiceUUIDV22transmitCharacteristicSSvg",
+                "moduleName": "RosslareBleLib",
+                "implicit": true,
+                "declAttributes": [
+                  "Transparent"
+                ],
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:14RosslareBleLib17AxTraxServiceUUIDV22transmitCharacteristicSSvs",
+                "mangledName": "$s14RosslareBleLib17AxTraxServiceUUIDV22transmitCharacteristicSSvs",
+                "moduleName": "RosslareBleLib",
+                "implicit": true,
+                "declAttributes": [
+                  "Transparent"
+                ],
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:14RosslareBleLib17AxTraxServiceUUIDV22transmitCharacteristicSSvM",
+                "mangledName": "$s14RosslareBleLib17AxTraxServiceUUIDV22transmitCharacteristicSSvM",
+                "moduleName": "RosslareBleLib",
+                "implicit": true,
+                "declAttributes": [
+                  "Transparent"
+                ],
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "Constructor",
+            "name": "init",
+            "printedName": "init(service:receiveCharacteristic:transmitCharacteristic:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "AxTraxServiceUUID",
+                "printedName": "RosslareBleLib.AxTraxServiceUUID",
+                "usr": "s:14RosslareBleLib17AxTraxServiceUUIDV"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "hasDefaultArg": true,
+                "usr": "s:SS"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "hasDefaultArg": true,
+                "usr": "s:SS"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "hasDefaultArg": true,
+                "usr": "s:SS"
+              }
+            ],
+            "declKind": "Constructor",
+            "usr": "s:14RosslareBleLib17AxTraxServiceUUIDV7service21receiveCharacteristic08transmitJ0ACSS_S2Stcfc",
+            "mangledName": "$s14RosslareBleLib17AxTraxServiceUUIDV7service21receiveCharacteristic08transmitJ0ACSS_S2Stcfc",
+            "moduleName": "RosslareBleLib",
+            "implicit": true,
+            "init_kind": "Designated"
+          },
+          {
+            "kind": "Constructor",
+            "name": "init",
+            "printedName": "init()",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "AxTraxServiceUUID",
+                "printedName": "RosslareBleLib.AxTraxServiceUUID",
+                "usr": "s:14RosslareBleLib17AxTraxServiceUUIDV"
+              }
+            ],
+            "declKind": "Constructor",
+            "usr": "s:14RosslareBleLib17AxTraxServiceUUIDVACycfc",
+            "mangledName": "$s14RosslareBleLib17AxTraxServiceUUIDVACycfc",
+            "moduleName": "RosslareBleLib",
+            "implicit": true,
+            "init_kind": "Designated"
+          }
+        ],
+        "declKind": "Struct",
+        "usr": "s:14RosslareBleLib17AxTraxServiceUUIDV",
+        "mangledName": "$s14RosslareBleLib17AxTraxServiceUUIDV",
+        "moduleName": "RosslareBleLib",
+        "conformances": [
+          {
+            "kind": "Conformance",
+            "name": "BleServiceUUID",
+            "printedName": "BleServiceUUID",
+            "usr": "s:14RosslareBleLib0B11ServiceUUIDP",
+            "mangledName": "$s14RosslareBleLib0B11ServiceUUIDP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Sendable",
+            "printedName": "Sendable",
+            "usr": "s:s8SendableP",
+            "mangledName": "$ss8SendableP"
+          }
+        ]
+      },
+      {
+        "kind": "TypeDecl",
+        "name": "BioAdminServiceUUID",
+        "printedName": "BioAdminServiceUUID",
+        "children": [
+          {
+            "kind": "Var",
+            "name": "service",
+            "printedName": "service",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:14RosslareBleLib19BioAdminServiceUUIDV7serviceSSvp",
+            "mangledName": "$s14RosslareBleLib19BioAdminServiceUUIDV7serviceSSvp",
+            "moduleName": "RosslareBleLib",
+            "declAttributes": [
+              "HasInitialValue",
+              "HasStorage"
+            ],
+            "fixedbinaryorder": 0,
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:14RosslareBleLib19BioAdminServiceUUIDV7serviceSSvg",
+                "mangledName": "$s14RosslareBleLib19BioAdminServiceUUIDV7serviceSSvg",
+                "moduleName": "RosslareBleLib",
+                "implicit": true,
+                "declAttributes": [
+                  "Transparent"
+                ],
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:14RosslareBleLib19BioAdminServiceUUIDV7serviceSSvs",
+                "mangledName": "$s14RosslareBleLib19BioAdminServiceUUIDV7serviceSSvs",
+                "moduleName": "RosslareBleLib",
+                "implicit": true,
+                "declAttributes": [
+                  "Transparent"
+                ],
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:14RosslareBleLib19BioAdminServiceUUIDV7serviceSSvM",
+                "mangledName": "$s14RosslareBleLib19BioAdminServiceUUIDV7serviceSSvM",
+                "moduleName": "RosslareBleLib",
+                "implicit": true,
+                "declAttributes": [
+                  "Transparent"
+                ],
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "receiveCharacteristic",
+            "printedName": "receiveCharacteristic",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:14RosslareBleLib19BioAdminServiceUUIDV21receiveCharacteristicSSvp",
+            "mangledName": "$s14RosslareBleLib19BioAdminServiceUUIDV21receiveCharacteristicSSvp",
+            "moduleName": "RosslareBleLib",
+            "declAttributes": [
+              "HasInitialValue",
+              "HasStorage"
+            ],
+            "fixedbinaryorder": 1,
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:14RosslareBleLib19BioAdminServiceUUIDV21receiveCharacteristicSSvg",
+                "mangledName": "$s14RosslareBleLib19BioAdminServiceUUIDV21receiveCharacteristicSSvg",
+                "moduleName": "RosslareBleLib",
+                "implicit": true,
+                "declAttributes": [
+                  "Transparent"
+                ],
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:14RosslareBleLib19BioAdminServiceUUIDV21receiveCharacteristicSSvs",
+                "mangledName": "$s14RosslareBleLib19BioAdminServiceUUIDV21receiveCharacteristicSSvs",
+                "moduleName": "RosslareBleLib",
+                "implicit": true,
+                "declAttributes": [
+                  "Transparent"
+                ],
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:14RosslareBleLib19BioAdminServiceUUIDV21receiveCharacteristicSSvM",
+                "mangledName": "$s14RosslareBleLib19BioAdminServiceUUIDV21receiveCharacteristicSSvM",
+                "moduleName": "RosslareBleLib",
+                "implicit": true,
+                "declAttributes": [
+                  "Transparent"
+                ],
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "transmitCharacteristic",
+            "printedName": "transmitCharacteristic",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:14RosslareBleLib19BioAdminServiceUUIDV22transmitCharacteristicSSvp",
+            "mangledName": "$s14RosslareBleLib19BioAdminServiceUUIDV22transmitCharacteristicSSvp",
+            "moduleName": "RosslareBleLib",
+            "declAttributes": [
+              "HasInitialValue",
+              "HasStorage"
+            ],
+            "fixedbinaryorder": 2,
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:14RosslareBleLib19BioAdminServiceUUIDV22transmitCharacteristicSSvg",
+                "mangledName": "$s14RosslareBleLib19BioAdminServiceUUIDV22transmitCharacteristicSSvg",
+                "moduleName": "RosslareBleLib",
+                "implicit": true,
+                "declAttributes": [
+                  "Transparent"
+                ],
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:14RosslareBleLib19BioAdminServiceUUIDV22transmitCharacteristicSSvs",
+                "mangledName": "$s14RosslareBleLib19BioAdminServiceUUIDV22transmitCharacteristicSSvs",
+                "moduleName": "RosslareBleLib",
+                "implicit": true,
+                "declAttributes": [
+                  "Transparent"
+                ],
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:14RosslareBleLib19BioAdminServiceUUIDV22transmitCharacteristicSSvM",
+                "mangledName": "$s14RosslareBleLib19BioAdminServiceUUIDV22transmitCharacteristicSSvM",
+                "moduleName": "RosslareBleLib",
+                "implicit": true,
+                "declAttributes": [
+                  "Transparent"
+                ],
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "Constructor",
+            "name": "init",
+            "printedName": "init(service:receiveCharacteristic:transmitCharacteristic:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "BioAdminServiceUUID",
+                "printedName": "RosslareBleLib.BioAdminServiceUUID",
+                "usr": "s:14RosslareBleLib19BioAdminServiceUUIDV"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "hasDefaultArg": true,
+                "usr": "s:SS"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "hasDefaultArg": true,
+                "usr": "s:SS"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "hasDefaultArg": true,
+                "usr": "s:SS"
+              }
+            ],
+            "declKind": "Constructor",
+            "usr": "s:14RosslareBleLib19BioAdminServiceUUIDV7service21receiveCharacteristic08transmitJ0ACSS_S2Stcfc",
+            "mangledName": "$s14RosslareBleLib19BioAdminServiceUUIDV7service21receiveCharacteristic08transmitJ0ACSS_S2Stcfc",
+            "moduleName": "RosslareBleLib",
+            "implicit": true,
+            "init_kind": "Designated"
+          },
+          {
+            "kind": "Constructor",
+            "name": "init",
+            "printedName": "init()",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "BioAdminServiceUUID",
+                "printedName": "RosslareBleLib.BioAdminServiceUUID",
+                "usr": "s:14RosslareBleLib19BioAdminServiceUUIDV"
+              }
+            ],
+            "declKind": "Constructor",
+            "usr": "s:14RosslareBleLib19BioAdminServiceUUIDVACycfc",
+            "mangledName": "$s14RosslareBleLib19BioAdminServiceUUIDVACycfc",
+            "moduleName": "RosslareBleLib",
+            "implicit": true,
+            "init_kind": "Designated"
+          }
+        ],
+        "declKind": "Struct",
+        "usr": "s:14RosslareBleLib19BioAdminServiceUUIDV",
+        "mangledName": "$s14RosslareBleLib19BioAdminServiceUUIDV",
+        "moduleName": "RosslareBleLib",
+        "conformances": [
+          {
+            "kind": "Conformance",
+            "name": "BleServiceUUID",
+            "printedName": "BleServiceUUID",
+            "usr": "s:14RosslareBleLib0B11ServiceUUIDP",
+            "mangledName": "$s14RosslareBleLib0B11ServiceUUIDP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Sendable",
+            "printedName": "Sendable",
+            "usr": "s:s8SendableP",
+            "mangledName": "$ss8SendableP"
+          }
+        ]
+      },
+      {
+        "kind": "TypeDecl",
+        "name": "ServiceUUIDs",
+        "printedName": "ServiceUUIDs",
+        "children": [
+          {
+            "kind": "Var",
+            "name": "axTrax",
+            "printedName": "axTrax",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "BleServiceUUID",
+                "printedName": "RosslareBleLib.BleServiceUUID",
+                "usr": "s:14RosslareBleLib0B11ServiceUUIDP"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:14RosslareBleLib12ServiceUUIDsC6axTraxAA0bD4UUID_pvpZ",
+            "mangledName": "$s14RosslareBleLib12ServiceUUIDsC6axTraxAA0bD4UUID_pvpZ",
+            "moduleName": "RosslareBleLib",
+            "static": true,
+            "declAttributes": [
+              "HasInitialValue",
+              "Final",
+              "HasStorage"
+            ],
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "BleServiceUUID",
+                    "printedName": "RosslareBleLib.BleServiceUUID",
+                    "usr": "s:14RosslareBleLib0B11ServiceUUIDP"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:14RosslareBleLib12ServiceUUIDsC6axTraxAA0bD4UUID_pvgZ",
+                "mangledName": "$s14RosslareBleLib12ServiceUUIDsC6axTraxAA0bD4UUID_pvgZ",
+                "moduleName": "RosslareBleLib",
+                "static": true,
+                "implicit": true,
+                "declAttributes": [
+                  "Transparent",
+                  "Final"
+                ],
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "BleServiceUUID",
+                    "printedName": "RosslareBleLib.BleServiceUUID",
+                    "usr": "s:14RosslareBleLib0B11ServiceUUIDP"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:14RosslareBleLib12ServiceUUIDsC6axTraxAA0bD4UUID_pvsZ",
+                "mangledName": "$s14RosslareBleLib12ServiceUUIDsC6axTraxAA0bD4UUID_pvsZ",
+                "moduleName": "RosslareBleLib",
+                "static": true,
+                "implicit": true,
+                "declAttributes": [
+                  "Transparent",
+                  "Final"
+                ],
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:14RosslareBleLib12ServiceUUIDsC6axTraxAA0bD4UUID_pvMZ",
+                "mangledName": "$s14RosslareBleLib12ServiceUUIDsC6axTraxAA0bD4UUID_pvMZ",
+                "moduleName": "RosslareBleLib",
+                "static": true,
+                "implicit": true,
+                "declAttributes": [
+                  "Transparent",
+                  "Final"
+                ],
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "bioAdmin",
+            "printedName": "bioAdmin",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "BleServiceUUID",
+                "printedName": "RosslareBleLib.BleServiceUUID",
+                "usr": "s:14RosslareBleLib0B11ServiceUUIDP"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:14RosslareBleLib12ServiceUUIDsC8bioAdminAA0bD4UUID_pvpZ",
+            "mangledName": "$s14RosslareBleLib12ServiceUUIDsC8bioAdminAA0bD4UUID_pvpZ",
+            "moduleName": "RosslareBleLib",
+            "static": true,
+            "declAttributes": [
+              "HasInitialValue",
+              "Final",
+              "HasStorage"
+            ],
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "BleServiceUUID",
+                    "printedName": "RosslareBleLib.BleServiceUUID",
+                    "usr": "s:14RosslareBleLib0B11ServiceUUIDP"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:14RosslareBleLib12ServiceUUIDsC8bioAdminAA0bD4UUID_pvgZ",
+                "mangledName": "$s14RosslareBleLib12ServiceUUIDsC8bioAdminAA0bD4UUID_pvgZ",
+                "moduleName": "RosslareBleLib",
+                "static": true,
+                "implicit": true,
+                "declAttributes": [
+                  "Transparent",
+                  "Final"
+                ],
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "BleServiceUUID",
+                    "printedName": "RosslareBleLib.BleServiceUUID",
+                    "usr": "s:14RosslareBleLib0B11ServiceUUIDP"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:14RosslareBleLib12ServiceUUIDsC8bioAdminAA0bD4UUID_pvsZ",
+                "mangledName": "$s14RosslareBleLib12ServiceUUIDsC8bioAdminAA0bD4UUID_pvsZ",
+                "moduleName": "RosslareBleLib",
+                "static": true,
+                "implicit": true,
+                "declAttributes": [
+                  "Transparent",
+                  "Final"
+                ],
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:14RosslareBleLib12ServiceUUIDsC8bioAdminAA0bD4UUID_pvMZ",
+                "mangledName": "$s14RosslareBleLib12ServiceUUIDsC8bioAdminAA0bD4UUID_pvMZ",
+                "moduleName": "RosslareBleLib",
+                "static": true,
+                "implicit": true,
+                "declAttributes": [
+                  "Transparent",
+                  "Final"
+                ],
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "Function",
+            "name": "getAllServiceUUIDs",
+            "printedName": "getAllServiceUUIDs()",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Array",
+                "printedName": "[CoreBluetooth.CBUUID]",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "CBUUID",
+                    "printedName": "CoreBluetooth.CBUUID",
+                    "usr": "c:objc(cs)CBUUID"
+                  }
+                ],
+                "usr": "s:Sa"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:14RosslareBleLib12ServiceUUIDsC06getAlldE0SaySo6CBUUIDCGyFZ",
+            "mangledName": "$s14RosslareBleLib12ServiceUUIDsC06getAlldE0SaySo6CBUUIDCGyFZ",
+            "moduleName": "RosslareBleLib",
+            "static": true,
+            "declAttributes": [
+              "Final",
+              "RawDocComment"
+            ],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "getBleServiceByUUID",
+            "printedName": "getBleServiceByUUID(uuid:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Optional",
+                "printedName": "RosslareBleLib.BleServiceUUID?",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "BleServiceUUID",
+                    "printedName": "RosslareBleLib.BleServiceUUID",
+                    "usr": "s:14RosslareBleLib0B11ServiceUUIDP"
+                  }
+                ],
+                "usr": "s:Sq"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:14RosslareBleLib12ServiceUUIDsC03getbD6ByUUID4uuidAA0bdH0_pSgSS_tFZ",
+            "mangledName": "$s14RosslareBleLib12ServiceUUIDsC03getbD6ByUUID4uuidAA0bdH0_pSgSS_tFZ",
+            "moduleName": "RosslareBleLib",
+            "static": true,
+            "declAttributes": [
+              "Final"
+            ],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "isAxTraxService",
+            "printedName": "isAxTraxService(uuid:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Bool",
+                "printedName": "Swift.Bool",
+                "usr": "s:Sb"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:14RosslareBleLib12ServiceUUIDsC08isAxTraxD04uuidSbSS_tFZ",
+            "mangledName": "$s14RosslareBleLib12ServiceUUIDsC08isAxTraxD04uuidSbSS_tFZ",
+            "moduleName": "RosslareBleLib",
+            "static": true,
+            "declAttributes": [
+              "Final"
+            ],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Constructor",
+            "name": "init",
+            "printedName": "init()",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "ServiceUUIDs",
+                "printedName": "RosslareBleLib.ServiceUUIDs",
+                "usr": "s:14RosslareBleLib12ServiceUUIDsC"
+              }
+            ],
+            "declKind": "Constructor",
+            "usr": "s:14RosslareBleLib12ServiceUUIDsCACycfc",
+            "mangledName": "$s14RosslareBleLib12ServiceUUIDsCACycfc",
+            "moduleName": "RosslareBleLib",
+            "implicit": true,
+            "init_kind": "Designated"
+          }
+        ],
+        "declKind": "Class",
+        "usr": "s:14RosslareBleLib12ServiceUUIDsC",
+        "mangledName": "$s14RosslareBleLib12ServiceUUIDsC",
+        "moduleName": "RosslareBleLib",
+        "declAttributes": [
+          "Final"
+        ]
+      },
+      {
+        "kind": "Import",
+        "name": "Foundation",
+        "printedName": "Foundation",
+        "declKind": "Import",
+        "moduleName": "RosslareBleLib"
+      },
+      {
+        "kind": "TypeDecl",
+        "name": "BleProtocolMessageAxTrax",
+        "printedName": "BleProtocolMessageAxTrax",
+        "children": [
+          {
+            "kind": "Var",
+            "name": "fragments",
+            "printedName": "fragments",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Array",
+                "printedName": "[Foundation.NSData]",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "NSData",
+                    "printedName": "Foundation.NSData",
+                    "usr": "c:objc(cs)NSData"
+                  }
+                ],
+                "usr": "s:Sa"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:14RosslareBleLib0B21ProtocolMessageAxTraxC9fragments33_766010261EA0BD67E6A496BFD76577E5LLSaySo6NSDataCGvp",
+            "mangledName": "$s14RosslareBleLib0B21ProtocolMessageAxTraxC9fragments33_766010261EA0BD67E6A496BFD76577E5LLSaySo6NSDataCGvp",
+            "moduleName": "RosslareBleLib",
+            "isInternal": true,
+            "declAttributes": [
+              "HasInitialValue",
+              "Final",
+              "HasStorage",
+              "AccessControl"
+            ],
+            "fixedbinaryorder": 0,
+            "hasStorage": true
+          },
+          {
+            "kind": "Var",
+            "name": "prefix",
+            "printedName": "prefix",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Array",
+                "printedName": "[Swift.UInt8]",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "UInt8",
+                    "printedName": "Swift.UInt8",
+                    "usr": "s:s5UInt8V"
+                  }
+                ],
+                "usr": "s:Sa"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:14RosslareBleLib0B21ProtocolMessageAxTraxC6prefix33_766010261EA0BD67E6A496BFD76577E5LLSays5UInt8VGvp",
+            "mangledName": "$s14RosslareBleLib0B21ProtocolMessageAxTraxC6prefix33_766010261EA0BD67E6A496BFD76577E5LLSays5UInt8VGvp",
+            "moduleName": "RosslareBleLib",
+            "isInternal": true,
+            "declAttributes": [
+              "HasInitialValue",
+              "Final",
+              "HasStorage",
+              "AccessControl"
+            ],
+            "fixedbinaryorder": 1,
+            "isLet": true,
+            "hasStorage": true
+          },
+          {
+            "kind": "Var",
+            "name": "version",
+            "printedName": "version",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "UInt8",
+                "printedName": "Swift.UInt8",
+                "usr": "s:s5UInt8V"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:14RosslareBleLib0B21ProtocolMessageAxTraxC7version33_766010261EA0BD67E6A496BFD76577E5LLs5UInt8Vvp",
+            "mangledName": "$s14RosslareBleLib0B21ProtocolMessageAxTraxC7version33_766010261EA0BD67E6A496BFD76577E5LLs5UInt8Vvp",
+            "moduleName": "RosslareBleLib",
+            "isInternal": true,
+            "declAttributes": [
+              "HasInitialValue",
+              "Final",
+              "HasStorage",
+              "AccessControl",
+              "RawDocComment"
+            ],
+            "fixedbinaryorder": 2,
+            "isLet": true,
+            "hasStorage": true
+          },
+          {
+            "kind": "Var",
+            "name": "messageType",
+            "printedName": "messageType",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "UInt8",
+                "printedName": "Swift.UInt8",
+                "usr": "s:s5UInt8V"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:14RosslareBleLib0B21ProtocolMessageAxTraxC11messageType33_766010261EA0BD67E6A496BFD76577E5LLs5UInt8Vvp",
+            "mangledName": "$s14RosslareBleLib0B21ProtocolMessageAxTraxC11messageType33_766010261EA0BD67E6A496BFD76577E5LLs5UInt8Vvp",
+            "moduleName": "RosslareBleLib",
+            "isInternal": true,
+            "declAttributes": [
+              "HasInitialValue",
+              "Final",
+              "HasStorage",
+              "AccessControl",
+              "RawDocComment"
+            ],
+            "fixedbinaryorder": 3,
+            "isLet": true,
+            "hasStorage": true
+          },
+          {
+            "kind": "Var",
+            "name": "payload",
+            "printedName": "payload",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Array",
+                "printedName": "[Swift.UInt8]",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "UInt8",
+                    "printedName": "Swift.UInt8",
+                    "usr": "s:s5UInt8V"
+                  }
+                ],
+                "usr": "s:Sa"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:14RosslareBleLib0B21ProtocolMessageAxTraxC7payload33_766010261EA0BD67E6A496BFD76577E5LLSays5UInt8VGvp",
+            "mangledName": "$s14RosslareBleLib0B21ProtocolMessageAxTraxC7payload33_766010261EA0BD67E6A496BFD76577E5LLSays5UInt8VGvp",
+            "moduleName": "RosslareBleLib",
+            "isInternal": true,
+            "declAttributes": [
+              "HasInitialValue",
+              "Final",
+              "HasStorage",
+              "AccessControl",
+              "RawDocComment"
+            ],
+            "fixedbinaryorder": 4,
+            "hasStorage": true
+          },
+          {
+            "kind": "Function",
+            "name": "setPayload",
+            "printedName": "setPayload(data:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Array",
+                "printedName": "[Swift.UInt8]",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "UInt8",
+                    "printedName": "Swift.UInt8",
+                    "usr": "s:s5UInt8V"
+                  }
+                ],
+                "usr": "s:Sa"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:14RosslareBleLib0B21ProtocolMessageAxTraxC10setPayload4dataySays5UInt8VG_tF",
+            "mangledName": "$s14RosslareBleLib0B21ProtocolMessageAxTraxC10setPayload4dataySays5UInt8VG_tF",
+            "moduleName": "RosslareBleLib",
+            "declAttributes": [
+              "Final"
+            ],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "getFragments",
+            "printedName": "getFragments()",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Array",
+                "printedName": "[Foundation.NSData]",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "NSData",
+                    "printedName": "Foundation.NSData",
+                    "usr": "c:objc(cs)NSData"
+                  }
+                ],
+                "usr": "s:Sa"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:14RosslareBleLib0B21ProtocolMessageAxTraxC12getFragmentsSaySo6NSDataCGyF",
+            "mangledName": "$s14RosslareBleLib0B21ProtocolMessageAxTraxC12getFragmentsSaySo6NSDataCGyF",
+            "moduleName": "RosslareBleLib",
+            "declAttributes": [
+              "Final",
+              "RawDocComment"
+            ],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Constructor",
+            "name": "init",
+            "printedName": "init()",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "BleProtocolMessageAxTrax",
+                "printedName": "RosslareBleLib.BleProtocolMessageAxTrax",
+                "usr": "s:14RosslareBleLib0B21ProtocolMessageAxTraxC"
+              }
+            ],
+            "declKind": "Constructor",
+            "usr": "s:14RosslareBleLib0B21ProtocolMessageAxTraxCACycfc",
+            "mangledName": "$s14RosslareBleLib0B21ProtocolMessageAxTraxCACycfc",
+            "moduleName": "RosslareBleLib",
+            "implicit": true,
+            "init_kind": "Designated"
+          }
+        ],
+        "declKind": "Class",
+        "usr": "s:14RosslareBleLib0B21ProtocolMessageAxTraxC",
+        "mangledName": "$s14RosslareBleLib0B21ProtocolMessageAxTraxC",
+        "moduleName": "RosslareBleLib",
+        "declAttributes": [
+          "Final"
+        ],
+        "conformances": [
+          {
+            "kind": "Conformance",
+            "name": "PBleProtocolMessage",
+            "printedName": "PBleProtocolMessage",
+            "usr": "s:14RosslareBleLib19PBleProtocolMessageP",
+            "mangledName": "$s14RosslareBleLib19PBleProtocolMessageP"
+          }
+        ]
+      },
+      {
+        "kind": "Import",
+        "name": "Foundation",
+        "printedName": "Foundation",
+        "declKind": "Import",
+        "moduleName": "RosslareBleLib",
+        "declAttributes": [
+          "RawDocComment"
+        ]
+      },
+      {
+        "kind": "Import",
+        "name": "CoreBluetooth",
+        "printedName": "CoreBluetooth",
+        "declKind": "Import",
+        "moduleName": "RosslareBleLib"
+      },
+      {
+        "kind": "TypeDecl",
+        "name": "BleDeviceInfo",
+        "printedName": "BleDeviceInfo",
+        "children": [
+          {
+            "kind": "Var",
+            "name": "peripheral",
+            "printedName": "peripheral",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "CBPeripheral",
+                "printedName": "CoreBluetooth.CBPeripheral",
+                "usr": "c:objc(cs)CBPeripheral"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:14RosslareBleLib0B10DeviceInfoV10peripheralSo12CBPeripheralCvp",
+            "mangledName": "$s14RosslareBleLib0B10DeviceInfoV10peripheralSo12CBPeripheralCvp",
+            "moduleName": "RosslareBleLib",
+            "declAttributes": [
+              "HasStorage",
+              "AccessControl"
+            ],
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "CBPeripheral",
+                    "printedName": "CoreBluetooth.CBPeripheral",
+                    "usr": "c:objc(cs)CBPeripheral"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:14RosslareBleLib0B10DeviceInfoV10peripheralSo12CBPeripheralCvg",
+                "mangledName": "$s14RosslareBleLib0B10DeviceInfoV10peripheralSo12CBPeripheralCvg",
+                "moduleName": "RosslareBleLib",
+                "implicit": true,
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "CBPeripheral",
+                    "printedName": "CoreBluetooth.CBPeripheral",
+                    "usr": "c:objc(cs)CBPeripheral"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:14RosslareBleLib0B10DeviceInfoV10peripheralSo12CBPeripheralCvs",
+                "mangledName": "$s14RosslareBleLib0B10DeviceInfoV10peripheralSo12CBPeripheralCvs",
+                "moduleName": "RosslareBleLib",
+                "implicit": true,
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:14RosslareBleLib0B10DeviceInfoV10peripheralSo12CBPeripheralCvM",
+                "mangledName": "$s14RosslareBleLib0B10DeviceInfoV10peripheralSo12CBPeripheralCvM",
+                "moduleName": "RosslareBleLib",
+                "implicit": true,
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "advertisementName",
+            "printedName": "advertisementName",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:14RosslareBleLib0B10DeviceInfoV17advertisementNameSSvp",
+            "mangledName": "$s14RosslareBleLib0B10DeviceInfoV17advertisementNameSSvp",
+            "moduleName": "RosslareBleLib",
+            "declAttributes": [
+              "HasStorage",
+              "AccessControl"
+            ],
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:14RosslareBleLib0B10DeviceInfoV17advertisementNameSSvg",
+                "mangledName": "$s14RosslareBleLib0B10DeviceInfoV17advertisementNameSSvg",
+                "moduleName": "RosslareBleLib",
+                "implicit": true,
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:14RosslareBleLib0B10DeviceInfoV17advertisementNameSSvs",
+                "mangledName": "$s14RosslareBleLib0B10DeviceInfoV17advertisementNameSSvs",
+                "moduleName": "RosslareBleLib",
+                "implicit": true,
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:14RosslareBleLib0B10DeviceInfoV17advertisementNameSSvM",
+                "mangledName": "$s14RosslareBleLib0B10DeviceInfoV17advertisementNameSSvM",
+                "moduleName": "RosslareBleLib",
+                "implicit": true,
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "advertisementServiceUUID",
+            "printedName": "advertisementServiceUUID",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:14RosslareBleLib0B10DeviceInfoV24advertisementServiceUUIDSSvp",
+            "mangledName": "$s14RosslareBleLib0B10DeviceInfoV24advertisementServiceUUIDSSvp",
+            "moduleName": "RosslareBleLib",
+            "declAttributes": [
+              "HasStorage",
+              "AccessControl"
+            ],
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:14RosslareBleLib0B10DeviceInfoV24advertisementServiceUUIDSSvg",
+                "mangledName": "$s14RosslareBleLib0B10DeviceInfoV24advertisementServiceUUIDSSvg",
+                "moduleName": "RosslareBleLib",
+                "implicit": true,
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:14RosslareBleLib0B10DeviceInfoV24advertisementServiceUUIDSSvs",
+                "mangledName": "$s14RosslareBleLib0B10DeviceInfoV24advertisementServiceUUIDSSvs",
+                "moduleName": "RosslareBleLib",
+                "implicit": true,
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:14RosslareBleLib0B10DeviceInfoV24advertisementServiceUUIDSSvM",
+                "mangledName": "$s14RosslareBleLib0B10DeviceInfoV24advertisementServiceUUIDSSvM",
+                "moduleName": "RosslareBleLib",
+                "implicit": true,
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "serviceUUIDs",
+            "printedName": "serviceUUIDs",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "BleServiceUUID",
+                "printedName": "RosslareBleLib.BleServiceUUID",
+                "usr": "s:14RosslareBleLib0B11ServiceUUIDP"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:14RosslareBleLib0B10DeviceInfoV12serviceUUIDsAA0B11ServiceUUID_pvp",
+            "mangledName": "$s14RosslareBleLib0B10DeviceInfoV12serviceUUIDsAA0B11ServiceUUID_pvp",
+            "moduleName": "RosslareBleLib",
+            "declAttributes": [
+              "HasStorage"
+            ],
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "BleServiceUUID",
+                    "printedName": "RosslareBleLib.BleServiceUUID",
+                    "usr": "s:14RosslareBleLib0B11ServiceUUIDP"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:14RosslareBleLib0B10DeviceInfoV12serviceUUIDsAA0B11ServiceUUID_pvg",
+                "mangledName": "$s14RosslareBleLib0B10DeviceInfoV12serviceUUIDsAA0B11ServiceUUID_pvg",
+                "moduleName": "RosslareBleLib",
+                "implicit": true,
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "BleServiceUUID",
+                    "printedName": "RosslareBleLib.BleServiceUUID",
+                    "usr": "s:14RosslareBleLib0B11ServiceUUIDP"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:14RosslareBleLib0B10DeviceInfoV12serviceUUIDsAA0B11ServiceUUID_pvs",
+                "mangledName": "$s14RosslareBleLib0B10DeviceInfoV12serviceUUIDsAA0B11ServiceUUID_pvs",
+                "moduleName": "RosslareBleLib",
+                "implicit": true,
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:14RosslareBleLib0B10DeviceInfoV12serviceUUIDsAA0B11ServiceUUID_pvM",
+                "mangledName": "$s14RosslareBleLib0B10DeviceInfoV12serviceUUIDsAA0B11ServiceUUID_pvM",
+                "moduleName": "RosslareBleLib",
+                "implicit": true,
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "rssi",
+            "printedName": "rssi",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Int",
+                "printedName": "Swift.Int",
+                "usr": "s:Si"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:14RosslareBleLib0B10DeviceInfoV4rssiSivp",
+            "mangledName": "$s14RosslareBleLib0B10DeviceInfoV4rssiSivp",
+            "moduleName": "RosslareBleLib",
+            "declAttributes": [
+              "HasStorage",
+              "AccessControl"
+            ],
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Int",
+                    "printedName": "Swift.Int",
+                    "usr": "s:Si"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:14RosslareBleLib0B10DeviceInfoV4rssiSivg",
+                "mangledName": "$s14RosslareBleLib0B10DeviceInfoV4rssiSivg",
+                "moduleName": "RosslareBleLib",
+                "implicit": true,
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Int",
+                    "printedName": "Swift.Int",
+                    "usr": "s:Si"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:14RosslareBleLib0B10DeviceInfoV4rssiSivs",
+                "mangledName": "$s14RosslareBleLib0B10DeviceInfoV4rssiSivs",
+                "moduleName": "RosslareBleLib",
+                "implicit": true,
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:14RosslareBleLib0B10DeviceInfoV4rssiSivM",
+                "mangledName": "$s14RosslareBleLib0B10DeviceInfoV4rssiSivM",
+                "moduleName": "RosslareBleLib",
+                "implicit": true,
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "Constructor",
+            "name": "init",
+            "printedName": "init(peripheral:advertisementName:advertisementServiceUUID:serviceUUIDs:rssi:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "BleDeviceInfo",
+                "printedName": "RosslareBleLib.BleDeviceInfo",
+                "usr": "s:14RosslareBleLib0B10DeviceInfoV"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "CBPeripheral",
+                "printedName": "CoreBluetooth.CBPeripheral",
+                "usr": "c:objc(cs)CBPeripheral"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "BleServiceUUID",
+                "printedName": "RosslareBleLib.BleServiceUUID",
+                "usr": "s:14RosslareBleLib0B11ServiceUUIDP"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Int",
+                "printedName": "Swift.Int",
+                "usr": "s:Si"
+              }
+            ],
+            "declKind": "Constructor",
+            "usr": "s:14RosslareBleLib0B10DeviceInfoV10peripheral17advertisementName0G11ServiceUUID12serviceUUIDs4rssiACSo12CBPeripheralC_S2SAA0biJ0_pSitcfc",
+            "mangledName": "$s14RosslareBleLib0B10DeviceInfoV10peripheral17advertisementName0G11ServiceUUID12serviceUUIDs4rssiACSo12CBPeripheralC_S2SAA0biJ0_pSitcfc",
+            "moduleName": "RosslareBleLib",
+            "implicit": true,
+            "init_kind": "Designated"
+          }
+        ],
+        "declKind": "Struct",
+        "usr": "s:14RosslareBleLib0B10DeviceInfoV",
+        "mangledName": "$s14RosslareBleLib0B10DeviceInfoV",
+        "moduleName": "RosslareBleLib",
+        "declAttributes": [
+          "AccessControl"
+        ]
+      },
+      {
+        "kind": "Import",
+        "name": "Foundation",
+        "printedName": "Foundation",
+        "declKind": "Import",
+        "moduleName": "RosslareBleLib",
+        "declAttributes": [
+          "RawDocComment"
+        ]
+      },
+      {
+        "kind": "TypeDecl",
+        "name": "Logger",
+        "printedName": "Logger",
+        "children": [
+          {
+            "kind": "Var",
+            "name": "TAG",
+            "printedName": "TAG",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:14RosslareBleLib6LoggerC3TAGSSvpZ",
+            "mangledName": "$s14RosslareBleLib6LoggerC3TAGSSvpZ",
+            "moduleName": "RosslareBleLib",
+            "static": true,
+            "declAttributes": [
+              "HasInitialValue",
+              "Final",
+              "HasStorage"
+            ],
+            "isLet": true,
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:14RosslareBleLib6LoggerC3TAGSSvgZ",
+                "mangledName": "$s14RosslareBleLib6LoggerC3TAGSSvgZ",
+                "moduleName": "RosslareBleLib",
+                "static": true,
+                "implicit": true,
+                "declAttributes": [
+                  "Transparent",
+                  "Final"
+                ],
+                "accessorKind": "get"
+              }
+            ]
+          },
+          {
+            "kind": "Function",
+            "name": "error",
+            "printedName": "error(message:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:14RosslareBleLib6LoggerC5error7messageySS_tFZ",
+            "mangledName": "$s14RosslareBleLib6LoggerC5error7messageySS_tFZ",
+            "moduleName": "RosslareBleLib",
+            "static": true,
+            "declAttributes": [
+              "Final",
+              "AccessControl",
+              "RawDocComment"
+            ],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "info",
+            "printedName": "info(message:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:14RosslareBleLib6LoggerC4info7messageySS_tFZ",
+            "mangledName": "$s14RosslareBleLib6LoggerC4info7messageySS_tFZ",
+            "moduleName": "RosslareBleLib",
+            "static": true,
+            "declAttributes": [
+              "Final",
+              "AccessControl"
+            ],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Constructor",
+            "name": "init",
+            "printedName": "init()",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Logger",
+                "printedName": "RosslareBleLib.Logger",
+                "usr": "s:14RosslareBleLib6LoggerC"
+              }
+            ],
+            "declKind": "Constructor",
+            "usr": "s:14RosslareBleLib6LoggerCACycfc",
+            "mangledName": "$s14RosslareBleLib6LoggerCACycfc",
+            "moduleName": "RosslareBleLib",
+            "implicit": true,
+            "init_kind": "Designated"
+          }
+        ],
+        "declKind": "Class",
+        "usr": "s:14RosslareBleLib6LoggerC",
+        "mangledName": "$s14RosslareBleLib6LoggerC",
+        "moduleName": "RosslareBleLib",
+        "declAttributes": [
+          "Final",
+          "AccessControl"
+        ],
+        "hasMissingDesignatedInitializers": true
+      },
+      {
+        "kind": "Import",
+        "name": "Foundation",
+        "printedName": "Foundation",
+        "declKind": "Import",
+        "moduleName": "RosslareBleLib"
+      },
+      {
+        "kind": "TypeDecl",
+        "name": "BleProtocolMessageBio",
+        "printedName": "BleProtocolMessageBio",
+        "children": [
+          {
+            "kind": "Var",
+            "name": "fragments",
+            "printedName": "fragments",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Array",
+                "printedName": "[Foundation.NSData]",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "NSData",
+                    "printedName": "Foundation.NSData",
+                    "usr": "c:objc(cs)NSData"
+                  }
+                ],
+                "usr": "s:Sa"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:14RosslareBleLib0B18ProtocolMessageBioC9fragments33_050A3E8FEF6A149494465E23A03DB5F1LLSaySo6NSDataCGvp",
+            "mangledName": "$s14RosslareBleLib0B18ProtocolMessageBioC9fragments33_050A3E8FEF6A149494465E23A03DB5F1LLSaySo6NSDataCGvp",
+            "moduleName": "RosslareBleLib",
+            "isInternal": true,
+            "declAttributes": [
+              "HasInitialValue",
+              "Final",
+              "HasStorage",
+              "AccessControl"
+            ],
+            "fixedbinaryorder": 0,
+            "hasStorage": true
+          },
+          {
+            "kind": "Var",
+            "name": "fragmentPrefixStart",
+            "printedName": "fragmentPrefixStart",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "UInt8",
+                "printedName": "Swift.UInt8",
+                "usr": "s:s5UInt8V"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:14RosslareBleLib0B18ProtocolMessageBioC19fragmentPrefixStart33_050A3E8FEF6A149494465E23A03DB5F1LLs5UInt8Vvp",
+            "mangledName": "$s14RosslareBleLib0B18ProtocolMessageBioC19fragmentPrefixStart33_050A3E8FEF6A149494465E23A03DB5F1LLs5UInt8Vvp",
+            "moduleName": "RosslareBleLib",
+            "isInternal": true,
+            "declAttributes": [
+              "HasInitialValue",
+              "Final",
+              "HasStorage",
+              "AccessControl"
+            ],
+            "fixedbinaryorder": 1,
+            "isLet": true,
+            "hasStorage": true
+          },
+          {
+            "kind": "Var",
+            "name": "fragmentPrefixMiddle",
+            "printedName": "fragmentPrefixMiddle",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "UInt8",
+                "printedName": "Swift.UInt8",
+                "usr": "s:s5UInt8V"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:14RosslareBleLib0B18ProtocolMessageBioC20fragmentPrefixMiddle33_050A3E8FEF6A149494465E23A03DB5F1LLs5UInt8Vvp",
+            "mangledName": "$s14RosslareBleLib0B18ProtocolMessageBioC20fragmentPrefixMiddle33_050A3E8FEF6A149494465E23A03DB5F1LLs5UInt8Vvp",
+            "moduleName": "RosslareBleLib",
+            "isInternal": true,
+            "declAttributes": [
+              "HasInitialValue",
+              "Final",
+              "HasStorage",
+              "AccessControl"
+            ],
+            "fixedbinaryorder": 2,
+            "isLet": true,
+            "hasStorage": true
+          },
+          {
+            "kind": "Var",
+            "name": "fragmentPrefixLast",
+            "printedName": "fragmentPrefixLast",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "UInt8",
+                "printedName": "Swift.UInt8",
+                "usr": "s:s5UInt8V"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:14RosslareBleLib0B18ProtocolMessageBioC18fragmentPrefixLast33_050A3E8FEF6A149494465E23A03DB5F1LLs5UInt8Vvp",
+            "mangledName": "$s14RosslareBleLib0B18ProtocolMessageBioC18fragmentPrefixLast33_050A3E8FEF6A149494465E23A03DB5F1LLs5UInt8Vvp",
+            "moduleName": "RosslareBleLib",
+            "isInternal": true,
+            "declAttributes": [
+              "HasInitialValue",
+              "Final",
+              "HasStorage",
+              "AccessControl"
+            ],
+            "fixedbinaryorder": 3,
+            "isLet": true,
+            "hasStorage": true
+          },
+          {
+            "kind": "Var",
+            "name": "start",
+            "printedName": "start",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "UInt8",
+                "printedName": "Swift.UInt8",
+                "usr": "s:s5UInt8V"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:14RosslareBleLib0B18ProtocolMessageBioC5start33_050A3E8FEF6A149494465E23A03DB5F1LLs5UInt8Vvp",
+            "mangledName": "$s14RosslareBleLib0B18ProtocolMessageBioC5start33_050A3E8FEF6A149494465E23A03DB5F1LLs5UInt8Vvp",
+            "moduleName": "RosslareBleLib",
+            "isInternal": true,
+            "declAttributes": [
+              "HasInitialValue",
+              "Final",
+              "HasStorage",
+              "AccessControl"
+            ],
+            "fixedbinaryorder": 4,
+            "isLet": true,
+            "hasStorage": true
+          },
+          {
+            "kind": "Var",
+            "name": "messageType",
+            "printedName": "messageType",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "UInt8",
+                "printedName": "Swift.UInt8",
+                "usr": "s:s5UInt8V"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:14RosslareBleLib0B18ProtocolMessageBioC11messageType33_050A3E8FEF6A149494465E23A03DB5F1LLs5UInt8Vvp",
+            "mangledName": "$s14RosslareBleLib0B18ProtocolMessageBioC11messageType33_050A3E8FEF6A149494465E23A03DB5F1LLs5UInt8Vvp",
+            "moduleName": "RosslareBleLib",
+            "isInternal": true,
+            "declAttributes": [
+              "HasInitialValue",
+              "Final",
+              "HasStorage",
+              "AccessControl"
+            ],
+            "fixedbinaryorder": 5,
+            "isLet": true,
+            "hasStorage": true
+          },
+          {
+            "kind": "Var",
+            "name": "cid",
+            "printedName": "cid",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "UInt16",
+                "printedName": "Swift.UInt16",
+                "usr": "s:s6UInt16V"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:14RosslareBleLib0B18ProtocolMessageBioC3cid33_050A3E8FEF6A149494465E23A03DB5F1LLs6UInt16Vvp",
+            "mangledName": "$s14RosslareBleLib0B18ProtocolMessageBioC3cid33_050A3E8FEF6A149494465E23A03DB5F1LLs6UInt16Vvp",
+            "moduleName": "RosslareBleLib",
+            "isInternal": true,
+            "declAttributes": [
+              "HasInitialValue",
+              "Final",
+              "HasStorage",
+              "AccessControl"
+            ],
+            "fixedbinaryorder": 6,
+            "isLet": true,
+            "hasStorage": true
+          },
+          {
+            "kind": "Var",
+            "name": "terminalId",
+            "printedName": "terminalId",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "UInt32",
+                "printedName": "Swift.UInt32",
+                "usr": "s:s6UInt32V"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:14RosslareBleLib0B18ProtocolMessageBioC10terminalId33_050A3E8FEF6A149494465E23A03DB5F1LLs6UInt32Vvp",
+            "mangledName": "$s14RosslareBleLib0B18ProtocolMessageBioC10terminalId33_050A3E8FEF6A149494465E23A03DB5F1LLs6UInt32Vvp",
+            "moduleName": "RosslareBleLib",
+            "isInternal": true,
+            "declAttributes": [
+              "HasInitialValue",
+              "Final",
+              "HasStorage",
+              "AccessControl"
+            ],
+            "fixedbinaryorder": 7,
+            "isLet": true,
+            "hasStorage": true
+          },
+          {
+            "kind": "Var",
+            "name": "param1",
+            "printedName": "param1",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Array",
+                "printedName": "[Swift.UInt8]",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "UInt8",
+                    "printedName": "Swift.UInt8",
+                    "usr": "s:s5UInt8V"
+                  }
+                ],
+                "usr": "s:Sa"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:14RosslareBleLib0B18ProtocolMessageBioC6param133_050A3E8FEF6A149494465E23A03DB5F1LLSays5UInt8VGvp",
+            "mangledName": "$s14RosslareBleLib0B18ProtocolMessageBioC6param133_050A3E8FEF6A149494465E23A03DB5F1LLSays5UInt8VGvp",
+            "moduleName": "RosslareBleLib",
+            "isInternal": true,
+            "declAttributes": [
+              "HasInitialValue",
+              "Final",
+              "HasStorage",
+              "AccessControl"
+            ],
+            "fixedbinaryorder": 8,
+            "hasStorage": true
+          },
+          {
+            "kind": "Var",
+            "name": "param2",
+            "printedName": "param2",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Array",
+                "printedName": "[Swift.UInt8]",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "UInt8",
+                    "printedName": "Swift.UInt8",
+                    "usr": "s:s5UInt8V"
+                  }
+                ],
+                "usr": "s:Sa"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:14RosslareBleLib0B18ProtocolMessageBioC6param233_050A3E8FEF6A149494465E23A03DB5F1LLSays5UInt8VGvp",
+            "mangledName": "$s14RosslareBleLib0B18ProtocolMessageBioC6param233_050A3E8FEF6A149494465E23A03DB5F1LLSays5UInt8VGvp",
+            "moduleName": "RosslareBleLib",
+            "isInternal": true,
+            "declAttributes": [
+              "HasInitialValue",
+              "Final",
+              "HasStorage",
+              "AccessControl"
+            ],
+            "fixedbinaryorder": 9,
+            "hasStorage": true
+          },
+          {
+            "kind": "Var",
+            "name": "param3",
+            "printedName": "param3",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Array",
+                "printedName": "[Swift.UInt8]",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "UInt8",
+                    "printedName": "Swift.UInt8",
+                    "usr": "s:s5UInt8V"
+                  }
+                ],
+                "usr": "s:Sa"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:14RosslareBleLib0B18ProtocolMessageBioC6param333_050A3E8FEF6A149494465E23A03DB5F1LLSays5UInt8VGvp",
+            "mangledName": "$s14RosslareBleLib0B18ProtocolMessageBioC6param333_050A3E8FEF6A149494465E23A03DB5F1LLSays5UInt8VGvp",
+            "moduleName": "RosslareBleLib",
+            "isInternal": true,
+            "declAttributes": [
+              "HasInitialValue",
+              "Final",
+              "HasStorage",
+              "AccessControl"
+            ],
+            "fixedbinaryorder": 10,
+            "hasStorage": true
+          },
+          {
+            "kind": "Var",
+            "name": "errorCode",
+            "printedName": "errorCode",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "UInt32",
+                "printedName": "Swift.UInt32",
+                "usr": "s:s6UInt32V"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:14RosslareBleLib0B18ProtocolMessageBioC9errorCode33_050A3E8FEF6A149494465E23A03DB5F1LLs6UInt32Vvp",
+            "mangledName": "$s14RosslareBleLib0B18ProtocolMessageBioC9errorCode33_050A3E8FEF6A149494465E23A03DB5F1LLs6UInt32Vvp",
+            "moduleName": "RosslareBleLib",
+            "isInternal": true,
+            "declAttributes": [
+              "HasInitialValue",
+              "Final",
+              "HasStorage",
+              "AccessControl"
+            ],
+            "fixedbinaryorder": 11,
+            "hasStorage": true
+          },
+          {
+            "kind": "Var",
+            "name": "headerChecksum",
+            "printedName": "headerChecksum",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "UInt8",
+                "printedName": "Swift.UInt8",
+                "usr": "s:s5UInt8V"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:14RosslareBleLib0B18ProtocolMessageBioC14headerChecksum33_050A3E8FEF6A149494465E23A03DB5F1LLs5UInt8Vvp",
+            "mangledName": "$s14RosslareBleLib0B18ProtocolMessageBioC14headerChecksum33_050A3E8FEF6A149494465E23A03DB5F1LLs5UInt8Vvp",
+            "moduleName": "RosslareBleLib",
+            "isInternal": true,
+            "declAttributes": [
+              "HasInitialValue",
+              "Final",
+              "HasStorage",
+              "AccessControl"
+            ],
+            "fixedbinaryorder": 12,
+            "hasStorage": true
+          },
+          {
+            "kind": "Var",
+            "name": "payload",
+            "printedName": "payload",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Array",
+                "printedName": "[Swift.UInt8]",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "UInt8",
+                    "printedName": "Swift.UInt8",
+                    "usr": "s:s5UInt8V"
+                  }
+                ],
+                "usr": "s:Sa"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:14RosslareBleLib0B18ProtocolMessageBioC7payload33_050A3E8FEF6A149494465E23A03DB5F1LLSays5UInt8VGvp",
+            "mangledName": "$s14RosslareBleLib0B18ProtocolMessageBioC7payload33_050A3E8FEF6A149494465E23A03DB5F1LLSays5UInt8VGvp",
+            "moduleName": "RosslareBleLib",
+            "isInternal": true,
+            "declAttributes": [
+              "HasInitialValue",
+              "Final",
+              "HasStorage",
+              "AccessControl"
+            ],
+            "fixedbinaryorder": 13,
+            "hasStorage": true
+          },
+          {
+            "kind": "Var",
+            "name": "payloadChecksum",
+            "printedName": "payloadChecksum",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "UInt8",
+                "printedName": "Swift.UInt8",
+                "usr": "s:s5UInt8V"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:14RosslareBleLib0B18ProtocolMessageBioC15payloadChecksum33_050A3E8FEF6A149494465E23A03DB5F1LLs5UInt8Vvp",
+            "mangledName": "$s14RosslareBleLib0B18ProtocolMessageBioC15payloadChecksum33_050A3E8FEF6A149494465E23A03DB5F1LLs5UInt8Vvp",
+            "moduleName": "RosslareBleLib",
+            "isInternal": true,
+            "declAttributes": [
+              "HasInitialValue",
+              "Final",
+              "HasStorage",
+              "AccessControl"
+            ],
+            "fixedbinaryorder": 14,
+            "hasStorage": true
+          },
+          {
+            "kind": "Var",
+            "name": "maxFragmentSize",
+            "printedName": "maxFragmentSize",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Int",
+                "printedName": "Swift.Int",
+                "usr": "s:Si"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:14RosslareBleLib0B18ProtocolMessageBioC15maxFragmentSize33_050A3E8FEF6A149494465E23A03DB5F1LLSivp",
+            "mangledName": "$s14RosslareBleLib0B18ProtocolMessageBioC15maxFragmentSize33_050A3E8FEF6A149494465E23A03DB5F1LLSivp",
+            "moduleName": "RosslareBleLib",
+            "isInternal": true,
+            "declAttributes": [
+              "HasInitialValue",
+              "Final",
+              "HasStorage",
+              "AccessControl"
+            ],
+            "fixedbinaryorder": 15,
+            "isLet": true,
+            "hasStorage": true
+          },
+          {
+            "kind": "Var",
+            "name": "maxDataSize",
+            "printedName": "maxDataSize",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Int",
+                "printedName": "Swift.Int",
+                "usr": "s:Si"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:14RosslareBleLib0B18ProtocolMessageBioC11maxDataSize33_050A3E8FEF6A149494465E23A03DB5F1LLSivp",
+            "mangledName": "$s14RosslareBleLib0B18ProtocolMessageBioC11maxDataSize33_050A3E8FEF6A149494465E23A03DB5F1LLSivp",
+            "moduleName": "RosslareBleLib",
+            "isInternal": true,
+            "declAttributes": [
+              "HasInitialValue",
+              "Final",
+              "HasStorage",
+              "AccessControl"
+            ],
+            "fixedbinaryorder": 16,
+            "isLet": true,
+            "hasStorage": true
+          },
+          {
+            "kind": "Function",
+            "name": "setPayload",
+            "printedName": "setPayload(data:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Array",
+                "printedName": "[Swift.UInt8]",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "UInt8",
+                    "printedName": "Swift.UInt8",
+                    "usr": "s:s5UInt8V"
+                  }
+                ],
+                "usr": "s:Sa"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:14RosslareBleLib0B18ProtocolMessageBioC10setPayload4dataySays5UInt8VG_tF",
+            "mangledName": "$s14RosslareBleLib0B18ProtocolMessageBioC10setPayload4dataySays5UInt8VG_tF",
+            "moduleName": "RosslareBleLib",
+            "declAttributes": [
+              "Final"
+            ],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "getFragments",
+            "printedName": "getFragments()",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Array",
+                "printedName": "[Foundation.NSData]",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "NSData",
+                    "printedName": "Foundation.NSData",
+                    "usr": "c:objc(cs)NSData"
+                  }
+                ],
+                "usr": "s:Sa"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:14RosslareBleLib0B18ProtocolMessageBioC12getFragmentsSaySo6NSDataCGyF",
+            "mangledName": "$s14RosslareBleLib0B18ProtocolMessageBioC12getFragmentsSaySo6NSDataCGyF",
+            "moduleName": "RosslareBleLib",
+            "declAttributes": [
+              "Final"
+            ],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "getPartitions",
+            "printedName": "getPartitions(source:size:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Array",
+                "printedName": "[[Swift.UInt8]]",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Array",
+                    "printedName": "[Swift.UInt8]",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "UInt8",
+                        "printedName": "Swift.UInt8",
+                        "usr": "s:s5UInt8V"
+                      }
+                    ],
+                    "usr": "s:Sa"
+                  }
+                ],
+                "usr": "s:Sa"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Array",
+                "printedName": "[Swift.UInt8]",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "UInt8",
+                    "printedName": "Swift.UInt8",
+                    "usr": "s:s5UInt8V"
+                  }
+                ],
+                "usr": "s:Sa"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Int",
+                "printedName": "Swift.Int",
+                "usr": "s:Si"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:14RosslareBleLib0B18ProtocolMessageBioC13getPartitions6source4sizeSaySays5UInt8VGGAI_SitF",
+            "mangledName": "$s14RosslareBleLib0B18ProtocolMessageBioC13getPartitions6source4sizeSaySays5UInt8VGGAI_SitF",
+            "moduleName": "RosslareBleLib",
+            "declAttributes": [
+              "Final"
+            ],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Constructor",
+            "name": "init",
+            "printedName": "init()",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "BleProtocolMessageBio",
+                "printedName": "RosslareBleLib.BleProtocolMessageBio",
+                "usr": "s:14RosslareBleLib0B18ProtocolMessageBioC"
+              }
+            ],
+            "declKind": "Constructor",
+            "usr": "s:14RosslareBleLib0B18ProtocolMessageBioCACycfc",
+            "mangledName": "$s14RosslareBleLib0B18ProtocolMessageBioCACycfc",
+            "moduleName": "RosslareBleLib",
+            "implicit": true,
+            "init_kind": "Designated"
+          }
+        ],
+        "declKind": "Class",
+        "usr": "s:14RosslareBleLib0B18ProtocolMessageBioC",
+        "mangledName": "$s14RosslareBleLib0B18ProtocolMessageBioC",
+        "moduleName": "RosslareBleLib",
+        "declAttributes": [
+          "Final"
+        ],
+        "conformances": [
+          {
+            "kind": "Conformance",
+            "name": "PBleProtocolMessage",
+            "printedName": "PBleProtocolMessage",
+            "usr": "s:14RosslareBleLib19PBleProtocolMessageP",
+            "mangledName": "$s14RosslareBleLib19PBleProtocolMessageP"
+          }
+        ]
+      },
+      {
+        "kind": "Import",
+        "name": "Foundation",
+        "printedName": "Foundation",
+        "declKind": "Import",
+        "moduleName": "RosslareBleLib"
+      },
+      {
+        "kind": "TypeDecl",
+        "name": "ByteUtilities",
+        "printedName": "ByteUtilities",
+        "children": [
+          {
+            "kind": "Function",
+            "name": "hexToBytes",
+            "printedName": "hexToBytes(hex:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Array",
+                "printedName": "[Swift.UInt8]",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "UInt8",
+                    "printedName": "Swift.UInt8",
+                    "usr": "s:s5UInt8V"
+                  }
+                ],
+                "usr": "s:Sa"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:14RosslareBleLib13ByteUtilitiesC10hexToBytes0F0Says5UInt8VGSS_tFZ",
+            "mangledName": "$s14RosslareBleLib13ByteUtilitiesC10hexToBytes0F0Says5UInt8VGSS_tFZ",
+            "moduleName": "RosslareBleLib",
+            "static": true,
+            "declAttributes": [
+              "Final"
+            ],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "stringToBytes",
+            "printedName": "stringToBytes(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Optional",
+                "printedName": "[Swift.UInt8]?",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Array",
+                    "printedName": "[Swift.UInt8]",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "UInt8",
+                        "printedName": "Swift.UInt8",
+                        "usr": "s:s5UInt8V"
+                      }
+                    ],
+                    "usr": "s:Sa"
+                  }
+                ],
+                "usr": "s:Sq"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:14RosslareBleLib13ByteUtilitiesC13stringToBytesySays5UInt8VGSgSSFZ",
+            "mangledName": "$s14RosslareBleLib13ByteUtilitiesC13stringToBytesySays5UInt8VGSgSSFZ",
+            "moduleName": "RosslareBleLib",
+            "static": true,
+            "declAttributes": [
+              "Final",
+              "AccessControl"
+            ],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "calculateChecksum",
+            "printedName": "calculateChecksum(data:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "UInt8",
+                "printedName": "Swift.UInt8",
+                "usr": "s:s5UInt8V"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Array",
+                "printedName": "[Swift.UInt8]",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "UInt8",
+                    "printedName": "Swift.UInt8",
+                    "usr": "s:s5UInt8V"
+                  }
+                ],
+                "usr": "s:Sa"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:14RosslareBleLib13ByteUtilitiesC17calculateChecksum4datas5UInt8VSayAGG_tFZ",
+            "mangledName": "$s14RosslareBleLib13ByteUtilitiesC17calculateChecksum4datas5UInt8VSayAGG_tFZ",
+            "moduleName": "RosslareBleLib",
+            "static": true,
+            "declAttributes": [
+              "Final"
+            ],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "getBytesShort",
+            "printedName": "getBytesShort(data:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Array",
+                "printedName": "[Swift.UInt8]",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "UInt8",
+                    "printedName": "Swift.UInt8",
+                    "usr": "s:s5UInt8V"
+                  }
+                ],
+                "usr": "s:Sa"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UInt16",
+                "printedName": "Swift.UInt16",
+                "usr": "s:s6UInt16V"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:14RosslareBleLib13ByteUtilitiesC13getBytesShort4dataSays5UInt8VGs6UInt16V_tFZ",
+            "mangledName": "$s14RosslareBleLib13ByteUtilitiesC13getBytesShort4dataSays5UInt8VGs6UInt16V_tFZ",
+            "moduleName": "RosslareBleLib",
+            "static": true,
+            "declAttributes": [
+              "Final"
+            ],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "bytesToHex",
+            "printedName": "bytesToHex(bytes:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Array",
+                "printedName": "[Swift.UInt8]",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "UInt8",
+                    "printedName": "Swift.UInt8",
+                    "usr": "s:s5UInt8V"
+                  }
+                ],
+                "usr": "s:Sa"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:14RosslareBleLib13ByteUtilitiesC10bytesToHex0F0SSSays5UInt8VG_tFZ",
+            "mangledName": "$s14RosslareBleLib13ByteUtilitiesC10bytesToHex0F0SSSays5UInt8VG_tFZ",
+            "moduleName": "RosslareBleLib",
+            "static": true,
+            "declAttributes": [
+              "Final"
+            ],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "stringToHex",
+            "printedName": "stringToHex(str:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:14RosslareBleLib13ByteUtilitiesC11stringToHex3strS2S_tFZ",
+            "mangledName": "$s14RosslareBleLib13ByteUtilitiesC11stringToHex3strS2S_tFZ",
+            "moduleName": "RosslareBleLib",
+            "static": true,
+            "declAttributes": [
+              "Final"
+            ],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Constructor",
+            "name": "init",
+            "printedName": "init()",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "ByteUtilities",
+                "printedName": "RosslareBleLib.ByteUtilities",
+                "usr": "s:14RosslareBleLib13ByteUtilitiesC"
+              }
+            ],
+            "declKind": "Constructor",
+            "usr": "s:14RosslareBleLib13ByteUtilitiesCACycfc",
+            "mangledName": "$s14RosslareBleLib13ByteUtilitiesCACycfc",
+            "moduleName": "RosslareBleLib",
+            "implicit": true,
+            "init_kind": "Designated"
+          }
+        ],
+        "declKind": "Class",
+        "usr": "s:14RosslareBleLib13ByteUtilitiesC",
+        "mangledName": "$s14RosslareBleLib13ByteUtilitiesC",
+        "moduleName": "RosslareBleLib",
+        "declAttributes": [
+          "Final"
+        ]
+      },
+      {
+        "kind": "TypeDecl",
+        "name": "RangeReplaceableCollection",
+        "printedName": "RangeReplaceableCollection",
+        "children": [
+          {
+            "kind": "Function",
+            "name": "resize",
+            "printedName": "resize(_:fillWith:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Int",
+                "printedName": "Swift.Int",
+                "usr": "s:Si"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "DependentMember",
+                "printedName": "τ_0_0.Iterator.Element"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:Sm14RosslareBleLibE6resize_8fillWithySi_7ElementQztF",
+            "mangledName": "$sSm14RosslareBleLibE6resize_8fillWithySi_7ElementQztF",
+            "moduleName": "RosslareBleLib",
+            "genericSig": "<τ_0_0 where τ_0_0 : Swift.RangeReplaceableCollection>",
+            "sugared_genericSig": "<Self where Self : Swift.RangeReplaceableCollection>",
+            "declAttributes": [
+              "Mutating",
+              "AccessControl"
+            ],
+            "isFromExtension": true,
+            "funcSelfKind": "Mutating"
+          }
+        ],
+        "declKind": "Protocol",
+        "usr": "s:Sm",
+        "mangledName": "$sSm",
+        "moduleName": "Swift",
+        "genericSig": "<τ_0_0 : Swift.Collection, τ_0_0.SubSequence : Swift.RangeReplaceableCollection>",
+        "sugared_genericSig": "<Self : Swift.Collection, Self.SubSequence : Swift.RangeReplaceableCollection>",
+        "isExternal": true,
+        "conformances": [
+          {
+            "kind": "Conformance",
+            "name": "Collection",
+            "printedName": "Collection",
+            "usr": "s:Sl",
+            "mangledName": "$sSl"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Sequence",
+            "printedName": "Sequence",
+            "usr": "s:ST",
+            "mangledName": "$sST"
+          }
+        ]
+      },
+      {
+        "kind": "TypeDecl",
+        "name": "String",
+        "printedName": "String",
+        "children": [
+          {
+            "kind": "Function",
+            "name": "toHexEncodedString",
+            "printedName": "toHexEncodedString(uppercase:prefix:separator:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Bool",
+                "printedName": "Swift.Bool",
+                "hasDefaultArg": true,
+                "usr": "s:Sb"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "hasDefaultArg": true,
+                "usr": "s:SS"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "hasDefaultArg": true,
+                "usr": "s:SS"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:SS14RosslareBleLibE18toHexEncodedString9uppercase6prefix9separatorSSSb_S2StF",
+            "mangledName": "$sSS14RosslareBleLibE18toHexEncodedString9uppercase6prefix9separatorSSSb_S2StF",
+            "moduleName": "RosslareBleLib",
+            "isFromExtension": true,
+            "funcSelfKind": "NonMutating"
+          }
+        ],
+        "declKind": "Struct",
+        "usr": "s:SS",
+        "mangledName": "$sSS",
+        "moduleName": "Swift",
+        "declAttributes": [
+          "Frozen"
+        ],
+        "isExternal": true,
+        "conformances": [
+          {
+            "kind": "Conformance",
+            "name": "Decodable",
+            "printedName": "Decodable",
+            "usr": "s:Se",
+            "mangledName": "$sSe"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Encodable",
+            "printedName": "Encodable",
+            "usr": "s:SE",
+            "mangledName": "$sSE"
+          },
+          {
+            "kind": "Conformance",
+            "name": "CodingKeyRepresentable",
+            "printedName": "CodingKeyRepresentable",
+            "usr": "s:s22CodingKeyRepresentableP",
+            "mangledName": "$ss22CodingKeyRepresentableP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "_HasContiguousBytes",
+            "printedName": "_HasContiguousBytes",
+            "usr": "s:s19_HasContiguousBytesP",
+            "mangledName": "$ss19_HasContiguousBytesP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "CustomReflectable",
+            "printedName": "CustomReflectable",
+            "usr": "s:s17CustomReflectableP",
+            "mangledName": "$ss17CustomReflectableP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "_CustomPlaygroundQuickLookable",
+            "printedName": "_CustomPlaygroundQuickLookable",
+            "usr": "s:s30_CustomPlaygroundQuickLookableP",
+            "mangledName": "$ss30_CustomPlaygroundQuickLookableP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "TextOutputStream",
+            "printedName": "TextOutputStream",
+            "usr": "s:s16TextOutputStreamP",
+            "mangledName": "$ss16TextOutputStreamP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "TextOutputStreamable",
+            "printedName": "TextOutputStreamable",
+            "usr": "s:s20TextOutputStreamableP",
+            "mangledName": "$ss20TextOutputStreamableP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Hashable",
+            "printedName": "Hashable",
+            "usr": "s:SH",
+            "mangledName": "$sSH"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Sendable",
+            "printedName": "Sendable",
+            "usr": "s:s8SendableP",
+            "mangledName": "$ss8SendableP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "_ExpressibleByBuiltinUnicodeScalarLiteral",
+            "printedName": "_ExpressibleByBuiltinUnicodeScalarLiteral",
+            "usr": "s:s41_ExpressibleByBuiltinUnicodeScalarLiteralP",
+            "mangledName": "$ss41_ExpressibleByBuiltinUnicodeScalarLiteralP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "_ExpressibleByBuiltinExtendedGraphemeClusterLiteral",
+            "printedName": "_ExpressibleByBuiltinExtendedGraphemeClusterLiteral",
+            "usr": "s:s51_ExpressibleByBuiltinExtendedGraphemeClusterLiteralP",
+            "mangledName": "$ss51_ExpressibleByBuiltinExtendedGraphemeClusterLiteralP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "_ExpressibleByBuiltinStringLiteral",
+            "printedName": "_ExpressibleByBuiltinStringLiteral",
+            "usr": "s:s34_ExpressibleByBuiltinStringLiteralP",
+            "mangledName": "$ss34_ExpressibleByBuiltinStringLiteralP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "ExpressibleByStringLiteral",
+            "printedName": "ExpressibleByStringLiteral",
+            "children": [
+              {
+                "kind": "TypeWitness",
+                "name": "StringLiteralType",
+                "printedName": "StringLiteralType",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  }
+                ]
+              }
+            ],
+            "usr": "s:s26ExpressibleByStringLiteralP",
+            "mangledName": "$ss26ExpressibleByStringLiteralP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "ExpressibleByExtendedGraphemeClusterLiteral",
+            "printedName": "ExpressibleByExtendedGraphemeClusterLiteral",
+            "children": [
+              {
+                "kind": "TypeWitness",
+                "name": "ExtendedGraphemeClusterLiteralType",
+                "printedName": "ExtendedGraphemeClusterLiteralType",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  }
+                ]
+              }
+            ],
+            "usr": "s:s43ExpressibleByExtendedGraphemeClusterLiteralP",
+            "mangledName": "$ss43ExpressibleByExtendedGraphemeClusterLiteralP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "ExpressibleByUnicodeScalarLiteral",
+            "printedName": "ExpressibleByUnicodeScalarLiteral",
+            "children": [
+              {
+                "kind": "TypeWitness",
+                "name": "UnicodeScalarLiteralType",
+                "printedName": "UnicodeScalarLiteralType",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  }
+                ]
+              }
+            ],
+            "usr": "s:s33ExpressibleByUnicodeScalarLiteralP",
+            "mangledName": "$ss33ExpressibleByUnicodeScalarLiteralP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "CustomDebugStringConvertible",
+            "printedName": "CustomDebugStringConvertible",
+            "usr": "s:s28CustomDebugStringConvertibleP",
+            "mangledName": "$ss28CustomDebugStringConvertibleP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "CustomStringConvertible",
+            "printedName": "CustomStringConvertible",
+            "usr": "s:s23CustomStringConvertibleP",
+            "mangledName": "$ss23CustomStringConvertibleP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "BidirectionalCollection",
+            "printedName": "BidirectionalCollection",
+            "children": [
+              {
+                "kind": "TypeWitness",
+                "name": "Element",
+                "printedName": "Element",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Character",
+                    "printedName": "Swift.Character",
+                    "usr": "s:SJ"
+                  }
+                ]
+              },
+              {
+                "kind": "TypeWitness",
+                "name": "Index",
+                "printedName": "Index",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Index",
+                    "printedName": "Swift.String.Index",
+                    "usr": "s:SS5IndexV"
+                  }
+                ]
+              },
+              {
+                "kind": "TypeWitness",
+                "name": "SubSequence",
+                "printedName": "SubSequence",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Substring",
+                    "printedName": "Swift.Substring",
+                    "usr": "s:Ss"
+                  }
+                ]
+              },
+              {
+                "kind": "TypeWitness",
+                "name": "Indices",
+                "printedName": "Indices",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "DefaultIndices",
+                    "printedName": "Swift.DefaultIndices<Swift.String>",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "String",
+                        "printedName": "Swift.String",
+                        "usr": "s:SS"
+                      }
+                    ],
+                    "usr": "s:SI"
+                  }
+                ]
+              }
+            ],
+            "usr": "s:SK",
+            "mangledName": "$sSK"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Collection",
+            "printedName": "Collection",
+            "children": [
+              {
+                "kind": "TypeWitness",
+                "name": "Element",
+                "printedName": "Element",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Character",
+                    "printedName": "Swift.Character",
+                    "usr": "s:SJ"
+                  }
+                ]
+              },
+              {
+                "kind": "TypeWitness",
+                "name": "Index",
+                "printedName": "Index",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Index",
+                    "printedName": "Swift.String.Index",
+                    "usr": "s:SS5IndexV"
+                  }
+                ]
+              },
+              {
+                "kind": "TypeWitness",
+                "name": "Iterator",
+                "printedName": "Iterator",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Iterator",
+                    "printedName": "Swift.String.Iterator",
+                    "usr": "s:SS8IteratorV"
+                  }
+                ]
+              },
+              {
+                "kind": "TypeWitness",
+                "name": "SubSequence",
+                "printedName": "SubSequence",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Substring",
+                    "printedName": "Swift.Substring",
+                    "usr": "s:Ss"
+                  }
+                ]
+              },
+              {
+                "kind": "TypeWitness",
+                "name": "Indices",
+                "printedName": "Indices",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "DefaultIndices",
+                    "printedName": "Swift.DefaultIndices<Swift.String>",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "String",
+                        "printedName": "Swift.String",
+                        "usr": "s:SS"
+                      }
+                    ],
+                    "usr": "s:SI"
+                  }
+                ]
+              }
+            ],
+            "usr": "s:Sl",
+            "mangledName": "$sSl"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Sequence",
+            "printedName": "Sequence",
+            "children": [
+              {
+                "kind": "TypeWitness",
+                "name": "Element",
+                "printedName": "Element",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Character",
+                    "printedName": "Swift.Character",
+                    "usr": "s:SJ"
+                  }
+                ]
+              },
+              {
+                "kind": "TypeWitness",
+                "name": "Iterator",
+                "printedName": "Iterator",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Iterator",
+                    "printedName": "Swift.String.Iterator",
+                    "usr": "s:SS8IteratorV"
+                  }
+                ]
+              }
+            ],
+            "usr": "s:ST",
+            "mangledName": "$sST"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Equatable",
+            "printedName": "Equatable",
+            "usr": "s:SQ",
+            "mangledName": "$sSQ"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Comparable",
+            "printedName": "Comparable",
+            "usr": "s:SL",
+            "mangledName": "$sSL"
+          },
+          {
+            "kind": "Conformance",
+            "name": "StringProtocol",
+            "printedName": "StringProtocol",
+            "children": [
+              {
+                "kind": "TypeWitness",
+                "name": "UTF8View",
+                "printedName": "UTF8View",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "UTF8View",
+                    "printedName": "Swift.String.UTF8View",
+                    "usr": "s:SS8UTF8ViewV"
+                  }
+                ]
+              },
+              {
+                "kind": "TypeWitness",
+                "name": "UTF16View",
+                "printedName": "UTF16View",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "UTF16View",
+                    "printedName": "Swift.String.UTF16View",
+                    "usr": "s:SS9UTF16ViewV"
+                  }
+                ]
+              },
+              {
+                "kind": "TypeWitness",
+                "name": "UnicodeScalarView",
+                "printedName": "UnicodeScalarView",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "UnicodeScalarView",
+                    "printedName": "Swift.String.UnicodeScalarView",
+                    "usr": "s:SS17UnicodeScalarViewV"
+                  }
+                ]
+              },
+              {
+                "kind": "TypeWitness",
+                "name": "SubSequence",
+                "printedName": "SubSequence",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Substring",
+                    "printedName": "Swift.Substring",
+                    "usr": "s:Ss"
+                  }
+                ]
+              }
+            ],
+            "usr": "s:Sy",
+            "mangledName": "$sSy"
+          },
+          {
+            "kind": "Conformance",
+            "name": "ExpressibleByStringInterpolation",
+            "printedName": "ExpressibleByStringInterpolation",
+            "children": [
+              {
+                "kind": "TypeWitness",
+                "name": "StringInterpolation",
+                "printedName": "StringInterpolation",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "DefaultStringInterpolation",
+                    "printedName": "Swift.DefaultStringInterpolation",
+                    "usr": "s:s26DefaultStringInterpolationV"
+                  }
+                ]
+              }
+            ],
+            "usr": "s:s32ExpressibleByStringInterpolationP",
+            "mangledName": "$ss32ExpressibleByStringInterpolationP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "LosslessStringConvertible",
+            "printedName": "LosslessStringConvertible",
+            "usr": "s:s25LosslessStringConvertibleP",
+            "mangledName": "$ss25LosslessStringConvertibleP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "RangeReplaceableCollection",
+            "printedName": "RangeReplaceableCollection",
+            "children": [
+              {
+                "kind": "TypeWitness",
+                "name": "SubSequence",
+                "printedName": "SubSequence",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Substring",
+                    "printedName": "Swift.Substring",
+                    "usr": "s:Ss"
+                  }
+                ]
+              }
+            ],
+            "usr": "s:Sm",
+            "mangledName": "$sSm"
+          },
+          {
+            "kind": "Conformance",
+            "name": "MirrorPath",
+            "printedName": "MirrorPath",
+            "usr": "s:s10MirrorPathP",
+            "mangledName": "$ss10MirrorPathP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "_ObjectiveCBridgeable",
+            "printedName": "_ObjectiveCBridgeable",
+            "children": [
+              {
+                "kind": "TypeWitness",
+                "name": "_ObjectiveCType",
+                "printedName": "_ObjectiveCType",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "NSString",
+                    "printedName": "Foundation.NSString",
+                    "usr": "c:objc(cs)NSString"
+                  }
+                ]
+              }
+            ],
+            "usr": "s:s21_ObjectiveCBridgeableP",
+            "mangledName": "$ss21_ObjectiveCBridgeableP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "CVarArg",
+            "printedName": "CVarArg",
+            "usr": "s:s7CVarArgP",
+            "mangledName": "$ss7CVarArgP"
+          }
+        ]
+      }
+    ],
+    "json_format_version": 8
+  },
+  "ConstValues": [
+    {
+      "filePath": "\/Users\/rosslare\/Documents\/Mobile\/src\/SDK\/iOS\/RosslareBleLib\/RosslareBleLib\/BleService.swift",
+      "kind": "Array",
+      "offset": 256,
+      "length": 2,
+      "value": "[]"
+    },
+    {
+      "filePath": "\/Users\/rosslare\/Documents\/Mobile\/src\/SDK\/iOS\/RosslareBleLib\/RosslareBleLib\/BleService.swift",
+      "kind": "IntegerLiteral",
+      "offset": 299,
+      "length": 1,
+      "value": "5"
+    },
+    {
+      "filePath": "\/Users\/rosslare\/Documents\/Mobile\/src\/SDK\/iOS\/RosslareBleLib\/RosslareBleLib\/BleService.swift",
+      "kind": "Dictionary",
+      "offset": 485,
+      "length": 3,
+      "value": "[]"
+    },
+    {
+      "filePath": "\/Users\/rosslare\/Documents\/Mobile\/src\/SDK\/iOS\/RosslareBleLib\/RosslareBleLib\/BleService.swift",
+      "kind": "StringLiteral",
+      "offset": 537,
+      "length": 2,
+      "value": "\"\""
+    },
+    {
+      "filePath": "\/Users\/rosslare\/Documents\/Mobile\/src\/SDK\/iOS\/RosslareBleLib\/RosslareBleLib\/BleService.swift",
+      "kind": "StringLiteral",
+      "offset": 588,
+      "length": 2,
+      "value": "\"\""
+    },
+    {
+      "filePath": "\/Users\/rosslare\/Documents\/Mobile\/src\/SDK\/iOS\/RosslareBleLib\/RosslareBleLib\/BleService.swift",
+      "kind": "StringLiteral",
+      "offset": 645,
+      "length": 2,
+      "value": "\"\""
+    },
+    {
+      "filePath": "\/Users\/rosslare\/Documents\/Mobile\/src\/SDK\/iOS\/RosslareBleLib\/RosslareBleLib\/BleService.swift",
+      "kind": "Array",
+      "offset": 754,
+      "length": 2,
+      "value": "[]"
+    },
+    {
+      "filePath": "\/Users\/rosslare\/Documents\/Mobile\/src\/SDK\/iOS\/RosslareBleLib\/RosslareBleLib\/BleServiceUUID.swift",
+      "kind": "StringLiteral",
+      "offset": 359,
+      "length": 38,
+      "value": "\"d973f2e0-b19e-11e2-9e96-0800200c9a66\""
+    },
+    {
+      "filePath": "\/Users\/rosslare\/Documents\/Mobile\/src\/SDK\/iOS\/RosslareBleLib\/RosslareBleLib\/BleServiceUUID.swift",
+      "kind": "StringLiteral",
+      "offset": 439,
+      "length": 38,
+      "value": "\"d973f2e1-b19e-11e2-9e96-0800200c9a66\""
+    },
+    {
+      "filePath": "\/Users\/rosslare\/Documents\/Mobile\/src\/SDK\/iOS\/RosslareBleLib\/RosslareBleLib\/BleServiceUUID.swift",
+      "kind": "StringLiteral",
+      "offset": 520,
+      "length": 38,
+      "value": "\"d973f2e2-b19e-11e2-9e96-0800200c9a66\""
+    },
+    {
+      "filePath": "\/Users\/rosslare\/Documents\/Mobile\/src\/SDK\/iOS\/RosslareBleLib\/RosslareBleLib\/BleServiceUUID.swift",
+      "kind": "StringLiteral",
+      "offset": 637,
+      "length": 38,
+      "value": "\"6e400001-b5a3-f393-e0a9-e50e24dcca9e\""
+    },
+    {
+      "filePath": "\/Users\/rosslare\/Documents\/Mobile\/src\/SDK\/iOS\/RosslareBleLib\/RosslareBleLib\/BleServiceUUID.swift",
+      "kind": "StringLiteral",
+      "offset": 717,
+      "length": 38,
+      "value": "\"6e400003-b5a3-f393-e0a9-e50e24dcca9e\""
+    },
+    {
+      "filePath": "\/Users\/rosslare\/Documents\/Mobile\/src\/SDK\/iOS\/RosslareBleLib\/RosslareBleLib\/BleServiceUUID.swift",
+      "kind": "StringLiteral",
+      "offset": 798,
+      "length": 38,
+      "value": "\"6e400002-b5a3-f393-e0a9-e50e24dcca9e\""
+    },
+    {
+      "filePath": "\/Users\/rosslare\/Documents\/Mobile\/src\/SDK\/iOS\/RosslareBleLib\/RosslareBleLib\/BleProtocolMessageAxTrax.swift",
+      "kind": "Array",
+      "offset": 120,
+      "length": 2,
+      "value": "[]"
+    },
+    {
+      "filePath": "\/Users\/rosslare\/Documents\/Mobile\/src\/SDK\/iOS\/RosslareBleLib\/RosslareBleLib\/BleProtocolMessageAxTrax.swift",
+      "kind": "Array",
+      "offset": 164,
+      "length": 13,
+      "value": "[0x53, 0x52]"
+    },
+    {
+      "filePath": "\/Users\/rosslare\/Documents\/Mobile\/src\/SDK\/iOS\/RosslareBleLib\/RosslareBleLib\/BleProtocolMessageAxTrax.swift",
+      "kind": "IntegerLiteral",
+      "offset": 262,
+      "length": 4,
+      "value": "0x01"
+    },
+    {
+      "filePath": "\/Users\/rosslare\/Documents\/Mobile\/src\/SDK\/iOS\/RosslareBleLib\/RosslareBleLib\/BleProtocolMessageAxTrax.swift",
+      "kind": "IntegerLiteral",
+      "offset": 353,
+      "length": 4,
+      "value": "0x0E"
+    },
+    {
+      "filePath": "\/Users\/rosslare\/Documents\/Mobile\/src\/SDK\/iOS\/RosslareBleLib\/RosslareBleLib\/BleProtocolMessageAxTrax.swift",
+      "kind": "Array",
+      "offset": 440,
+      "length": 2,
+      "value": "[]"
+    },
+    {
+      "filePath": "\/Users\/rosslare\/Documents\/Mobile\/src\/SDK\/iOS\/RosslareBleLib\/RosslareBleLib\/Logger.swift",
+      "kind": "StringLiteral",
+      "offset": 188,
+      "length": 14,
+      "value": "\"CFBundleName\""
+    },
+    {
+      "filePath": "\/Users\/rosslare\/Documents\/Mobile\/src\/SDK\/iOS\/RosslareBleLib\/RosslareBleLib\/BleProtocolMessageBio.swift",
+      "kind": "IntegerLiteral",
+      "offset": 92,
+      "length": 7,
+      "value": "1"
+    },
+    {
+      "filePath": "\/Users\/rosslare\/Documents\/Mobile\/src\/SDK\/iOS\/RosslareBleLib\/RosslareBleLib\/BleProtocolMessageBio.swift",
+      "kind": "IntegerLiteral",
+      "offset": 110,
+      "length": 4,
+      "value": "2"
+    },
+    {
+      "filePath": "\/Users\/rosslare\/Documents\/Mobile\/src\/SDK\/iOS\/RosslareBleLib\/RosslareBleLib\/BleProtocolMessageBio.swift",
+      "kind": "IntegerLiteral",
+      "offset": 92,
+      "length": 7,
+      "value": "1"
+    },
+    {
+      "filePath": "\/Users\/rosslare\/Documents\/Mobile\/src\/SDK\/iOS\/RosslareBleLib\/RosslareBleLib\/BleProtocolMessageBio.swift",
+      "kind": "IntegerLiteral",
+      "offset": 110,
+      "length": 4,
+      "value": "2"
+    },
+    {
+      "filePath": "\/Users\/rosslare\/Documents\/Mobile\/src\/SDK\/iOS\/RosslareBleLib\/RosslareBleLib\/BleProtocolMessageBio.swift",
+      "kind": "IntegerLiteral",
+      "offset": 92,
+      "length": 7,
+      "value": "1"
+    },
+    {
+      "filePath": "\/Users\/rosslare\/Documents\/Mobile\/src\/SDK\/iOS\/RosslareBleLib\/RosslareBleLib\/BleProtocolMessageBio.swift",
+      "kind": "IntegerLiteral",
+      "offset": 110,
+      "length": 4,
+      "value": "2"
+    },
+    {
+      "filePath": "\/Users\/rosslare\/Documents\/Mobile\/src\/SDK\/iOS\/RosslareBleLib\/RosslareBleLib\/BleProtocolMessageBio.swift",
+      "kind": "Array",
+      "offset": 217,
+      "length": 2,
+      "value": "[]"
+    },
+    {
+      "filePath": "\/Users\/rosslare\/Documents\/Mobile\/src\/SDK\/iOS\/RosslareBleLib\/RosslareBleLib\/BleProtocolMessageBio.swift",
+      "kind": "IntegerLiteral",
+      "offset": 266,
+      "length": 4,
+      "value": "0x02"
+    },
+    {
+      "filePath": "\/Users\/rosslare\/Documents\/Mobile\/src\/SDK\/iOS\/RosslareBleLib\/RosslareBleLib\/BleProtocolMessageBio.swift",
+      "kind": "IntegerLiteral",
+      "offset": 318,
+      "length": 4,
+      "value": "0x03"
+    },
+    {
+      "filePath": "\/Users\/rosslare\/Documents\/Mobile\/src\/SDK\/iOS\/RosslareBleLib\/RosslareBleLib\/BleProtocolMessageBio.swift",
+      "kind": "IntegerLiteral",
+      "offset": 368,
+      "length": 4,
+      "value": "0x04"
+    },
+    {
+      "filePath": "\/Users\/rosslare\/Documents\/Mobile\/src\/SDK\/iOS\/RosslareBleLib\/RosslareBleLib\/BleProtocolMessageBio.swift",
+      "kind": "IntegerLiteral",
+      "offset": 417,
+      "length": 4,
+      "value": "0x21"
+    },
+    {
+      "filePath": "\/Users\/rosslare\/Documents\/Mobile\/src\/SDK\/iOS\/RosslareBleLib\/RosslareBleLib\/BleProtocolMessageBio.swift",
+      "kind": "IntegerLiteral",
+      "offset": 460,
+      "length": 4,
+      "value": "0x0E"
+    },
+    {
+      "filePath": "\/Users\/rosslare\/Documents\/Mobile\/src\/SDK\/iOS\/RosslareBleLib\/RosslareBleLib\/BleProtocolMessageBio.swift",
+      "kind": "IntegerLiteral",
+      "offset": 496,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "\/Users\/rosslare\/Documents\/Mobile\/src\/SDK\/iOS\/RosslareBleLib\/RosslareBleLib\/BleProtocolMessageBio.swift",
+      "kind": "IntegerLiteral",
+      "offset": 536,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "\/Users\/rosslare\/Documents\/Mobile\/src\/SDK\/iOS\/RosslareBleLib\/RosslareBleLib\/BleProtocolMessageBio.swift",
+      "kind": "Array",
+      "offset": 579,
+      "length": 12,
+      "value": "[1, 0, 0, 0]"
+    },
+    {
+      "filePath": "\/Users\/rosslare\/Documents\/Mobile\/src\/SDK\/iOS\/RosslareBleLib\/RosslareBleLib\/BleProtocolMessageBio.swift",
+      "kind": "Array",
+      "offset": 627,
+      "length": 13,
+      "value": "[16, 0, 0, 0]"
+    },
+    {
+      "filePath": "\/Users\/rosslare\/Documents\/Mobile\/src\/SDK\/iOS\/RosslareBleLib\/RosslareBleLib\/BleProtocolMessageBio.swift",
+      "kind": "Array",
+      "offset": 676,
+      "length": 24,
+      "value": "[3, 0, 0, 0, 0, 0, 0, 0]"
+    },
+    {
+      "filePath": "\/Users\/rosslare\/Documents\/Mobile\/src\/SDK\/iOS\/RosslareBleLib\/RosslareBleLib\/BleProtocolMessageBio.swift",
+      "kind": "IntegerLiteral",
+      "offset": 798,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "\/Users\/rosslare\/Documents\/Mobile\/src\/SDK\/iOS\/RosslareBleLib\/RosslareBleLib\/BleProtocolMessageBio.swift",
+      "kind": "Array",
+      "offset": 836,
+      "length": 2,
+      "value": "[]"
+    },
+    {
+      "filePath": "\/Users\/rosslare\/Documents\/Mobile\/src\/SDK\/iOS\/RosslareBleLib\/RosslareBleLib\/BleProtocolMessageBio.swift",
+      "kind": "IntegerLiteral",
+      "offset": 881,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "\/Users\/rosslare\/Documents\/Mobile\/src\/SDK\/iOS\/RosslareBleLib\/RosslareBleLib\/BleProtocolMessageBio.swift",
+      "kind": "IntegerLiteral",
+      "offset": 930,
+      "length": 2,
+      "value": "20"
+    },
+    {
+      "filePath": "\/Users\/rosslare\/Documents\/Mobile\/src\/SDK\/iOS\/RosslareBleLib\/RosslareBleLib\/BleProtocolMessageBio.swift",
+      "kind": "IntegerLiteral",
+      "offset": 964,
+      "length": 2,
+      "value": "16"
+    },
+    {
+      "filePath": "\/Users\/rosslare\/Documents\/Mobile\/src\/SDK\/iOS\/RosslareBleLib\/RosslareBleLib\/ByteUtilities.swift",
+      "kind": "BooleanLiteral",
+      "offset": 1797,
+      "length": 4,
+      "value": "true"
+    },
+    {
+      "filePath": "\/Users\/rosslare\/Documents\/Mobile\/src\/SDK\/iOS\/RosslareBleLib\/RosslareBleLib\/ByteUtilities.swift",
+      "kind": "StringLiteral",
+      "offset": 1820,
+      "length": 2,
+      "value": "\"\""
+    },
+    {
+      "filePath": "\/Users\/rosslare\/Documents\/Mobile\/src\/SDK\/iOS\/RosslareBleLib\/RosslareBleLib\/ByteUtilities.swift",
+      "kind": "StringLiteral",
+      "offset": 1844,
+      "length": 2,
+      "value": "\"\""
+    }
+  ]
+}

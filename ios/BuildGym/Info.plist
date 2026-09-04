@@ -46,6 +46,10 @@
       <key>NSAllowsLocalNetworking</key>
       <true/>
     </dict>
+    <key>NSBluetoothAlwaysUsageDescription</key>
+    <string>Used to unlock the gym gate. When you hold the check-in dial, the app sends your membership credential over Bluetooth to the door reader at the entrance.</string>
+    <key>NSBluetoothPeripheralUsageDescription</key>
+    <string>Used to unlock the gym gate. When you hold the check-in dial, the app sends your membership credential over Bluetooth to the door reader at the entrance.</string>
     <key>NSCameraUsageDescription</key>
     <string>Used to take a photo with your camera — for example, tapping the camera icon on your profile to set a profile picture, or adding a photo to a community post or a chat with your coach.</string>
     <key>NSMicrophoneUsageDescription</key>

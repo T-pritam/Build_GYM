@@ -29,10 +29,19 @@ export const fetchGymPresence = async () => {
 
 /**
  * POST /api/gym/presence/checkin
- * Marks the caller as IN for today. Returns { count, myStatus: 'in' }.
+ * Marks the caller as IN for today.
+ *
+ * @param {string} [gateTransmittedAt] - ISO timestamp of the BLE transmit. The
+ *   SERVER then asks AxTraxPro whether the reader actually granted access; the
+ *   app cannot assert that itself (the SDK resolves on transmit, not on the
+ *   door opening).
+ * @returns {{ count, myStatus, gateConfirmed, gateChecked, gateReason }}
  */
-export const gymCheckIn = async () => {
-  const { data } = await api.post('/gym/presence/checkin');
+export const gymCheckIn = async (gateTransmittedAt) => {
+  const { data } = await api.post(
+    '/gym/presence/checkin',
+    gateTransmittedAt ? { gateTransmittedAt } : {},
+  );
   return data.data;
 };
 

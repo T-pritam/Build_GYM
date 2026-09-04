@@ -10,8 +10,13 @@ import {
   Easing,
   ScrollView,
   ActivityIndicator,
+  Platform,
+  Linking,
 } from 'react-native';
 import { fetchGymPresence, gymCheckIn, gymCheckOut } from '../../services/gymService';
+import { fetchGateStatus } from '../../services/accessService';
+import { getBleCredentialId } from '../../services/bleCredential';
+import { unlockGate } from '../../services/gateUnlockService';
 import { fetchMyMembership } from '../../services/membershipService';
 import { getSocket } from '../../services/socketService';
 import { Ionicons } from '@expo/vector-icons';
@@ -33,7 +38,31 @@ const COLORS = {
 
 const GREEN = '#00FF64';
 const COOLDOWN_MS = 2 * 60 * 1000; // 2 minutes
+
+/**
+ * Why the gate will not open for this phone. The credential is locked to the
+ * device that first registered it and only an admin reset can move it, so the
+ * member needs to be told rather than left tapping a dial that does nothing.
+ */
+const GATE_BLOCK_MESSAGES = {
+  DEVICE_MISMATCH:          'Gate access is registered to another phone — ask the gym to reset it',
+  CLAIMED_BY_OTHER_ACCOUNT: 'This phone is already registered to another account',
+  REGISTRATION_FAILED:      'Gate registration failed — please contact reception',
+  INVALID_CREDENTIAL:       'This device could not be registered for gate access',
+};
 const LOCKERS = ['101', '102', '103', '104'];
+
+/** "Mon, 1 Sep 2026 · 09:12" — the timestamp shown on the result screens. */
+function formatNowStr() {
+  try {
+    const now = new Date();
+    const date = now.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+    const time = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+    return `${date} · ${time}`;
+  } catch {
+    return '';
+  }
+}
 
 export default function PresenceScreen({ navigation }) {
   const user = useAuthStore((s) => s.user);
@@ -43,6 +72,20 @@ export default function PresenceScreen({ navigation }) {
   const [actionStatus, setActionStatus] = useState('idle'); // 'idle' | 'loading' | 'success' | 'error'
   const [cooldownUntil, setCooldownUntil] = useState(null);
   const [cooldownSecs, setCooldownSecs] = useState(0);
+
+  // Gate (Rosslare BLE + AxTraxPro) behaviour, decided by the backend:
+  // ble_required | ble_optional | presence_only. Defaults to presence_only so a
+  // slow/unreachable backend still lets the member check in.
+  const [gate, setGate] = useState({ enabled: false, mode: 'presence_only' });
+  // Replaces the generic status line when the gate needs the user to do something.
+  const [statusNote, setStatusNote] = useState(null);
+  // Sticky message (device mismatch etc.) — unlike statusNote it does not clear.
+  const [blockedNote, setBlockedNote] = useState(null);
+  // True after a BT_NOT_ENABLED rejection: the status line becomes a shortcut
+  // into the Bluetooth settings (no new UI, the same text element).
+  const [btOff, setBtOff] = useState(false);
+  // HoldUnlock latches after one completion — bump this to remount it on retries.
+  const [attempt, setAttempt] = useState(0);
 
   const [membership, setMembership] = useState(null);
   const [membershipLoading, setMembershipLoading] = useState(true);
@@ -54,6 +97,9 @@ export default function PresenceScreen({ navigation }) {
 
   const cooldownTimer = useRef(null);
   const pollTimer = useRef(null);
+  // Every deferred UI reset lives here so dismissing the sheet mid-flow cannot
+  // fire setState on an unmounted screen.
+  const timers = useRef([]);
 
   // Sheet slide-up on mount
   const slide = useRef(new Animated.Value(1)).current;
@@ -64,19 +110,40 @@ export default function PresenceScreen({ navigation }) {
 
   const close = () => navigation.goBack();
 
+  /** setTimeout that is cancelled automatically when the sheet unmounts. */
+  const schedule = (fn, ms) => {
+    const id = setTimeout(fn, ms);
+    timers.current.push(id);
+    return id;
+  };
+
+  useEffect(() => () => {
+    timers.current.forEach(clearTimeout);
+    timers.current = [];
+  }, []);
+
   // ── Data loading ──────────────────────────────────────────────────────────
 
   const loadData = useCallback(async () => {
     try {
-      const [presenceRes, memRes] = await Promise.allSettled([
+      // Ask about THIS phone so the backend can tell us whether the account is
+      // registered to a different device (it never moves without an admin reset).
+      const credential = await getBleCredentialId().catch(() => null);
+
+      const [presenceRes, memRes, gateRes] = await Promise.allSettled([
         fetchGymPresence(),
         fetchMyMembership(),
+        fetchGateStatus(credential),
       ]);
       if (presenceRes.status === 'fulfilled') {
         setCount(presenceRes.value?.count ?? 0);
         setMyStatus(presenceRes.value?.myStatus ?? 'out');
       }
       if (memRes.status === 'fulfilled') setMembership(memRes.value);
+      if (gateRes.status === 'fulfilled' && gateRes.value) {
+        setGate(gateRes.value);
+        setBlockedNote(GATE_BLOCK_MESSAGES[gateRes.value.device?.blockedReason] ?? null);
+      }
     } finally {
       setMembershipLoading(false);
     }
@@ -125,14 +192,104 @@ export default function PresenceScreen({ navigation }) {
     return () => clearInterval(cooldownTimer.current);
   }, [cooldownUntil]);
 
-  // ── Hold-to-unlock completion → real check-in / check-out ─────────────────
+  // ── Hold-to-unlock completion → gate unlock + real check-in / check-out ───
+
+  /** Params for the shared AccessGranted / AccessDenied result screens. */
+  const buildResultParams = (reason) => ({
+    memberName:  displayName,
+    memberId:    shortId,
+    accessPoint: 'Main Entrance',
+    time:        formatNowStr(),
+    ...(reason ? { reason } : {}),
+  });
+
+  /**
+   * The most specific reason we can give for a refusal. "BLE authentication
+   * failed" was shown for every cause — wrong device, expired membership, a
+   * reader that never answered — which told the member nothing.
+   */
+  const denialReason = (fallback) => {
+    if (blockedNote) return blockedNote;
+    if (!memActive) return 'Membership is not active';
+    return fallback ?? 'The reader did not grant access';
+  };
+
+  /** Show a transient message on the existing status line, then go back to idle. */
+  /** Same intent as AccessScreen's button — reachable from the status line. */
+  const openBluetoothSettings = () => {
+    if (Platform.OS === 'android') {
+      Linking.sendIntent('android.settings.BLUETOOTH_SETTINGS').catch(() => {
+        Linking.openSettings();
+      });
+    } else {
+      Linking.openURL('App-Prefs:root=Bluetooth').catch(() => {
+        Linking.openSettings();
+      });
+    }
+  };
+
+  const flashError = (note) => {
+    setStatusNote(note);
+    setActionStatus('error');
+    schedule(() => {
+      setActionStatus('idle');
+      setStatusNote(null);
+    }, 2500);
+  };
 
   const handleTap = async () => {
-    if (actionStatus !== 'idle' || cooldownUntil) return;
+    // The dial latches after one completion and is only revived by a changing
+    // `key`, so bump the counter FIRST — bumping it after the guard below left
+    // the dial permanently dead whenever a hold completed while busy.
+    setAttempt((n) => n + 1);
+    if (actionStatus !== 'idle' || cooldownUntil || isGateBlocked) return;
+    setStatusNote(null);
+    setBtOff(false);
     setActionStatus('loading');
+
+    // ── Step 1: transmit the credential over BLE ────────────────────────────
+    // NOTE: a successful transmit is NOT a grant — the Rosslare SDK resolves as
+    // soon as the bytes leave the phone. Only the backend, reading AxTraxPro's
+    // event log, can say whether the door actually opened.
+    let transmitted = false;
+    let transmittedAt = null;
+    if (gate.mode !== 'presence_only') {
+      transmittedAt = new Date().toISOString();
+      const verdict = await unlockGate({ timeoutSeconds: 10 });
+      transmitted = verdict.granted;
+
+      if (!verdict.granted) {
+        // Device-state problems — nothing was transmitted, record nothing.
+        if (verdict.code === 'BT_NOT_ENABLED') {
+          setBtOff(true);
+          flashError('Turn on Bluetooth to open the gate');
+          return;
+        }
+        if (verdict.code === 'PERMISSION_DENIED') {
+          flashError('Allow Bluetooth access to open the gate');
+          return;
+        }
+        // The reader did not respond at all.
+        if (gate.mode === 'ble_required') {
+          setActionStatus('idle');
+          navigation.navigate('AccessDenied', buildResultParams(denialReason(verdict.reason)));
+          return;
+        }
+        // ble_optional — the gate is unreachable, but attendance still counts.
+        setStatusNote('Gate not detected — attendance recorded');
+      }
+    }
+
+    // ── Step 2: attendance / streak / live headcount (unchanged) ────────────
     try {
       const isCheckIn = myStatus === 'out';
-      const result = isCheckIn ? await gymCheckIn() : await gymCheckOut();
+      const result = isCheckIn
+        ? await gymCheckIn(transmitted ? transmittedAt : undefined)
+        : await gymCheckOut();
+
+      // The backend verified the transmit against AxTraxPro's event log.
+      const gateConfirmed = !!result?.gateConfirmed;
+      const gateChecked   = !!result?.gateChecked;
       if (isCheckIn && result.myStatus === 'in') {
         const now = new Date();
         const hour = now.getHours();
@@ -147,7 +304,19 @@ export default function PresenceScreen({ navigation }) {
       setCount(result.count);
       setActionStatus('success');
       setCooldownUntil(Date.now() + COOLDOWN_MS);
-      setTimeout(() => setActionStatus('idle'), 2000);
+      schedule(() => { setActionStatus('idle'); setStatusNote(null); }, 2000);
+
+      if (gateConfirmed) {
+        // Confirmed by the reader — the same confirmation as the access screen.
+        navigation.navigate('AccessGranted', buildResultParams());
+      } else if (transmitted && gateChecked && gate.mode === 'ble_required') {
+        // We transmitted, the reader was asked, and it did not let us in.
+        navigation.navigate('AccessDenied', buildResultParams(denialReason(null)));
+      } else if (transmitted) {
+        // Transmitted but unverifiable (gate server unreachable). Say exactly
+        // that rather than claiming the door opened.
+        setStatusNote('Signal sent — if the door stays shut, contact reception');
+      }
     } catch (err) {
       const status = err?.response?.status;
       if (status === 409) {
@@ -157,10 +326,10 @@ export default function PresenceScreen({ navigation }) {
         }).catch(() => {});
         setActionStatus('success');
         setCooldownUntil(Date.now() + COOLDOWN_MS);
-        setTimeout(() => setActionStatus('idle'), 2000);
+        schedule(() => { setActionStatus('idle'); setStatusNote(null); }, 2000);
       } else {
         setActionStatus('error');
-        setTimeout(() => setActionStatus('idle'), 2000);
+        schedule(() => { setActionStatus('idle'); setStatusNote(null); }, 2000);
       }
     }
   };
@@ -168,9 +337,15 @@ export default function PresenceScreen({ navigation }) {
   // ── Derived display values ────────────────────────────────────────────────
 
   const isCheckingIn = myStatus === 'out';
-  const isButtonDisabled = actionStatus !== 'idle' || !!cooldownUntil;
+  // A blocked device can never open the gate, so the dial is inert until an
+  // admin resets the credential — that is the authenticity rule.
+  const isGateBlocked = !!blockedNote && gate.mode === 'ble_required';
+  const isButtonDisabled = actionStatus !== 'idle' || !!cooldownUntil || isGateBlocked;
+  const gateOnline = gate.enabled && gate.mode !== 'presence_only';
 
   const getStatusMsg = () => {
+    if (statusNote) return statusNote;
+    if (blockedNote) return blockedNote;
     if (cooldownUntil && actionStatus === 'idle') return `Wait ${cooldownSecs}s before next tap`;
     if (actionStatus === 'loading') return isCheckingIn ? 'Checking in…' : 'Checking out…';
     if (actionStatus === 'success') return isCheckingIn ? 'Checked out ✓' : 'Entry granted ✓';
@@ -179,6 +354,7 @@ export default function PresenceScreen({ navigation }) {
   };
 
   const getStatusColor = () => {
+    if (blockedNote && actionStatus === 'idle') return COLORS.error;
     if (actionStatus === 'success') return COLORS.success;
     if (actionStatus === 'error') return COLORS.error;
     if (actionStatus === 'loading') return COLORS.secondary;
@@ -214,8 +390,10 @@ export default function PresenceScreen({ navigation }) {
           {/* Status bar */}
           <View style={styles.statusRow}>
             <View style={styles.bleRow}>
-              <View style={styles.bleDot} />
-              <Text style={styles.bleText}>BLE CONNECTED · ROSSLARE</Text>
+              <View style={[styles.bleDot, !gateOnline && { backgroundColor: COLORS.textMuted }]} />
+              <Text style={styles.bleText}>
+                {gateOnline ? 'BLE CONNECTED · ROSSLARE' : 'GATE OFFLINE · ROSSLARE'}
+              </Text>
             </View>
             <TouchableOpacity style={styles.closeBtn} onPress={close} hitSlop={8}>
               <Ionicons name="close" size={18} color={COLORS.white} />
@@ -253,7 +431,7 @@ export default function PresenceScreen({ navigation }) {
                 {/* Hold-to-unlock → real check-in / check-out */}
                 <View style={styles.holdArea}>
                   <HoldUnlock
-                    key={`gym-${myStatus}`}
+                    key={`gym-${myStatus}-${attempt}`}
                     size={160}
                     color={coreAccent}
                     icon={coreIcon}
@@ -262,7 +440,13 @@ export default function PresenceScreen({ navigation }) {
                     disabled={isButtonDisabled}
                     onComplete={handleTap}
                   />
-                  <Text style={[styles.statusMsg, { color: getStatusColor() }]}>{getStatusMsg()}</Text>
+                  <Text
+                    style={[styles.statusMsg, { color: getStatusColor() }]}
+                    onPress={btOff ? openBluetoothSettings : undefined}
+                    suppressHighlighting
+                  >
+                    {getStatusMsg()}
+                  </Text>
                 </View>
 
                 {/* Keep: live "IN THE GYM NOW" count — do not remove */}

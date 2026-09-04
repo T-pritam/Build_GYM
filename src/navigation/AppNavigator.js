@@ -217,8 +217,9 @@ export default function AppNavigator() {
           component={PresenceScreen}
           options={{ presentation: 'transparentModal', animation: 'fade' }}
         />
-        {/* Real door-access screen (BLE + AxTraxPro). Reached via a temp chip on
-            PresenceScreen for now; the live route is swapped Presence → Access later. */}
+        {/* Full door-access screen (BLE + AxTraxPro event log). The gate unlock
+            itself now runs inside the check-in sheet above (route "Access");
+            both share src/services/gateUnlockService.js. */}
         <Stack.Screen name="AccessControl" component={AccessScreen} />
         <Stack.Screen
           name="AccessGranted"

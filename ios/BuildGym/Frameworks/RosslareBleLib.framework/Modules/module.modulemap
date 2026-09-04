@@ -1,0 +1,11 @@
+framework module RosslareBleLib {
+  umbrella header "RosslareBleLib.h"
+
+  export *
+  module * { export * }
+}
+
+module RosslareBleLib.Swift {
+  header "RosslareBleLib-Swift.h"
+  requires objc
+}

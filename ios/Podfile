@@ -41,6 +41,11 @@ target 'BuildGym' do
 
   config = use_native_modules!(config_command)
 
+  # Required by the vendored RosslareBleLib.framework (BLE gate credentials).
+  # The framework is built against AppCenter, so the modules must be resolvable
+  # at compile time — this mirrors the Podfile in Rosslare's own sample project.
+  pod 'AppCenter'
+
   use_frameworks! :linkage => podfile_properties['ios.useFrameworks'].to_sym if podfile_properties['ios.useFrameworks']
   use_frameworks! :linkage => ENV['USE_FRAMEWORKS'].to_sym if ENV['USE_FRAMEWORKS']
 

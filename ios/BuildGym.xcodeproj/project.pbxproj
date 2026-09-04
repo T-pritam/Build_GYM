@@ -12,7 +12,25 @@
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
 		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
 		0FE4E94AE62B4E0986E2155A /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 82D28F6C34EE4F56BB5C6819 /* GoogleService-Info.plist */; };
+		F6C636467F241596D2C6D371 /* RosslareBle.swift in Sources */ = {isa = PBXBuildFile; fileRef = B67444A0435B90F330F647F7 /* RosslareBle.swift */; };
+		366ED484C6752ABC714A8088 /* RosslareBle.m in Sources */ = {isa = PBXBuildFile; fileRef = DB1EC344AB5DE60C7054173F /* RosslareBle.m */; };
+		1DE179E30729BC11167E00E2 /* RosslareBleLib.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EA486DCA19CC981B10261BEE /* RosslareBleLib.framework */; };
+		5A7FE7D8E57C220C71240E94 /* RosslareBleLib.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = EA486DCA19CC981B10261BEE /* RosslareBleLib.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		B080A7D423F41505054BA4E3 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				5A7FE7D8E57C220C71240E94 /* RosslareBleLib.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		13B07F961A680F5B00A75B9A /* BuildGym.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BuildGym.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -24,6 +42,9 @@
 		F11748412D0307B40044C1D9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = BuildGym/AppDelegate.swift; sourceTree = "<group>"; };
 		F11748442D0722820044C1D9 /* BuildGym-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "BuildGym-Bridging-Header.h"; path = "BuildGym/BuildGym-Bridging-Header.h"; sourceTree = "<group>"; };
 		82D28F6C34EE4F56BB5C6819 /* GoogleService-Info.plist */ = {isa = PBXFileReference; name = "GoogleService-Info.plist"; path = "BuildGym/GoogleService-Info.plist"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = text.plist.xml; explicitFileType = undefined; includeInIndex = 0; };
+		B67444A0435B90F330F647F7 /* RosslareBle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = RosslareBle.swift; path = BuildGym/RosslareBle.swift; sourceTree = "<group>"; };
+		DB1EC344AB5DE60C7054173F /* RosslareBle.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = RosslareBle.m; path = BuildGym/RosslareBle.m; sourceTree = "<group>"; };
+		EA486DCA19CC981B10261BEE /* RosslareBleLib.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = RosslareBleLib.framework; path = BuildGym/Frameworks/RosslareBleLib.framework; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -31,6 +52,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				1DE179E30729BC11167E00E2 /* RosslareBleLib.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -40,6 +62,8 @@
 		13B07FAE1A68108700A75B9A /* BuildGym */ = {
 			isa = PBXGroup;
 			children = (
+				B67444A0435B90F330F647F7 /* RosslareBle.swift */,
+				DB1EC344AB5DE60C7054173F /* RosslareBle.m */,
 				F11748412D0307B40044C1D9 /* AppDelegate.swift */,
 				F11748442D0722820044C1D9 /* BuildGym-Bridging-Header.h */,
 				BB2F792B24A3F905000567C9 /* Supporting */,
@@ -54,6 +78,7 @@
 		2D16E6871FA4F8E400B85C8A /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				EA486DCA19CC981B10261BEE /* RosslareBleLib.framework */,
 				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
 			);
 			name = Frameworks;
@@ -106,6 +131,7 @@
 				08A4A3CD28434E44B6B9DE2E /* [CP] Check Pods Manifest.lock */,
 				13B07F871A680F5B00A75B9A /* Sources */,
 				13B07F8C1A680F5B00A75B9A /* Frameworks */,
+				B080A7D423F41505054BA4E3 /* Embed Frameworks */,
 				13B07F8E1A680F5B00A75B9A /* Resources */,
 				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
 				800E24972A6A228C8D4807E9 /* [CP] Copy Pods Resources */,
@@ -233,6 +259,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F6C636467F241596D2C6D371 /* RosslareBle.swift in Sources */,
+				366ED484C6752ABC714A8088 /* RosslareBle.m in Sources */,
 				F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -264,6 +292,10 @@
 					"-lc++",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = "com.buildgym.app";
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/BuildGym/Frameworks",
+				);
 				PRODUCT_NAME = "BuildGym";
 				SWIFT_OBJC_BRIDGING_HEADER = "BuildGym/BuildGym-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
@@ -293,6 +325,10 @@
 					"-lc++",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = "com.buildgym.app";
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/BuildGym/Frameworks",
+				);
 				PRODUCT_NAME = "BuildGym";
 				SWIFT_OBJC_BRIDGING_HEADER = "BuildGym/BuildGym-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;

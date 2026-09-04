@@ -1,0 +1,55 @@
+// swift-interface-format-version: 1.0
+// swift-compiler-version: Apple Swift version 5.7.2 (swiftlang-5.7.2.135.5 clang-1400.0.29.51)
+// swift-module-flags: -target arm64-apple-ios13.0 -enable-objc-interop -enable-library-evolution -swift-version 5 -enforce-exclusivity=checked -Onone -module-name RosslareBleLib
+// swift-module-flags-ignorable: -enable-bare-slash-regex
+import AppCenter
+import AppCenterAnalytics
+import AppCenterCrashes
+import CoreBluetooth
+import Foundation
+@_exported import RosslareBleLib
+import Swift
+import UIKit
+import _Concurrency
+import _StringProcessing
+@objc @_inheritsConvenienceInitializers public class BleService : ObjectiveC.NSObject {
+  @objc override dynamic public init()
+  public func initService(withAnalytics: Swift.Bool)
+  public func stopBleService()
+  public func getDiscoveredBleDevices() -> [RosslareBleLib.BleDeviceInfo]
+  public func setAutoBleId()
+  public func setCustomBleId(id: Swift.UInt64)
+  public func searchBleReaders(timeoutSec: Swift.Double)
+  public func transmitBleId(currentDevice: RosslareBleLib.BleDeviceInfo) -> Swift.Bool
+  public func setReaderNameFilter(filter: Swift.String)
+  @objc deinit
+}
+extension RosslareBleLib.BleService : CoreBluetooth.CBCentralManagerDelegate {
+  @objc dynamic public func centralManagerDidUpdateState(_ central: CoreBluetooth.CBCentralManager)
+  @objc dynamic public func centralManager(_ central: CoreBluetooth.CBCentralManager, didDiscover peripheral: CoreBluetooth.CBPeripheral, advertisementData: [Swift.String : Any], rssi RSSI: Foundation.NSNumber)
+  @objc dynamic public func centralManager(_ central: CoreBluetooth.CBCentralManager, didFailToConnect peripheral: CoreBluetooth.CBPeripheral, error: Swift.Error?)
+  @objc dynamic public func centralManager(_ central: CoreBluetooth.CBCentralManager, didConnect peripheral: CoreBluetooth.CBPeripheral)
+  @objc dynamic public func centralManager(_ central: CoreBluetooth.CBCentralManager, didDisconnectPeripheral peripheral: CoreBluetooth.CBPeripheral, error: Swift.Error?)
+}
+extension RosslareBleLib.BleService : CoreBluetooth.CBPeripheralDelegate {
+  @objc dynamic public func peripheral(_ peripheral: CoreBluetooth.CBPeripheral, didModifyServices invalidatedServices: [CoreBluetooth.CBService])
+  @objc dynamic public func peripheral(_ peripheral: CoreBluetooth.CBPeripheral, didDiscoverServices error: Swift.Error?)
+  @objc dynamic public func peripheral(_ peripheral: CoreBluetooth.CBPeripheral, didDiscoverCharacteristicsFor service: CoreBluetooth.CBService, error: Swift.Error?)
+  @objc dynamic public func peripheral(_ peripheral: CoreBluetooth.CBPeripheral, didUpdateValueFor characteristic: CoreBluetooth.CBCharacteristic, error: Swift.Error?)
+  @objc dynamic public func peripheral(_ peripheral: CoreBluetooth.CBPeripheral, didUpdateNotificationStateFor characteristic: CoreBluetooth.CBCharacteristic, error: Swift.Error?)
+  @objc dynamic public func peripheral(_ peripheral: CoreBluetooth.CBPeripheral, didWriteValueFor characteristic: CoreBluetooth.CBCharacteristic, error: Swift.Error?)
+}
+public struct BleDeviceInfo {
+  public var peripheral: CoreBluetooth.CBPeripheral
+  public var advertisementName: Swift.String
+  public var advertisementServiceUUID: Swift.String
+  public var rssi: Swift.Int
+}
+@_hasMissingDesignatedInitializers final public class Logger {
+  public static func error(message: Swift.String)
+  public static func info(message: Swift.String)
+  @objc deinit
+}
+extension Swift.RangeReplaceableCollection {
+  public mutating func resize(_ size: Swift.Int, fillWith value: Self.Iterator.Element)
+}

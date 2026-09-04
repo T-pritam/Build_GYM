@@ -1,6 +1,28 @@
 import { NativeModules, PermissionsAndroid, Platform } from 'react-native';
+import { getBleCredentialId, toNativeCredentialHex } from './bleCredential';
 
 const { RosslareBle } = NativeModules;
+
+/**
+ * iOS only: hand the SDK the credential this device registered with AxTraxPro.
+ * On Android the SDK derives it from ANDROID_ID itself (setAutoBLEID) and
+ * overriding it would reverse the byte order — so this is a no-op there.
+ */
+let credentialPushed = false;
+async function ensureCredential() {
+  if (Platform.OS !== 'ios' || credentialPushed) return;
+  if (typeof RosslareBle?.setCredential !== 'function') return;
+
+  const hex = await getBleCredentialId();
+  if (!hex) return;
+  try {
+    await RosslareBle.setCredential(toNativeCredentialHex(hex));
+    credentialPushed = true;
+  } catch {
+    // Non-fatal: the SDK falls back to its own device id and the reader denies,
+    // which surfaces as a normal "access denied" rather than a crash.
+  }
+}
 
 async function requestBlePermissions() {
   if (Platform.OS !== 'android') return true;
@@ -40,15 +62,21 @@ export async function autoUnlock(timeoutSeconds = 10) {
     err.code = 'PERMISSION_DENIED';
     throw err;
   }
+  await ensureCredential();
   return RosslareBle.autoUnlock(timeoutSeconds);
 }
 
-/** Returns the current list of discovered readers from the last scan. */
-export function getDiscoveredReaders() {
+/**
+ * Returns the current list of discovered readers from the last scan.
+ * `async` on purpose: a missing native module must reject, not throw
+ * synchronously into the caller's render.
+ */
+export async function getDiscoveredReaders() {
   return RosslareBle.getDiscoveredReaders();
 }
 
 /** Transmit the credential to a specific reader by MAC address. */
-export function transmitToAddress(address) {
+export async function transmitToAddress(address) {
+  await ensureCredential();
   return RosslareBle.transmitToAddress(address);
 }
