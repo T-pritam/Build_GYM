@@ -43,6 +43,7 @@ export const useChatStore = create((set, get) => ({
   openThreadId: null,
   _wired: false,
   _appStateSub: null,
+  _outboxTimer: null,
 
   unreadTotal: () => get().threads.reduce((s, t) => s + (t.unread || 0), 0),
 
@@ -58,6 +59,7 @@ export const useChatStore = create((set, get) => ({
     get().wireSocket();
     await get().loadThreads();
     get().flushOutbox();
+    get().ensureOutboxRetry();
   },
 
   loadThreads: async () => {
@@ -82,6 +84,7 @@ export const useChatStore = create((set, get) => ({
       const tid = get().openThreadId;
       if (!tid) return;
       sock.setForeground(active);
+      if (active) { sock.reconnectIfNeeded(); get().flushOutbox(); }
       // Coming back to a thread that's on screen: catch up the read pointer now.
       if (active) get().markReadNewest(tid);
     });
@@ -254,6 +257,7 @@ export const useChatStore = create((set, get) => ({
       const ended = e?.response?.data?.code === 'THREAD_NOT_ACTIVE';
       await markFailed(item.clientMsgUuid).catch(() => {});
       if (rejected) await dequeueOutbox(item.clientMsgUuid).catch(() => {});
+      else get().ensureOutboxRetry(); // still queued — keep trying until it lands
       // Still shown as "Not sent — tap to retry" either way, so the user keeps
       // manual agency; the difference is only whether flushOutbox will retry it.
       get().setMsgStatus(threadId, `tmp:${item.clientMsgUuid}`, ended ? 'ended' : 'failed');
@@ -274,6 +278,30 @@ export const useChatStore = create((set, get) => ({
       clientMsgUuid: message.clientMsgUuid, type: message.type, body: message.body,
       objectKey: message.objectKey, fileName: message.fileName,
     });
+  },
+
+  /**
+   * Keep retrying the outbox until it drains.
+   *
+   * The socket's `connect` event alone is not a dependable trigger: if the app
+   * was launched with no network, socket.io can stop retrying on its own, so a
+   * returning connection never fires `connect` and queued messages sit there
+   * forever. This ticks until the queue is empty, nudging the socket back up as
+   * it goes. Offline queueing is specified as mandatory, not best-effort.
+   */
+  ensureOutboxRetry: () => {
+    if (get()._outboxTimer) return;
+    const id = setInterval(async () => {
+      const items = await getOutbox().catch(() => []);
+      if (!items.length) {
+        clearInterval(get()._outboxTimer);
+        set({ _outboxTimer: null });
+        return;
+      }
+      sock.reconnectIfNeeded();
+      get().flushOutbox();
+    }, 15000);
+    set({ _outboxTimer: id });
   },
 
   flushOutbox: async () => {
@@ -303,9 +331,10 @@ export const useChatStore = create((set, get) => ({
   reset: async () => {
     sock.disconnectChatSocket();
     get()._appStateSub?.remove?.();
+    if (get()._outboxTimer) clearInterval(get()._outboxTimer);
     set({
       threads: [], messagesByThread: {}, readsByThread: {},
-      openThreadId: null, _wired: false, _appStateSub: null,
+      openThreadId: null, _wired: false, _appStateSub: null, _outboxTimer: null,
     });
     await clearChatCache().catch(() => {});
   },

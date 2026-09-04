@@ -44,6 +44,19 @@ export function setForeground(isForeground) { getChatSocket().emit('chat:foregro
 export function emitDelivered(threadId, upToMessageId) { getChatSocket().emit('chat:delivered', { threadId, upToMessageId }); }
 export function emitRead(threadId, upToMessageId) { getChatSocket().emit('chat:read', { threadId, upToMessageId }); }
 
+/**
+ * Re-arm the connection if it has dropped.
+ *
+ * socket.io stops retrying by itself in some paths — notably when the very
+ * first attempt happens with no network (app launched offline), after which a
+ * returning connection never triggers `connect`. Calling connect() on a
+ * disconnected socket is a safe no-op when it is already live.
+ */
+export function reconnectIfNeeded() {
+  const s = getChatSocket();
+  if (s.disconnected) s.connect();
+}
+
 export function disconnectChatSocket() {
   if (socket) { socket.disconnect(); socket = null; }
 }
