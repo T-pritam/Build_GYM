@@ -18,16 +18,18 @@
  *   fetchTransactions()  — load first page of transactions
  *   fetchMoreTransactions() — append next page
  *   reset()              — clear state on logout
+ *
+ * There is no purchase action here by design. Coins are a digital good, so App
+ * Store guideline 3.1.1 forbids selling them for real money outside Apple's IAP.
+ * Balances still move in real time: the backend credits a top-up (reception or
+ * web) and pushes `wallet:balance_updated` over the socket, which lands in
+ * setBalance/applyDelta below.
  */
 
 import { create } from 'zustand';
-import RazorpayCheckout from 'react-native-razorpay';
 import {
   fetchBalance as apiFetchBalance,
   fetchTransactions as apiFetchTransactions,
-  purchasePackage as apiPurchasePackage,
-  createRazorpayOrder,
-  verifyRazorpayPayment,
 } from '../services/walletService';
 
 export const useWalletStore = create((set, get) => ({
@@ -99,62 +101,6 @@ export const useWalletStore = create((set, get) => ({
     } catch {
       set({ isTxnLoading: false });
     }
-  },
-
-  /**
-   * Buy a coin package (cash at gym counter).
-   * Updates balance immediately and resets transaction history
-   * so the next scroll loads the fresh CREDIT row from the top.
-   * Returns { balance, coinsAdded, package } — caller shows receipt.
-   */
-  purchasePackage: async (packageId) => {
-    const result = await apiPurchasePackage(packageId);
-    set({ balance: result.balance, transactions: [], nextCursor: null, hasMore: false });
-    return result;
-  },
-
-  /**
-   * Buy a coin package via Razorpay online payment.
-   * Orchestrates the full flow:
-   *   1. Backend creates a Razorpay order
-   *   2. Native Razorpay checkout sheet opens
-   *   3. Backend verifies the HMAC signature and credits coins
-   *
-   * @param {string} packageId
-   * @param {{ phone?: string, name?: string }} userInfo - pre-fills Razorpay checkout
-   * @returns {{ newBalance: number, coinsAdded: number }}
-   * @throws Razorpay SDK throws { code: 'PAYMENT_CANCELLED' } on dismiss
-   */
-  purchaseWithRazorpay: async (packageId, userInfo = {}) => {
-    // 1. Create order on backend
-    const orderData = await createRazorpayOrder(packageId);
-
-    // 2. Open Razorpay checkout (native UI)
-    const paymentData = await RazorpayCheckout.open({
-      description: 'Build Coins Purchase',
-      currency:    orderData.currency,
-      key:         orderData.keyId,
-      amount:      String(orderData.amountPaise),
-      order_id:    orderData.razorpayOrderId,
-      name:        'BuildGym',
-      prefill: {
-        contact: userInfo.phone ?? '',
-        name:    userInfo.name  ?? '',
-      },
-      theme: { color: '#E96316' },
-    });
-    // paymentData = { razorpay_payment_id, razorpay_order_id, razorpay_signature }
-
-    // 3. Verify on backend — coins credited here
-    const result = await verifyRazorpayPayment({
-      razorpayOrderId:   paymentData.razorpay_order_id,
-      razorpayPaymentId: paymentData.razorpay_payment_id,
-      razorpaySignature: paymentData.razorpay_signature,
-    });
-
-    set({ balance: result.newBalance, transactions: [], nextCursor: null, hasMore: false });
-    // Surface the Razorpay payment id so the success screen can show a reference.
-    return { ...result, razorpayPaymentId: paymentData.razorpay_payment_id };
   },
 
   /**

@@ -25,13 +25,12 @@ export default function GamingConsentScreen({ navigation, route }) {
     } catch (err) {
       const d = err.response?.data;
       if (d?.code === 'INSUFFICIENT_FUNDS') {
+        // No "Recharge" action on purpose — see handleInsufficientCoins.js for why
+        // the app cannot offer a route to buy coins.
         Alert.alert(
           'Not enough coins',
           `You need ${d.required} coins to start. Balance: ${d.balance}.`,
-          [
-            { text: 'Recharge', onPress: () => navigation.replace('AddBuildCoins') },
-            { text: 'Cancel', style: 'cancel', onPress: () => navigation.goBack() },
-          ],
+          [{ text: 'OK', style: 'cancel', onPress: () => navigation.goBack() }],
         );
       } else {
         Alert.alert('Could not start', d?.message || 'Please try again.');

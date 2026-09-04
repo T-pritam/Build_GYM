@@ -1,8 +1,8 @@
 /**
  * CafeOrderFailedScreen
  * ─────────────────────────────────────────────────────────────
- * Cafe order payment failure result. Modeled on PaymentFailedScreen
- * (animated SVG X + pulsing error circle, Holographic Noir).
+ * Cafe order payment failure result — animated SVG X + pulsing error circle,
+ * "Holographic Noir".
  *
  * A failed/cancelled payment leaves the order in PAYMENT_PENDING on the cafe
  * backend, so TRY AGAIN resumes it in-place via retryPayment(orderId) →

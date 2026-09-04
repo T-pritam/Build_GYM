@@ -3,6 +3,12 @@
  *
  * API calls for the Build Coins wallet.
  * Uses the authenticated `api` instance (JWT auto-refresh included).
+ *
+ * Read-only by design. The purchase calls that used to live here
+ * (POST /wallet/purchase, and the Razorpay create-order/verify pair) are gone:
+ * coins are a digital good, so App Store guideline 3.1.1 forbids selling them
+ * for real money outside Apple's IAP. Top-ups happen at reception via the admin
+ * app, or on the web top-up page — never from here.
  */
 
 import api from './apiService';
@@ -34,47 +40,4 @@ export const fetchTransactions = async ({ limit = 20, cursor } = {}) => {
   if (cursor) params.cursor = cursor;
   const { data } = await api.get('/wallet/transactions', { params });
   return data; // { success, data, nextCursor, hasMore }
-};
-
-/**
- * GET /api/economy/packages
- * Public — returns active coin purchase packages.
- */
-export const fetchPackages = async () => {
-  const { data } = await api.get('/economy/packages');
-  return data.data; // []
-};
-
-/**
- * POST /api/wallet/purchase
- * Member buys a coin package (paid cash at counter).
- * Returns { balance, coinsAdded, package }.
- */
-export const purchasePackage = async (packageId) => {
-  const { data } = await api.post('/wallet/purchase', { packageId });
-  return data.data; // { balance, coinsAdded, package }
-};
-
-/**
- * POST /api/payments/razorpay/create-order
- * Creates a Razorpay order for the given package.
- * Returns { razorpayOrderId, amountPaise, currency, keyId }.
- */
-export const createRazorpayOrder = async (packageId) => {
-  const { data } = await api.post('/payments/razorpay/create-order', { packageId });
-  return data.data;
-};
-
-/**
- * POST /api/payments/razorpay/verify
- * Verifies a completed Razorpay payment server-side and credits coins.
- * Returns { newBalance, coinsAdded }.
- */
-export const verifyRazorpayPayment = async ({ razorpayOrderId, razorpayPaymentId, razorpaySignature }) => {
-  const { data } = await api.post('/payments/razorpay/verify', {
-    razorpayOrderId,
-    razorpayPaymentId,
-    razorpaySignature,
-  });
-  return data.data;
 };

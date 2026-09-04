@@ -2,8 +2,8 @@
  * OrderConfirmationScreen
  * ─────────────────────────────────────────────────────────────
  * Cafe order success result. Restyled to the "Holographic Noir" success
- * aesthetic (animated SVG tick + glass cards) to match PaymentSuccessScreen,
- * while keeping the cafe-specific delivery PIN + Track Order flow.
+ * aesthetic (animated SVG tick + glass cards), while keeping the cafe-specific
+ * delivery PIN + Track Order flow.
  *
  * Route params: { order: { orderId|id, deliveryPin, totalAmount, items, orderSource } }
  * Navigation behaviour is unchanged (close/Back → MainTabs, Track → OrderTracking).

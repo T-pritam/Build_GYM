@@ -144,7 +144,7 @@ export default function ActivityDetailScreen({ navigation, route }) {
     if (!selectedSlot || booking) return;
 
     if (balance < cost) {
-      handleInsufficientCoins({ required: cost, balance, navigation });
+      handleInsufficientCoins({ required: cost, balance });
       return;
     }
 

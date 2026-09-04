@@ -41,9 +41,6 @@ import MembershipScreen from '../screens/profile/MembershipScreen';
 import MembershipPlansScreen from '../screens/profile/MembershipPlansScreen';
 import PauseSubscriptionScreen from '../screens/profile/PauseSubscriptionScreen';
 import BuildCoinTransactionsScreen from '../screens/profile/BuildCoinTransactionsScreen';
-import AddBuildCoinsScreen from '../screens/profile/AddBuildCoinsScreen';
-import PaymentSuccessScreen from '../screens/profile/PaymentSuccessScreen';
-import PaymentFailedScreen from '../screens/profile/PaymentFailedScreen';
 import TransactionDetailScreen from '../screens/profile/TransactionDetailScreen';
 import ActivityDashboardScreen from '../screens/profile/ActivityDashboardScreen';
 import ProgressTrackerScreen from '../screens/profile/ProgressTrackerScreen';
@@ -279,21 +276,10 @@ export default function AppNavigator() {
           options={{ animation: 'slide_from_bottom' }}
         />
         <Stack.Screen name="BuildCoinTransactions" component={BuildCoinTransactionsScreen} />
-        <Stack.Screen
-          name="AddBuildCoins"
-          component={AddBuildCoinsScreen}
-          options={{ animation: 'slide_from_bottom' }}
-        />
-        <Stack.Screen
-          name="PaymentSuccess"
-          component={PaymentSuccessScreen}
-          options={{ animation: 'fade', gestureEnabled: false }}
-        />
-        <Stack.Screen
-          name="PaymentFailed"
-          component={PaymentFailedScreen}
-          options={{ animation: 'fade', gestureEnabled: false }}
-        />
+        {/* No AddBuildCoins / PaymentSuccess / PaymentFailed routes: coins are a
+            digital good, so App Store guideline 3.1.1 forbids selling them for
+            real money outside Apple's IAP. Members top up at reception or on the
+            web. Do not re-add these screens or any link to the web top-up page. */}
         <Stack.Screen
           name="TransactionDetail"
           component={TransactionDetailScreen}

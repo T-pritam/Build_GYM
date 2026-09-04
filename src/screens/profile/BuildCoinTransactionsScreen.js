@@ -90,22 +90,6 @@ export default function BuildCoinTransactionsScreen({ navigation }) {
               <Ionicons name="ellipse" size={22} color={GOLD} style={{ marginLeft: 8 }} />
             </View>
           )}
-
-          <TouchableOpacity
-            activeOpacity={0.9}
-            onPress={() => navigation.navigate('AddBuildCoins')}
-            style={styles.addBtnWrap}
-          >
-            <LinearGradient
-              colors={[AMBER, GOLD]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.addBtn}
-            >
-              <Ionicons name="add" size={20} color="#1A1206" />
-              <Text style={styles.addBtnText}>ADD COINS</Text>
-            </LinearGradient>
-          </TouchableOpacity>
         </View>
 
         {/* Low balance banner */}
@@ -113,7 +97,7 @@ export default function BuildCoinTransactionsScreen({ navigation }) {
           <View style={styles.lowBanner}>
             <Ionicons name="warning-outline" size={20} color={AMBER} />
             <Text style={styles.lowBannerText}>
-              Low Balance. Top up to continue booking sessions without interruption.
+              Low balance. You may not be able to book your next session.
             </Text>
           </View>
         )}
@@ -221,14 +205,10 @@ const styles = StyleSheet.create({
   // Balance
   balanceSection: { alignItems: 'center', paddingVertical: 24 },
   balanceLabel: { fontFamily: FONTS.label, fontSize: 11, color: COLORS.textMuted, letterSpacing: 2, marginBottom: 12 },
-  balanceRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
+  // marginBottom was spacing the balance off the ADD COINS button that used to
+  // sit under it; without the button the balance is the last thing in the block.
+  balanceRow: { flexDirection: 'row', alignItems: 'center' },
   balanceNum: { fontFamily: FONTS.headline, fontSize: 44, color: COLORS.white },
-  addBtnWrap: { borderRadius: 999, overflow: 'hidden' },
-  addBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    paddingVertical: 11, paddingHorizontal: 28,
-  },
-  addBtnText: { fontFamily: FONTS.bodyBold, fontSize: 13, color: '#1A1206', letterSpacing: 1 },
 
   sectionLabel: { fontFamily: FONTS.label, fontSize: 10, color: COLORS.primaryLight, letterSpacing: 2.5, marginBottom: 12, marginTop: 8 },
 
